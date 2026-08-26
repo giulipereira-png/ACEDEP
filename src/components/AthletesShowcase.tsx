@@ -91,20 +91,15 @@ export const AthletesShowcase: React.FC = () => {
           </div>
         </div>
 
-        {/* Athletes & Championship Highlights Banner */}
-        <div className="rounded-2xl bg-gradient-to-r from-[#0a192f] via-[#0f2744] to-[#0a192f] border border-[#d4af37]/40 p-8 sm:p-12 mb-20 shadow-2xl relative overflow-hidden">
+        {/* Athletes & Championship Highlights Banner com a Foto Real */}
+        <div className="rounded-2xl bg-gradient-to-r from-[#0a192f] via-[#0f2744] to-[#0a192f] border border-[#d4af37]/40 p-6 sm:p-10 mb-20 shadow-2xl relative overflow-hidden">
           
-          {/* Subtle gold emblem backdrop */}
-          <div className="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
-            <Logo variant="emblem" className="h-96" />
-          </div>
-
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             
-            <div className="lg:col-span-8 space-y-4">
+            <div className="lg:col-span-7 space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-[#d4af37]/20 border border-[#d4af37]/40 text-[#f3e5ab] text-xs font-bold uppercase tracking-wider">
                 <Trophy className="w-4 h-4 text-[#d4af37]" />
-                Conquistas no Paradesporto Aquático
+                Equipe ACEDEP • Garra, foco e determinação nas piscinas
               </div>
               <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 Mais de 30 anos revelando talentos e disputando o topo
@@ -114,14 +109,14 @@ export const AthletesShowcase: React.FC = () => {
               </p>
             </div>
 
-            <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col gap-4">
-              <div className="p-4 rounded-xl bg-black/40 border border-white/10 text-center">
-                <div className="text-3xl font-extrabold text-[#d4af37] font-serif">~35</div>
-                <div className="text-xs text-slate-300 mt-0.5">Atletas na Equipe Ativa</div>
-              </div>
-              <div className="p-4 rounded-xl bg-black/40 border border-white/10 text-center">
-                <div className="text-3xl font-extrabold text-white font-serif">Piscina Olímpica</div>
-                <div className="text-xs text-slate-300 mt-0.5">Estrutura de Alto Nível</div>
+            {/* Inserção da sua foto fixa aqui */}
+            <div className="lg:col-span-5">
+              <div className="rounded-xl overflow-hidden border-2 border-[#d4af37]/50 shadow-2xl bg-black/50">
+                <img 
+                  src="/assets/.aistudio/IMG_4378.jpeg" 
+                  alt="Equipe ACEDEP" 
+                  className="w-full h-64 sm:h-72 object-cover hover:scale-105 transition-transform duration-500"
+                />
               </div>
             </div>
 
