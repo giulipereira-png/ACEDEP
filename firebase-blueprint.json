@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "SitePhoto": {
+      "title": "SitePhoto",
+      "description": "Fotos oficiais gerenciadas do site da ACEDEP",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID da foto (ex: about_hero, modality_iniciacao, modality_alto_rendimento, team_banner)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Título identificador da imagem"
+        },
+        "category": {
+          "type": "string",
+          "description": "Categoria ou seção onde a foto é exibida"
+        },
+        "url": {
+          "type": "string",
+          "description": "URL ou Data URL base64 otimizado da foto"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Data e hora ISO da última atualização"
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "Identificador de quem atualizou"
+        }
+      },
+      "required": ["id", "url"]
+    },
+    "AdminSettings": {
+      "title": "AdminSettings",
+      "description": "Configurações gerais e credenciais administrativas da ACEDEP",
+      "type": "object",
+      "properties": {
+        "adminPin": {
+          "type": "string",
+          "description": "PIN de acesso administrativo"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/site_photos/{photoId}": {
+      "schema": "SitePhoto",
+      "description": "Armazena as fotos oficiais configuradas para cada seção do site da ACEDEP"
+    },
+    "/settings/{settingId}": {
+      "schema": "AdminSettings",
+      "description": "Configurações do painel administrativo"
+    }
+  }
+}

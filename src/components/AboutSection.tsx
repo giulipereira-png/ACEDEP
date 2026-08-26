@@ -1,141 +1,19 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
   Target, 
   Eye, 
   Heart, 
   Award, 
   CheckCircle2, 
-  Waves,
-  Upload,
-  Camera,
-  RotateCcw,
-  Check,
-  Link as LinkIcon
+  Waves
 } from 'lucide-react';
 import { Logo } from './Logo';
+import { usePhotos } from '../context/PhotosContext';
 
 export const AboutSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'missao' | 'visao' | 'valores'>('missao');
-  
-  const fallbackPhoto = '/IMG_4378.jpeg';
-  
-  const [imageSrc, setImageSrc] = useState<string>(() => {
-    try {
-      return localStorage.getItem('acedep_about_photo') || fallbackPhoto;
-    } catch {
-      return fallbackPhoto;
-    }
-  });
-
-  const [isDragging, setIsDragging] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [showUrlInput, setShowUrlInput] = useState(false);
-  const [customUrl, setCustomUrl] = useState('');
-
-  const processAndSetImage = (file: File) => {
-    setIsUploading(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const rawDataUrl = event.target?.result as string;
-      if (!rawDataUrl) {
-        setIsUploading(false);
-        return;
-      }
-
-      const img = new Image();
-      img.onload = () => {
-        // Optimize size to max 1400px for instant rendering and safe storage
-        const maxDim = 1400;
-        let width = img.width;
-        let height = img.height;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const optimizedUrl = canvas.toDataURL('image/jpeg', 0.88);
-          setImageSrc(optimizedUrl);
-          try {
-            localStorage.setItem('acedep_about_photo', optimizedUrl);
-          } catch (err) {
-            console.warn('Storage quota', err);
-          }
-        } else {
-          setImageSrc(rawDataUrl);
-        }
-        setIsUploading(false);
-        setUploadSuccess(true);
-        setTimeout(() => setUploadSuccess(false), 3000);
-      };
-      img.onerror = () => {
-        setIsUploading(false);
-      };
-      img.src = rawDataUrl;
-    };
-    reader.onerror = () => {
-      setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      processAndSetImage(file);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      processAndSetImage(file);
-    }
-  };
-
-  const handleResetImage = () => {
-    setImageSrc(fallbackPhoto);
-    try {
-      localStorage.removeItem('acedep_about_photo');
-    } catch {}
-  };
-
-  const handleApplyUrl = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (customUrl.trim()) {
-      setImageSrc(customUrl.trim());
-      try {
-        localStorage.setItem('acedep_about_photo', customUrl.trim());
-      } catch {}
-      setShowUrlInput(false);
-      setCustomUrl('');
-    }
-  };
+  const { photos } = usePhotos();
+  const imageSrc = photos['about_team'] || '/IMG_4378.jpeg';
 
   const pillars = {
     missao: {
@@ -198,14 +76,7 @@ export const AboutSection: React.FC = () => {
             <div className="relative rounded-2xl overflow-hidden border border-[#1e3a5f] shadow-2xl bg-[#060e1c]">
               
               {/* Main Photo container */}
-              <div 
-                className={`relative h-[380px] sm:h-[440px] overflow-hidden group transition-all duration-300 ${
-                  isDragging ? 'ring-4 ring-[#d4af37] ring-offset-4 ring-offset-[#060e1c]' : ''
-                }`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
+              <div className="relative h-[380px] sm:h-[440px] overflow-hidden group">
                 <img
                   src={imageSrc}
                   alt="Equipe ACEDEP de Natação Paradesportiva"
@@ -230,23 +101,6 @@ export const AboutSection: React.FC = () => {
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                
-                {/* Dragging Overlay */}
-                {isDragging && (
-                  <div className="absolute inset-0 bg-[#060e1c]/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30 border-2 border-dashed border-[#d4af37]">
-                    <Upload className="w-12 h-12 text-[#d4af37] animate-bounce mb-3" />
-                    <p className="text-sm font-bold text-white">Solte a foto IMG_0609 aqui</p>
-                    <p className="text-xs text-slate-300 mt-1">A imagem será aplicada imediatamente</p>
-                  </div>
-                )}
-
-                {/* Uploading Status Overlay */}
-                {isUploading && (
-                  <div className="absolute inset-0 bg-[#060e1c]/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30">
-                    <div className="w-8 h-8 border-3 border-[#d4af37] border-t-transparent rounded-full animate-spin mb-3" />
-                    <p className="text-xs font-semibold text-white">Processando imagem...</p>
-                  </div>
-                )}
 
                 {/* Floating Historic Badge */}
                 <div className="absolute top-4 left-4 px-3.5 py-2 rounded-lg bg-[#060e1c]/90 border border-[#d4af37]/50 backdrop-blur-md flex items-center gap-2.5 shadow-lg pointer-events-none z-10">
@@ -256,82 +110,6 @@ export const AboutSection: React.FC = () => {
                     <div className="text-xs font-bold text-white">Natação Paradesportiva</div>
                   </div>
                 </div>
-
-                {/* Top Right Action Controls */}
-                <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5">
-                  <input
-                    type="file"
-                    onChange={handleFileUpload}
-                    accept="image/*"
-                    className="sr-only"
-                    id="upload-about-photo"
-                  />
-                  <label
-                    htmlFor="upload-about-photo"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#060e1c]/85 hover:bg-[#d4af37] text-slate-100 hover:text-[#060e1c] border border-white/20 hover:border-[#d4af37] backdrop-blur-md text-xs font-semibold transition-all duration-200 shadow-lg cursor-pointer select-none active:scale-95"
-                    title="Escolher imagem do seu dispositivo"
-                  >
-                    {uploadSuccess ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Foto Atualizada!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Camera className="w-3.5 h-3.5" />
-                        <span>Alterar Foto</span>
-                      </>
-                    )}
-                  </label>
-
-                  <button
-                    onClick={() => setShowUrlInput(!showUrlInput)}
-                    className="p-1.5 rounded-lg bg-[#060e1c]/85 hover:bg-white/20 text-slate-300 hover:text-white border border-white/20 backdrop-blur-md transition-colors cursor-pointer"
-                    title="Inserir link da imagem"
-                  >
-                    <LinkIcon className="w-3.5 h-3.5" />
-                  </button>
-
-                  {imageSrc !== fallbackPhoto && (
-                    <button
-                      onClick={handleResetImage}
-                      className="p-1.5 rounded-lg bg-[#060e1c]/85 hover:bg-red-500/80 text-slate-300 hover:text-white border border-white/20 backdrop-blur-md transition-colors cursor-pointer"
-                      title="Restaurar foto padrão"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Optional URL Input Popover */}
-                {showUrlInput && (
-                  <form 
-                    onSubmit={handleApplyUrl}
-                    className="absolute top-16 right-4 left-4 z-30 p-3 rounded-xl bg-[#060e1c]/95 border border-[#d4af37] backdrop-blur-md shadow-2xl flex gap-2 animate-fadeIn"
-                  >
-                    <input
-                      type="url"
-                      value={customUrl}
-                      onChange={(e) => setCustomUrl(e.target.value)}
-                      placeholder="Cole o link da imagem (ex: https://...)"
-                      className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-black/50 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:border-[#d4af37]"
-                      autoFocus
-                    />
-                    <button
-                      type="submit"
-                      className="px-3 py-1.5 rounded-lg bg-[#d4af37] text-[#060e1c] text-xs font-bold hover:bg-[#b8952b] transition-colors cursor-pointer"
-                    >
-                      Aplicar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowUrlInput(false)}
-                      className="px-2 py-1.5 rounded-lg bg-white/10 text-slate-300 text-xs hover:bg-white/20 transition-colors cursor-pointer"
-                    >
-                      Cancelar
-                    </button>
-                  </form>
-                )}
 
                 {/* Bottom Watermark Caption */}
                 <div className="absolute bottom-3 left-3 right-3 px-3 py-1.5 rounded-lg bg-black/40 hover:bg-black/75 border border-white/10 backdrop-blur-[3px] transition-all duration-300 z-10">

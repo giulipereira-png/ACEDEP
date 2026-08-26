@@ -6,9 +6,11 @@ import {
   Instagram, 
   Facebook, 
   ShieldCheck,
-  ChevronUp
+  ChevronUp,
+  Lock
 } from 'lucide-react';
 import { Logo } from './Logo';
+import { usePhotos } from '../context/PhotosContext';
 
 interface FooterProps {
   onOpenSupportModal: () => void;
@@ -19,6 +21,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
 }) => {
+  const { openAdminModal } = usePhotos();
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -184,7 +187,16 @@ export const Footer: React.FC<FooterProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={openAdminModal}
+              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-[#d4af37]/20 text-slate-400 hover:text-[#f3e5ab] border border-white/10 hover:border-[#d4af37]/40 transition-colors flex items-center gap-1.5 text-[11px] font-medium cursor-pointer"
+              title="Área restrita de gestão de fotos e conteúdo"
+            >
+              <Lock className="w-3 h-3 text-[#d4af37]" />
+              <span>Painel de Fotos</span>
+            </button>
+
             <button
               onClick={scrollToTop}
               className="p-2 rounded bg-white/5 hover:bg-[#d4af37] hover:text-[#060e1c] text-slate-300 transition-colors flex items-center gap-1.5 text-[11px] font-semibold cursor-pointer"

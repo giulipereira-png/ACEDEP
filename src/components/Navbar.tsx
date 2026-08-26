@@ -8,8 +8,10 @@ import {
   Phone, 
   Mail, 
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
+import { usePhotos } from '../context/PhotosContext';
 
 interface NavbarProps {
   onOpenSupportModal: () => void;
@@ -20,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
 }) => {
+  const { openAdminModal, isAdminAuthenticated } = usePhotos();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
@@ -88,13 +91,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Mail className="w-3.5 h-3.5 text-[#d4af37]" />
               giuli.pereira@gmail.com
             </a>
-            <a
+            <a 
               href="tel:11998809708"
               className="flex items-center gap-1 text-slate-300 hover:text-[#d4af37] transition-colors cursor-pointer"
             >
               <Phone className="w-3.5 h-3.5 text-[#d4af37]" />
               (11) 99880-9708
             </a>
+
+            <button
+              onClick={openAdminModal}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer ${
+                isAdminAuthenticated 
+                  ? 'bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40' 
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+              }`}
+              title="Área Administrativa (Gestão de Fotos)"
+            >
+              <Lock className="w-3 h-3 text-[#d4af37]" />
+              <span className="hidden sm:inline">Admin</span>
+            </button>
           </div>
         </div>
       </div>

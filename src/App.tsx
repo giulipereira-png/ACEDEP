@@ -15,6 +15,8 @@ import { Footer } from './components/Footer';
 import { SupportModal } from './components/SupportModal';
 import { ContactModal } from './components/ContactModal';
 import { AthleteEnrollmentModal } from './components/AthleteEnrollmentModal';
+import { PhotosProvider } from './context/PhotosContext';
+import { AdminPhotoManagerModal } from './components/AdminPhotoManagerModal';
 
 export default function App() {
   const [supportModalOpen, setSupportModalOpen] = useState(false);
@@ -29,62 +31,67 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a192f] text-slate-100 selection:bg-[#d4af37] selection:text-[#060e1c]">
-      {/* Header & Navbar */}
-      <Navbar
-        onOpenSupportModal={() => setSupportModalOpen(true)}
-        onOpenContactModal={() => setContactModalOpen(true)}
-      />
-
-      {/* Main Content Area */}
-      <main>
-        {/* 1. Hero Section */}
-        <Hero
+    <PhotosProvider>
+      <div className="min-h-screen bg-[#0a192f] text-slate-100 selection:bg-[#d4af37] selection:text-[#060e1c]">
+        {/* Header & Navbar */}
+        <Navbar
           onOpenSupportModal={() => setSupportModalOpen(true)}
           onOpenContactModal={() => setContactModalOpen(true)}
-          onOpenEnrollModal={() => setEnrollModalOpen(true)}
         />
 
-        {/* 2. About Section (Nossa História / Quem Somos) */}
-        <AboutSection />
+        {/* Main Content Area */}
+        <main>
+          {/* 1. Hero Section */}
+          <Hero
+            onOpenSupportModal={() => setSupportModalOpen(true)}
+            onOpenContactModal={() => setContactModalOpen(true)}
+            onOpenEnrollModal={() => setEnrollModalOpen(true)}
+          />
 
-        {/* 3. Modalities & Training Programs */}
-        <ModalitiesSection onOpenEnrollModal={() => setEnrollModalOpen(true)} />
+          {/* 2. About Section (Nossa História / Quem Somos) */}
+          <AboutSection />
 
-        {/* 4. Athletes & Technical Staff (Nossa Equipe) */}
-        <AthletesShowcase />
+          {/* 3. Modalities & Training Programs */}
+          <ModalitiesSection onOpenEnrollModal={() => setEnrollModalOpen(true)} />
 
-        {/* 5. Impact & Structure (Excelência & Conquistas) */}
-        <StatsImpact onOpenNucleos={() => scrollToSection('modalidades')} />
+          {/* 4. Athletes & Technical Staff (Nossa Equipe) */}
+          <AthletesShowcase />
 
-        {/* 6. Call To Action (Novos Atletas / Apoiadores) */}
-        <CtaSection
+          {/* 5. Impact & Structure (Excelência & Conquistas) */}
+          <StatsImpact onOpenNucleos={() => scrollToSection('modalidades')} />
+
+          {/* 6. Call To Action (Novos Atletas / Apoiadores) */}
+          <CtaSection
+            onOpenSupportModal={() => setSupportModalOpen(true)}
+            onOpenEnrollModal={() => setEnrollModalOpen(true)}
+          />
+        </main>
+
+        {/* 8. Footer (Rodapé) */}
+        <Footer
           onOpenSupportModal={() => setSupportModalOpen(true)}
-          onOpenEnrollModal={() => setEnrollModalOpen(true)}
+          onOpenContactModal={() => setContactModalOpen(true)}
         />
-      </main>
 
-      {/* 8. Footer (Rodapé) */}
-      <Footer
-        onOpenSupportModal={() => setSupportModalOpen(true)}
-        onOpenContactModal={() => setContactModalOpen(true)}
-      />
+        {/* Interactive Modals */}
+        <SupportModal
+          isOpen={supportModalOpen}
+          onClose={() => setSupportModalOpen(false)}
+        />
 
-      {/* Interactive Modals */}
-      <SupportModal
-        isOpen={supportModalOpen}
-        onClose={() => setSupportModalOpen(false)}
-      />
+        <ContactModal
+          isOpen={contactModalOpen}
+          onClose={() => setContactModalOpen(false)}
+        />
 
-      <ContactModal
-        isOpen={contactModalOpen}
-        onClose={() => setContactModalOpen(false)}
-      />
+        <AthleteEnrollmentModal
+          isOpen={enrollModalOpen}
+          onClose={() => setEnrollModalOpen(false)}
+        />
 
-      <AthleteEnrollmentModal
-        isOpen={enrollModalOpen}
-        onClose={() => setEnrollModalOpen(false)}
-      />
-    </div>
+        {/* Admin Photo Manager Modal */}
+        <AdminPhotoManagerModal />
+      </div>
+    </PhotosProvider>
   );
 }

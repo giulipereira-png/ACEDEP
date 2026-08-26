@@ -1,150 +1,39 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Trophy, 
   Waves, 
   CheckCircle2, 
   CalendarCheck,
   Info,
-  Sparkles,
-  Camera,
-  Upload,
-  RotateCcw,
-  Check,
-  Link as LinkIcon
+  Sparkles
 } from 'lucide-react';
 import { MODALITIES_DATA } from '../data/mockData';
+import { usePhotos } from '../context/PhotosContext';
 
 interface ModalitiesSectionProps {
   onOpenEnrollModal: () => void;
 }
 
 export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnrollModal }) => {
+  const { photos } = usePhotos();
   const defaultFallbackIniciacao = '/IMG_2382.jpeg';
   const defaultFallbackAltoRendimento = '/IMG_5625.jpeg';
 
   const candidatePaths: Record<string, string[]> = {
     'natacao-iniciacao': [
+      photos['modality_iniciacao'] || '/IMG_2382.jpeg',
       '/IMG_2382.jpeg',
       '/IMG_2382.jpg',
       '/iniciacao_esportiva.jpeg',
-      '/iniciacao_esportiva.jpg',
-      '/0da59e05-4b65-4a97-9061-2262ac3b9b52.jpeg',
-      '/olimpiadas_especiais.jpeg',
-      '/olimpiadas_especiais.jpg',
-      '/iniciacao.jpg',
-      '/iniciacao.jpeg',
+      'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80',
     ],
     'natacao-alto-rendimento': [
+      photos['modality_alto_rendimento'] || '/IMG_5625.jpeg',
       '/IMG_5625.jpeg',
       '/IMG_5625.jpg',
       '/alto_rendimento.jpeg',
-      '/alto_rendimento.jpg',
-      '/classicu 2026-03-29 190631741E59229A5C.jpeg',
-      '/campeonato_brasileiro.jpeg',
-      '/campeonato_brasileiro.jpg',
-      '/IMG_0795.jpg',
+      'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80',
     ],
-  };
-
-  const [images, setImages] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
-    MODALITIES_DATA.forEach((m) => {
-      try {
-        const saved = localStorage.getItem(`acedep_modality_${m.id}`);
-        if (saved) {
-          initial[m.id] = saved;
-        } else {
-          initial[m.id] = m.image;
-        }
-      } catch {
-        initial[m.id] = m.image;
-      }
-    });
-    return initial;
-  });
-
-  const [draggingCard, setDraggingCard] = useState<string | null>(null);
-  const [successCard, setSuccessCard] = useState<string | null>(null);
-  const [urlCard, setUrlCard] = useState<string | null>(null);
-  const [inputUrl, setInputUrl] = useState('');
-
-  const processAndSetImage = (modalityId: string, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const rawDataUrl = event.target?.result as string;
-      if (!rawDataUrl) return;
-
-      const img = new Image();
-      img.onload = () => {
-        const maxDim = 1200;
-        let width = img.width;
-        let height = img.height;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const optimizedUrl = canvas.toDataURL('image/jpeg', 0.88);
-          setImages((prev) => ({ ...prev, [modalityId]: optimizedUrl }));
-          try {
-            localStorage.setItem(`acedep_modality_${modalityId}`, optimizedUrl);
-          } catch {}
-        } else {
-          setImages((prev) => ({ ...prev, [modalityId]: rawDataUrl }));
-        }
-        setSuccessCard(modalityId);
-        setTimeout(() => setSuccessCard(null), 3000);
-      };
-      img.src = rawDataUrl;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleFileUpload = (modalityId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      processAndSetImage(modalityId, file);
-    }
-  };
-
-  const handleDrop = (modalityId: string, e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDraggingCard(null);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      processAndSetImage(modalityId, file);
-    }
-  };
-
-  const handleReset = (modalityId: string) => {
-    const original = MODALITIES_DATA.find((m) => m.id === modalityId)?.image || defaultFallbackAltoRendimento;
-    setImages((prev) => ({ ...prev, [modalityId]: original }));
-    try {
-      localStorage.removeItem(`acedep_modality_${modalityId}`);
-    } catch {}
-  };
-
-  const handleApplyUrl = (modalityId: string, e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputUrl.trim()) {
-      setImages((prev) => ({ ...prev, [modalityId]: inputUrl.trim() }));
-      try {
-        localStorage.setItem(`acedep_modality_${modalityId}`, inputUrl.trim());
-      } catch {}
-      setUrlCard(null);
-      setInputUrl('');
-    }
   };
 
   return (
@@ -191,10 +80,8 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
         {/* 2 Modality Cards (Iniciação Esportiva & Alto Rendimento) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
           {MODALITIES_DATA.map((modality) => {
-            const currentImg = images[modality.id] || modality.image;
-            const isDraggingThis = draggingCard === modality.id;
-            const isSuccess = successCard === modality.id;
-            const isUrlOpen = urlCard === modality.id;
+            const photoKey = modality.id === 'natacao-iniciacao' ? 'modality_iniciacao' : 'modality_alto_rendimento';
+            const currentImg = photos[photoKey] || modality.image;
 
             return (
               <div
@@ -203,17 +90,7 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
               >
                 <div>
                   {/* Modality Image banner */}
-                  <div 
-                    className={`relative h-64 overflow-hidden ${
-                      isDraggingThis ? 'ring-4 ring-[#d4af37]' : ''
-                    }`}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDraggingCard(modality.id);
-                    }}
-                    onDragLeave={() => setDraggingCard(null)}
-                    onDrop={(e) => handleDrop(modality.id, e)}
-                  >
+                  <div className="relative h-64 overflow-hidden">
                     <img
                       src={currentImg}
                       alt={modality.title}
@@ -242,14 +119,6 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
                       referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0f2744] via-black/30 to-transparent pointer-events-none" />
-                    
-                    {/* Drag overlay */}
-                    {isDraggingThis && (
-                      <div className="absolute inset-0 bg-[#060e1c]/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center z-30 border-2 border-dashed border-[#d4af37]">
-                        <Upload className="w-10 h-10 text-[#d4af37] animate-bounce mb-2" />
-                        <p className="text-xs font-bold text-white">Solte a imagem aqui para atualizar</p>
-                      </div>
-                    )}
 
                     {/* Category Pill */}
                     <div className="absolute top-3 left-3 px-3 py-1 rounded bg-[#060e1c]/85 border border-[#d4af37]/50 backdrop-blur-md z-10 pointer-events-none">
@@ -257,82 +126,6 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
                         {modality.category}
                       </span>
                     </div>
-
-                    {/* Change photo controls */}
-                    <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
-                      <input
-                        type="file"
-                        onChange={(e) => handleFileUpload(modality.id, e)}
-                        accept="image/*"
-                        className="sr-only"
-                        id={`upload-modal-${modality.id}`}
-                      />
-                      <label
-                        htmlFor={`upload-modal-${modality.id}`}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#060e1c]/85 hover:bg-[#d4af37] text-slate-100 hover:text-[#060e1c] border border-white/20 hover:border-[#d4af37] backdrop-blur-md text-[11px] font-semibold transition-all shadow cursor-pointer select-none active:scale-95"
-                        title="Alterar foto da modalidade"
-                      >
-                        {isSuccess ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-400" />
-                            <span>Atualizado!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Camera className="w-3 h-3" />
-                            <span>Foto</span>
-                          </>
-                        )}
-                      </label>
-
-                      <button
-                        onClick={() => setUrlCard(isUrlOpen ? null : modality.id)}
-                        className="p-1 rounded-md bg-[#060e1c]/85 hover:bg-white/20 text-slate-300 hover:text-white border border-white/20 backdrop-blur-md transition-colors cursor-pointer"
-                        title="Inserir link da foto"
-                      >
-                        <LinkIcon className="w-3 h-3" />
-                      </button>
-
-                      {currentImg !== modality.image && (
-                        <button
-                          onClick={() => handleReset(modality.id)}
-                          className="p-1 rounded-md bg-[#060e1c]/85 hover:bg-red-500/80 text-slate-300 hover:text-white border border-white/20 backdrop-blur-md transition-colors cursor-pointer"
-                          title="Restaurar foto padrão"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* URL Input Popover */}
-                    {isUrlOpen && (
-                      <form
-                        onSubmit={(e) => handleApplyUrl(modality.id, e)}
-                        className="absolute top-12 right-3 left-3 z-30 p-2 rounded-lg bg-[#060e1c]/95 border border-[#d4af37] shadow-xl flex gap-1.5"
-                      >
-                        <input
-                          type="url"
-                          value={inputUrl}
-                          onChange={(e) => setInputUrl(e.target.value)}
-                          placeholder="Link da imagem..."
-                          className="flex-1 px-2.5 py-1 text-xs rounded bg-black/50 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:border-[#d4af37]"
-                          autoFocus
-                        />
-                        <button
-                          type="submit"
-                          className="px-2.5 py-1 rounded bg-[#d4af37] text-[#060e1c] text-xs font-bold hover:bg-[#b8952b] transition-colors cursor-pointer"
-                        >
-                          OK
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setUrlCard(null)}
-                          className="px-2 py-1 rounded bg-white/10 text-slate-300 text-xs hover:bg-white/20 transition-colors cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </form>
-                    )}
 
                     <div className="absolute bottom-3 left-4 right-4 z-10 pointer-events-none">
                       <div className="flex items-center gap-2 text-white font-bold text-lg drop-shadow">
