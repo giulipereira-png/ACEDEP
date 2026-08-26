@@ -27,11 +27,11 @@ export const Hero: React.FC<HeroProps> = ({
       id="home" 
       className="relative min-h-[92vh] flex items-center justify-center pt-28 pb-16 overflow-hidden bg-[#0a192f]"
     >
-      {/* Background Image with Darkened Cinematic Overlays */}
+      {/* Background Image with Darkened Cinematic Overlays using your official photo */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=2000&q=85"
-          alt="Atleta em nado de alta performance nas piscinas do CPB"
+          src="/assets/.aistudio/IMG_4378.jpeg"
+          alt="Atletas da ACEDEP nas piscinas"
           className="w-full h-full object-cover object-center scale-105 transform motion-safe:animate-pulse [animation-duration:12s]"
           loading="eager"
         />
