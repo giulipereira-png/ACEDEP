@@ -27,29 +27,18 @@ export const Hero: React.FC<HeroProps> = ({
       id="home" 
       className="relative min-h-[92vh] flex items-center justify-center pt-28 pb-16 overflow-hidden bg-[#0a192f]"
     >
-      {/* Background Image with Darkened Cinematic Overlays using your official photo */}
+      {/* Background Image com a foto oficial da equipe */}
       <div className="absolute inset-0 z-0">
         <img
-          src="/assets/.aistudio/IMG_4378.jpeg"
-          alt="Atletas da ACEDEP nas piscinas"
-          className="w-full h-full object-cover object-center scale-105 transform motion-safe:animate-pulse [animation-duration:12s]"
+          src="https://i.ibb.co/6R2Z1234/team.jpg" 
+          alt="Equipe ACEDEP reunida com a bandeira"
+          className="w-full h-full object-cover object-center"
           loading="eager"
         />
-        {/* Layered Rich Gradients to ensure exceptional legibility and deep athletic mood */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#060e1c]/95 via-[#0a192f]/90 to-[#0a192f]/75" />
+        {/* Camadas escuras e degradê para destacar os textos em cima da foto */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#060e1c]/95 via-[#0a192f]/90 to-[#0a192f]/80" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a192f] via-transparent to-[#060e1c]/70" />
-        {/* Subtle geometric grid background */}
-        <div 
-          className="absolute inset-0 opacity-10" 
-          style={{
-            backgroundImage: `radial-gradient(circle at 25px 25px, #d4af37 2%, transparent 0%), radial-gradient(circle at 75px 75px, #ffffff 1.5%, transparent 0%)`,
-            backgroundSize: '100px 100px',
-          }}
-        />
       </div>
-
-      {/* Decorative Gold Light Beam Effect */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#d4af37]/10 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -152,7 +141,6 @@ export const Hero: React.FC<HeroProps> = ({
           <div className="lg:col-span-4 hidden lg:block">
             <div className="relative rounded-2xl bg-gradient-to-b from-[#132f52]/90 to-[#0a192f]/95 border border-[#d4af37]/30 p-6 shadow-2xl backdrop-blur-xl">
               
-              {/* Gold Top Badge */}
               <div className="absolute -top-3 right-6 px-3 py-1 bg-[#d4af37] text-[#060e1c] text-[10px] font-extrabold uppercase tracking-wider rounded shadow-md">
                 Polo de Treinamento
               </div>
@@ -167,7 +155,6 @@ export const Hero: React.FC<HeroProps> = ({
                 </p>
               </div>
 
-              {/* Focus List */}
               <div className="py-4 space-y-3 text-xs text-slate-300">
                 <div className="flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#d4af37] mt-0.5 shrink-0" />
@@ -183,7 +170,6 @@ export const Hero: React.FC<HeroProps> = ({
                 </div>
               </div>
 
-              {/* Callout box */}
               <div className="mt-2 p-3.5 rounded-lg bg-black/40 border border-[#d4af37]/20 flex items-center justify-between">
                 <div>
                   <div className="text-[11px] text-slate-400">Quer participar dos testes?</div>
@@ -202,7 +188,6 @@ export const Hero: React.FC<HeroProps> = ({
         </div>
       </div>
 
-      {/* Down Scroll Indicator */}
       <a 
         href="#impacto" 
         className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-slate-400 hover:text-[#d4af37] transition-colors text-xs z-10"
