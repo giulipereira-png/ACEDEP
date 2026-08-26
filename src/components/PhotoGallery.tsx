@@ -67,16 +67,18 @@ export const PhotoGallery: React.FC = () => {
             </p>
           </div>
 
-          {/* Admin shortcut button */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={openAdminModal}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0f2744] hover:bg-[#132f52] border border-[#d4af37]/40 text-[#f3e5ab] text-xs font-bold transition-all shadow-md cursor-pointer hover:border-[#d4af37]"
-            >
-              <Lock className="w-3.5 h-3.5 text-[#d4af37]" />
-              <span>{isAdminAuthenticated ? 'Gerenciar Fotos' : 'Adicionar Fotos (Admin)'}</span>
-            </button>
-          </div>
+          {/* Admin button ONLY visible if already logged into admin session */}
+          {isAdminAuthenticated && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={openAdminModal}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#0f2744] hover:bg-[#132f52] border border-[#d4af37]/50 text-[#f3e5ab] text-xs font-bold transition-all shadow-md cursor-pointer hover:border-[#d4af37]"
+              >
+                <Lock className="w-3.5 h-3.5 text-[#d4af37]" />
+                <span>Gerenciar Fotos</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Filter Categories */}

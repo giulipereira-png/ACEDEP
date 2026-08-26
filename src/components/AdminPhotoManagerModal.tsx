@@ -36,10 +36,11 @@ export const AdminPhotoManagerModal: React.FC = () => {
     resetPhotoToDefault,
     addGalleryPhoto,
     deleteGalleryPhoto,
+    updateAdminPin,
     isFirebaseConnected
   } = usePhotos();
 
-  const [activeTab, setActiveTab] = useState<'site' | 'gallery'>('site');
+  const [activeTab, setActiveTab] = useState<'site' | 'gallery' | 'security'>('site');
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string>('about_team');
@@ -60,6 +61,13 @@ export const AdminPhotoManagerModal: React.FC = () => {
   const [confirmDeleteGalleryId, setConfirmDeleteGalleryId] = useState<string | null>(null);
   const [isDeletingGalleryId, setIsDeletingGalleryId] = useState<string | null>(null);
   const [confirmResetId, setConfirmResetId] = useState<string | null>(null);
+
+  // Security & Custom PIN state
+  const [newPinInput, setNewPinInput] = useState('');
+  const [confirmPinInput, setConfirmPinInput] = useState('');
+  const [isSavingPin, setIsSavingPin] = useState(false);
+  const [pinSuccess, setPinSuccess] = useState('');
+  const [pinFormError, setPinFormError] = useState('');
 
   if (!adminModalOpen) return null;
 
@@ -185,6 +193,36 @@ export const AdminPhotoManagerModal: React.FC = () => {
     }
   };
 
+  const handleUpdatePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPinFormError('');
+    setPinSuccess('');
+
+    const cleanNew = newPinInput.trim();
+    if (cleanNew.length < 4) {
+      setPinFormError('A nova senha deve ter no mínimo 4 caracteres.');
+      return;
+    }
+
+    if (cleanNew !== confirmPinInput.trim()) {
+      setPinFormError('A confirmação de senha não confere com a nova senha digitada.');
+      return;
+    }
+
+    setIsSavingPin(true);
+    const success = await updateAdminPin(cleanNew);
+    setIsSavingPin(false);
+
+    if (success) {
+      setPinSuccess('Sua nova senha de administrador foi gravada com sucesso no Firebase!');
+      setNewPinInput('');
+      setConfirmPinInput('');
+      setTimeout(() => setPinSuccess(''), 6000);
+    } else {
+      setPinFormError('Não foi possível gravar a nova senha no banco de dados. Tente novamente.');
+    }
+  };
+
   const executeDeleteGalleryPhoto = async (photo: GalleryPhotoItem) => {
     setIsDeletingGalleryId(photo.id);
     const success = await deleteGalleryPhoto(photo.id);
@@ -268,7 +306,7 @@ export const AdminPhotoManagerModal: React.FC = () => {
                         setPinInput(e.target.value);
                         setPinError(false);
                       }}
-                      placeholder="Digite a senha (ex: acedep1990)"
+                      placeholder="Digite a senha de administrador"
                       className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-[#1e3a5f] text-white text-sm placeholder-slate-500 focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]"
                       autoFocus
                     />
@@ -276,7 +314,7 @@ export const AdminPhotoManagerModal: React.FC = () => {
                   {pinError && (
                     <p className="text-xs text-red-400 mt-2 flex items-center justify-center gap-1">
                       <AlertCircle className="w-3.5 h-3.5" />
-                      Senha incorreta. Tente novamente ou use a senha padrão.
+                      Senha incorreta. Verifique e tente novamente.
                     </p>
                   )}
                 </div>
@@ -287,10 +325,6 @@ export const AdminPhotoManagerModal: React.FC = () => {
                 >
                   Entrar no Painel de Fotos
                 </button>
-
-                <p className="text-[11px] text-slate-500 pt-2">
-                  🔒 Senha padrão inicial: <code className="text-[#f3e5ab] font-mono px-1 py-0.5 rounded bg-white/5">acedep1990</code>
-                </p>
               </form>
             </div>
           ) : (
@@ -314,22 +348,22 @@ export const AdminPhotoManagerModal: React.FC = () => {
               </div>
 
               {/* Top Navigation Mode Tabs */}
-              <div className="flex gap-2 p-1 bg-black/40 rounded-xl border border-[#1e3a5f]">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2 p-1 bg-black/40 rounded-xl border border-[#1e3a5f]">
                 <button
                   onClick={() => setActiveTab('site')}
-                  className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                     activeTab === 'site'
                       ? 'bg-[#d4af37] text-[#060e1c] shadow'
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   <ImageIcon className="w-4 h-4" />
-                  <span>Fotos Principais das Seções</span>
+                  <span>Fotos das Seções</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('gallery')}
-                  className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                     activeTab === 'gallery'
                       ? 'bg-[#d4af37] text-[#060e1c] shadow'
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -337,6 +371,18 @@ export const AdminPhotoManagerModal: React.FC = () => {
                 >
                   <Images className="w-4 h-4" />
                   <span>Galeria de Fotos ({galleryPhotos.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('security')}
+                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    activeTab === 'security'
+                      ? 'bg-[#d4af37] text-[#060e1c] shadow'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <KeyRound className="w-4 h-4" />
+                  <span>Segurança & Senha</span>
                 </button>
               </div>
 
@@ -532,7 +578,7 @@ export const AdminPhotoManagerModal: React.FC = () => {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : activeTab === 'gallery' ? (
                 /* TAB 2: Gallery Photos Manager */
                 <div className="space-y-6">
                   
@@ -769,6 +815,158 @@ export const AdminPhotoManagerModal: React.FC = () => {
                         })}
                       </div>
                     )}
+                  </div>
+
+                </div>
+              ) : (
+                /* TAB 3: Security & Custom Password Management */
+                <div className="space-y-6">
+                  
+                  {/* Change Password Card */}
+                  <form 
+                    onSubmit={handleUpdatePinSubmit}
+                    className="p-6 rounded-2xl bg-[#0a192f]/80 border border-[#1e3a5f] space-y-4"
+                  >
+                    <div className="flex items-center gap-3 border-b border-[#1e3a5f] pb-3">
+                      <div className="p-2 rounded-lg bg-[#d4af37]/20 border border-[#d4af37]/40 text-[#d4af37]">
+                        <KeyRound className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">
+                          Alterar Senha do Administrador
+                        </h4>
+                        <p className="text-xs text-slate-400">
+                          Defina sua senha pessoal e exclusiva para gerenciar as fotos do site.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                          Nova Senha *
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          value={newPinInput}
+                          onChange={(e) => {
+                            setNewPinInput(e.target.value);
+                            setPinFormError('');
+                          }}
+                          placeholder="Mínimo de 4 caracteres"
+                          className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                          Confirmar Nova Senha *
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          value={confirmPinInput}
+                          onChange={(e) => {
+                            setConfirmPinInput(e.target.value);
+                            setPinFormError('');
+                          }}
+                          placeholder="Repita a nova senha"
+                          className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                      </div>
+                    </div>
+
+                    {pinFormError && (
+                      <p className="text-xs text-red-400 flex items-center gap-1.5 pt-1">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{pinFormError}</span>
+                      </p>
+                    )}
+
+                    {pinSuccess && (
+                      <p className="text-xs text-emerald-400 flex items-center gap-1.5 pt-1">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>{pinSuccess}</span>
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2">
+                      <p className="text-[11px] text-slate-400">
+                        🔒 Ao salvar, a senha padrão será desativada e apenas sua nova senha funcionará.
+                      </p>
+                      <button
+                        type="submit"
+                        disabled={isSavingPin}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all shadow-lg cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isSavingPin ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Gravando no Firebase...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Salvar Nova Senha</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Secret Access Guide for the Admin */}
+                  <div className="p-6 rounded-2xl bg-[#0a192f]/40 border border-[#1e3a5f]/60 space-y-4">
+                    <h4 className="text-xs font-bold text-[#d4af37] uppercase tracking-wider flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      Como Acessar Este Painel Secretamente (Apenas Para Você)
+                    </h4>
+                    
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Para que terceiros e visitantes não saibam da existência da área de fotos, todos os botões públicos foram ocultados. Você pode abrir este painel a qualquer momento usando qualquer um dos métodos abaixo:
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                        <div className="text-xs font-bold text-white flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-[#d4af37]/20 text-[#d4af37] flex items-center justify-center text-[10px]">1</span>
+                          Atalho de Teclado
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Pressione <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[#f3e5ab] font-mono text-[10px]">Ctrl + Shift + A</kbd> (ou <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[#f3e5ab] font-mono text-[10px]">Cmd + Shift + A</kbd>) em qualquer página.
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                        <div className="text-xs font-bold text-white flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-[#d4af37]/20 text-[#d4af37] flex items-center justify-center text-[10px]">2</span>
+                          Link com #admin
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Adicione <code className="text-[#f3e5ab] font-mono text-[10px]">#admin</code> ao final da URL do site na barra de endereços.
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                        <div className="text-xs font-bold text-white flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-[#d4af37]/20 text-[#d4af37] flex items-center justify-center text-[10px]">3</span>
+                          Clique no Símbolo ©
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          No rodapé da página, clique no símbolo de copyright <span className="text-[#d4af37] font-bold">©</span> antes do ano 1990.
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                        <div className="text-xs font-bold text-white flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-[#d4af37]/20 text-[#d4af37] flex items-center justify-center text-[10px]">4</span>
+                          Duplo Clique no Logotipo
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Dê um duplo clique no logotipo da ACEDEP no cabeçalho superior.
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                 </div>

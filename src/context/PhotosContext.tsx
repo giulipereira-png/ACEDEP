@@ -99,6 +99,7 @@ interface PhotosContextType {
   getPhotoUrl: (photoId: string) => string;
   addGalleryPhoto: (data: { title: string; category: string; url: string; date?: string }) => Promise<boolean>;
   deleteGalleryPhoto: (photoId: string) => Promise<boolean>;
+  updateAdminPin: (newPin: string) => Promise<boolean>;
 }
 
 const PhotosContext = createContext<PhotosContextType | undefined>(undefined);
@@ -269,8 +270,60 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
+  // Secret triggers: Keyboard shortcut (Ctrl+Shift+A) and URL Hash (#admin or ?admin=true)
+  useEffect(() => {
+    // 1. Check URL on mount and hash changes
+    const checkUrlTrigger = () => {
+      if (typeof window === 'undefined') return;
+      const hash = (window.location.hash || '').toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      if (hash === '#admin' || hash === '#gestao' || params.get('admin') === 'true' || params.get('admin') === '1') {
+        setAdminModalOpen(true);
+      }
+    };
+
+    checkUrlTrigger();
+    window.addEventListener('hashchange', checkUrlTrigger);
+
+    // 2. Keyboard shortcut: Ctrl + Shift + A (or Cmd + Shift + A)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        setAdminModalOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('hashchange', checkUrlTrigger);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const loginAdmin = async (pin: string): Promise<boolean> => {
     const normalized = pin.trim();
+    if (!normalized) return false;
+
+    try {
+      const settingsDoc = await getDoc(doc(db, 'settings', 'admin'));
+      if (settingsDoc.exists() && settingsDoc.data().adminPin) {
+        const storedPin = settingsDoc.data().adminPin;
+        if (storedPin === normalized) {
+          setIsAdminAuthenticated(true);
+          try {
+            sessionStorage.setItem('acedep_admin_auth', 'true');
+          } catch {}
+          return true;
+        }
+        // Custom PIN is set, do not allow default password
+        return false;
+      }
+    } catch (e) {
+      console.warn('Could not verify remote admin pin from Firestore:', e);
+    }
+
+    // Default password fallback only if no custom PIN was set yet
     if (normalized === 'acedep1990' || normalized === '1990' || normalized === 'admin1990') {
       setIsAdminAuthenticated(true);
       try {
@@ -279,22 +332,30 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     }
 
-    try {
-      const settingsDoc = await getDoc(doc(db, 'settings', 'admin'));
-      if (settingsDoc.exists() && settingsDoc.data().adminPin) {
-        if (settingsDoc.data().adminPin === normalized) {
-          setIsAdminAuthenticated(true);
-          try {
-            sessionStorage.setItem('acedep_admin_auth', 'true');
-          } catch {}
-          return true;
-        }
-      }
-    } catch (e) {
-      console.warn('Could not verify remote admin pin', e);
+    return false;
+  };
+
+  const updateAdminPin = async (newPin: string): Promise<boolean> => {
+    const cleanPin = newPin.trim();
+    if (!cleanPin || cleanPin.length < 4) {
+      return false;
     }
 
-    return false;
+    try {
+      await setDoc(
+        doc(db, 'settings', 'admin'),
+        {
+          adminPin: cleanPin,
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'Administrador ACEDEP',
+        },
+        { merge: true }
+      );
+      return true;
+    } catch (err) {
+      console.error('Error updating admin PIN in Firestore:', err);
+      return false;
+    }
   };
 
   const logoutAdmin = () => {
@@ -431,6 +492,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         getPhotoUrl,
         addGalleryPhoto,
         deleteGalleryPhoto,
+        updateAdminPin,
       }}
     >
       {children}

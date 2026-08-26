@@ -21,7 +21,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
 }) => {
-  const { openAdminModal } = usePhotos();
+  const { openAdminModal, isAdminAuthenticated } = usePhotos();
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -185,7 +185,15 @@ export const Footer: React.FC<FooterProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left space-y-1">
             <p>
-              © 1990 - 2026 ACEDEP - Associação Cultural Especial Paradesportiva Paulista. Todos os direitos reservados.
+              <button
+                type="button"
+                onClick={openAdminModal}
+                className="hover:text-[#d4af37] transition-colors cursor-pointer text-slate-400"
+                title="ACEDEP"
+              >
+                ©
+              </button>{' '}
+              1990 - 2026 ACEDEP - Associação Cultural Especial Paradesportiva Paulista. Todos os direitos reservados.
             </p>
             <p className="text-[11px] text-slate-400">
               CNPJ: 62.984.321/0001-90 • Organização da Sociedade Civil sem Fins Lucrativos • São Paulo / SP
@@ -193,14 +201,16 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={openAdminModal}
-              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-[#d4af37]/20 text-slate-400 hover:text-[#f3e5ab] border border-white/10 hover:border-[#d4af37]/40 transition-colors flex items-center gap-1.5 text-[11px] font-medium cursor-pointer"
-              title="Área restrita de gestão de fotos e conteúdo"
-            >
-              <Lock className="w-3 h-3 text-[#d4af37]" />
-              <span>Painel de Fotos</span>
-            </button>
+            {isAdminAuthenticated && (
+              <button
+                onClick={openAdminModal}
+                className="px-2.5 py-1 rounded-lg bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40 hover:bg-[#d4af37]/30 transition-colors flex items-center gap-1.5 text-[11px] font-bold cursor-pointer"
+                title="Painel de Administração"
+              >
+                <Lock className="w-3 h-3 text-[#d4af37]" />
+                <span>Admin Ativo</span>
+              </button>
+            )}
 
             <button
               onClick={scrollToTop}

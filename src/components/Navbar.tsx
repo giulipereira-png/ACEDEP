@@ -100,18 +100,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               (11) 99880-9708
             </a>
 
-            <button
-              onClick={openAdminModal}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer ${
-                isAdminAuthenticated 
-                  ? 'bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40' 
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-              title="Área Administrativa (Gestão de Fotos)"
-            >
-              <Lock className="w-3 h-3 text-[#d4af37]" />
-              <span className="hidden sm:inline">Admin</span>
-            </button>
+            {/* Admin shortcut ONLY visible when already authenticated */}
+            {isAdminAuthenticated && (
+              <button
+                onClick={openAdminModal}
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40 hover:bg-[#d4af37]/30"
+                title="Painel de Administração Ativo"
+              >
+                <Lock className="w-3 h-3 text-[#d4af37]" />
+                <span className="hidden sm:inline">Admin (Ativo)</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -125,11 +124,16 @@ export const Navbar: React.FC<NavbarProps> = ({
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          {/* Logo */}
+          {/* Logo with secret double-click / triple-click handler */}
           <a
             href="#home"
             id="nav-logo-link"
-            className="flex items-center gap-2 group transition-transform duration-200 hover:scale-[1.02]"
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              openAdminModal();
+            }}
+            className="flex items-center gap-2 group transition-transform duration-200 hover:scale-[1.02] cursor-pointer"
+            title="ACEDEP Paradesporto"
           >
             <Logo variant="horizontal" className="h-12 md:h-14" />
           </a>
