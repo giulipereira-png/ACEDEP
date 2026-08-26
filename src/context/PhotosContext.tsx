@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db, doc, getDoc, setDoc, onSnapshot, collection } from '../lib/firebase';
+import { db, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection } from '../lib/firebase';
 
 export interface SitePhotoData {
   id: string;
@@ -8,6 +8,15 @@ export interface SitePhotoData {
   url: string;
   updatedAt?: string;
   updatedBy?: string;
+}
+
+export interface GalleryPhotoItem {
+  id: string;
+  title: string;
+  category: string;
+  url: string;
+  date?: string;
+  createdAt: string;
 }
 
 export const DEFAULT_PHOTOS: Record<string, { title: string; category: string; defaultUrl: string; fallbackList: string[] }> = {
@@ -31,8 +40,52 @@ export const DEFAULT_PHOTOS: Record<string, { title: string; category: string; d
   },
 };
 
+export const INITIAL_GALLERY_PHOTOS: GalleryPhotoItem[] = [
+  {
+    id: 'gal-1',
+    title: 'Equipe ACEDEP Reunida',
+    category: 'Equipe Oficial',
+    url: '/IMG_4378.jpeg',
+    date: 'Campeonatos & Conquistas',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'gal-2',
+    title: 'Iniciação Esportiva e Aperfeiçoamento',
+    category: 'Iniciação Esportiva',
+    url: '/IMG_2382.jpeg',
+    date: 'Treinos Técnicos',
+    createdAt: '2026-01-02T00:00:00.000Z',
+  },
+  {
+    id: 'gal-3',
+    title: 'Alto Rendimento e Foco na Performance',
+    category: 'Alto Rendimento',
+    url: '/IMG_5625.jpeg',
+    date: 'Classes S14 & S21',
+    createdAt: '2026-01-03T00:00:00.000Z',
+  },
+  {
+    id: 'gal-4',
+    title: 'Superação e Disciplina nas Piscinas',
+    category: 'Treinamento',
+    url: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=85',
+    date: 'Piscina Olímpica',
+    createdAt: '2026-01-04T00:00:00.000Z',
+  },
+  {
+    id: 'gal-5',
+    title: 'Conquista da Autonomia e Técnica',
+    category: 'Iniciação Esportiva',
+    url: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=85',
+    date: 'Formação Contínua',
+    createdAt: '2026-01-05T00:00:00.000Z',
+  },
+];
+
 interface PhotosContextType {
   photos: Record<string, string>;
+  galleryPhotos: GalleryPhotoItem[];
   isLoading: boolean;
   isFirebaseConnected: boolean;
   isAdminAuthenticated: boolean;
@@ -44,6 +97,8 @@ interface PhotosContextType {
   savePhotoToDatabase: (photoId: string, dataUrl: string, title?: string) => Promise<boolean>;
   resetPhotoToDefault: (photoId: string) => Promise<boolean>;
   getPhotoUrl: (photoId: string) => string;
+  addGalleryPhoto: (data: { title: string; category: string; url: string; date?: string }) => Promise<boolean>;
+  deleteGalleryPhoto: (photoId: string) => Promise<boolean>;
 }
 
 const PhotosContext = createContext<PhotosContextType | undefined>(undefined);
@@ -57,6 +112,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return initial;
   });
 
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhotoItem[]>(INITIAL_GALLERY_PHOTOS);
   const [isLoading, setIsLoading] = useState(true);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
@@ -68,89 +124,9 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
   const [adminModalOpen, setAdminModalOpen] = useState(false);
 
-  // Subscribe to real-time updates from Firestore collection `site_photos`
-  useEffect(() => {
-    let unsubscribe = () => {};
-
-    try {
-      const photosCollection = collection(db, 'site_photos');
-      
-      unsubscribe = onSnapshot(
-        photosCollection,
-        (snapshot) => {
-          setIsFirebaseConnected(true);
-          setIsLoading(false);
-          const updated: Record<string, string> = {};
-
-          // Seed defaults first
-          Object.keys(DEFAULT_PHOTOS).forEach((k) => {
-            updated[k] = DEFAULT_PHOTOS[k].defaultUrl;
-          });
-
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data() as SitePhotoData;
-            if (data && data.url) {
-              updated[docSnap.id] = data.url;
-            }
-          });
-
-          setPhotos(updated);
-        },
-        (error) => {
-          console.warn('Firestore real-time subscription error:', error);
-          setIsFirebaseConnected(false);
-          setIsLoading(false);
-        }
-      );
-    } catch (err) {
-      console.warn('Failed to attach Firestore listener:', err);
-      setIsLoading(false);
-    }
-
-    return () => unsubscribe();
-  }, []);
-
-  const loginAdmin = async (pin: string): Promise<boolean> => {
-    // Check against default pin 'acedep1990' or database pin
-    const normalized = pin.trim();
-    if (normalized === 'acedep1990' || normalized === '1990' || normalized === 'admin1990') {
-      setIsAdminAuthenticated(true);
-      try {
-        sessionStorage.setItem('acedep_admin_auth', 'true');
-      } catch {}
-      return true;
-    }
-
-    // Check remote pin if configured
-    try {
-      const settingsDoc = await getDoc(doc(db, 'settings', 'admin'));
-      if (settingsDoc.exists() && settingsDoc.data().adminPin) {
-        if (settingsDoc.data().adminPin === normalized) {
-          setIsAdminAuthenticated(true);
-          try {
-            sessionStorage.setItem('acedep_admin_auth', 'true');
-          } catch {}
-          return true;
-        }
-      }
-    } catch (e) {
-      console.warn('Could not verify remote admin pin', e);
-    }
-
-    return false;
-  };
-
-  const logoutAdmin = () => {
-    setIsAdminAuthenticated(false);
-    try {
-      sessionStorage.removeItem('acedep_admin_auth');
-    } catch {}
-  };
-
-  // Helper to optimize and compress images to safe Firestore document size (clean JPEG ~1200px max)
+  // Helper to optimize and compress images to safe Firestore document size (clean JPEG ~1280px max)
   const optimizeImage = (dataUrl: string): Promise<string> => {
     return new Promise((resolve) => {
-      // If it's already a regular URL or short string, return as is
       if (!dataUrl.startsWith('data:image')) {
         return resolve(dataUrl);
       }
@@ -187,6 +163,147 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
+  // Subscribe to real-time updates from Firestore collection `site_photos`
+  useEffect(() => {
+    let unsubscribeSitePhotos = () => {};
+    let unsubscribeGallery = () => {};
+
+    try {
+      // 1. Site photos
+      const photosCollection = collection(db, 'site_photos');
+      unsubscribeSitePhotos = onSnapshot(
+        photosCollection,
+        (snapshot) => {
+          setIsFirebaseConnected(true);
+          setIsLoading(false);
+          const updated: Record<string, string> = {};
+
+          Object.keys(DEFAULT_PHOTOS).forEach((k) => {
+            updated[k] = DEFAULT_PHOTOS[k].defaultUrl;
+          });
+
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data() as SitePhotoData;
+            if (data && data.url) {
+              updated[docSnap.id] = data.url;
+            }
+          });
+
+          setPhotos(updated);
+        },
+        (error) => {
+          console.warn('Firestore site_photos subscription error:', error);
+          setIsFirebaseConnected(false);
+          setIsLoading(false);
+        }
+      );
+
+      // 2. Gallery photos
+      const galleryCollection = collection(db, 'gallery');
+      const galleryInitDocRef = doc(db, 'settings', 'gallery_init');
+
+      // Check if initialization has occurred; if not, seed initial photos to Firestore
+      getDoc(galleryInitDocRef)
+        .then(async (initSnap) => {
+          if (!initSnap.exists()) {
+            try {
+              for (const photo of INITIAL_GALLERY_PHOTOS) {
+                await setDoc(doc(db, 'gallery', photo.id), photo);
+              }
+              await setDoc(galleryInitDocRef, { initialized: true, seededAt: new Date().toISOString() });
+            } catch (seedErr) {
+              console.warn('Could not auto-seed gallery in Firestore:', seedErr);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('Init settings check failed:', err);
+        });
+
+      unsubscribeGallery = onSnapshot(
+        galleryCollection,
+        (snapshot) => {
+          const list: GalleryPhotoItem[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data() as GalleryPhotoItem;
+            if (data && data.url) {
+              list.push({
+                ...data,
+                id: docSnap.id,
+              });
+            }
+          });
+
+          // Sort by createdAt descending
+          list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+          if (list.length > 0) {
+            setGalleryPhotos(list);
+          } else {
+            // Check if user has explicitly deleted all photos or if it's unseeded
+            getDoc(galleryInitDocRef)
+              .then((initSnap) => {
+                if (initSnap.exists()) {
+                  setGalleryPhotos([]); // Empty because user deleted all photos
+                } else {
+                  setGalleryPhotos(INITIAL_GALLERY_PHOTOS);
+                }
+              })
+              .catch(() => {
+                setGalleryPhotos([]);
+              });
+          }
+        },
+        (error) => {
+          console.warn('Firestore gallery subscription error:', error);
+        }
+      );
+    } catch (err) {
+      console.warn('Failed to attach Firestore listener:', err);
+      setIsLoading(false);
+    }
+
+    return () => {
+      unsubscribeSitePhotos();
+      unsubscribeGallery();
+    };
+  }, []);
+
+  const loginAdmin = async (pin: string): Promise<boolean> => {
+    const normalized = pin.trim();
+    if (normalized === 'acedep1990' || normalized === '1990' || normalized === 'admin1990') {
+      setIsAdminAuthenticated(true);
+      try {
+        sessionStorage.setItem('acedep_admin_auth', 'true');
+      } catch {}
+      return true;
+    }
+
+    try {
+      const settingsDoc = await getDoc(doc(db, 'settings', 'admin'));
+      if (settingsDoc.exists() && settingsDoc.data().adminPin) {
+        if (settingsDoc.data().adminPin === normalized) {
+          setIsAdminAuthenticated(true);
+          try {
+            sessionStorage.setItem('acedep_admin_auth', 'true');
+          } catch {}
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not verify remote admin pin', e);
+    }
+
+    return false;
+  };
+
+  const logoutAdmin = () => {
+    setIsAdminAuthenticated(false);
+    try {
+      sessionStorage.removeItem('acedep_admin_auth');
+    } catch {}
+  };
+
   const savePhotoToDatabase = async (
     photoId: string,
     dataUrl: string,
@@ -205,10 +322,8 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatedBy: 'Administrador ACEDEP',
       };
 
-      // Save to Firebase Firestore
       await setDoc(doc(db, 'site_photos', photoId), payload, { merge: true });
 
-      // Immediate local state update for instant UI feedback
       setPhotos((prev) => ({
         ...prev,
         [photoId]: optimizedUrl,
@@ -249,6 +364,51 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const addGalleryPhoto = async (data: {
+    title: string;
+    category: string;
+    url: string;
+    date?: string;
+  }): Promise<boolean> => {
+    try {
+      const optimizedUrl = await optimizeImage(data.url);
+      const photoId = 'photo_' + Date.now();
+      const payload: GalleryPhotoItem = {
+        id: photoId,
+        title: data.title || 'Foto ACEDEP',
+        category: data.category || 'Geral',
+        url: optimizedUrl,
+        date: data.date || new Date().toLocaleDateString('pt-BR'),
+        createdAt: new Date().toISOString(),
+      };
+
+      await setDoc(doc(db, 'gallery', photoId), payload);
+
+      setGalleryPhotos((prev) => [payload, ...prev.filter((p) => p.id !== photoId)]);
+      return true;
+    } catch (err) {
+      console.error('Error adding photo to gallery Firestore:', err);
+      return false;
+    }
+  };
+
+  const deleteGalleryPhoto = async (photoId: string): Promise<boolean> => {
+    try {
+      // Mark init as true so empty state doesn't reset to defaults
+      const galleryInitDocRef = doc(db, 'settings', 'gallery_init');
+      setDoc(galleryInitDocRef, { initialized: true }, { merge: true }).catch(() => {});
+
+      await deleteDoc(doc(db, 'gallery', photoId));
+      setGalleryPhotos((prev) => prev.filter((p) => p.id !== photoId));
+      return true;
+    } catch (err) {
+      console.error('Error deleting photo from gallery Firestore:', err);
+      // Still remove from local state to ensure UI responsiveness
+      setGalleryPhotos((prev) => prev.filter((p) => p.id !== photoId));
+      return true;
+    }
+  };
+
   const getPhotoUrl = (photoId: string): string => {
     return photos[photoId] || DEFAULT_PHOTOS[photoId]?.defaultUrl || '';
   };
@@ -257,6 +417,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <PhotosContext.Provider
       value={{
         photos,
+        galleryPhotos,
         isLoading,
         isFirebaseConnected,
         isAdminAuthenticated,
@@ -268,6 +429,8 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         savePhotoToDatabase,
         resetPhotoToDefault,
         getPhotoUrl,
+        addGalleryPhoto,
+        deleteGalleryPhoto,
       }}
     >
       {children}

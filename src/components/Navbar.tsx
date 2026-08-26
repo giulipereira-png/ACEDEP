@@ -36,7 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       }
 
       // Active section tracker
-      const sections = ['home', 'sobre', 'modalidades', 'equipe', 'contato'];
+      const sections = ['home', 'sobre', 'modalidades', 'equipe', 'galeria', 'contato'];
       const scrollPosition = window.scrollY + 200;
 
       for (const section of sections) {
@@ -61,6 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { name: 'Nossa História', href: '#sobre' },
     { name: 'Natação & Treinos', href: '#modalidades' },
     { name: 'Nossa Equipe', href: '#equipe' },
+    { name: 'Galeria', href: '#galeria' },
     { name: 'Contato', href: '#contato' },
   ];
 

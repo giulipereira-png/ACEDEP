@@ -45,12 +45,30 @@
           "type": "string"
         }
       }
+    },
+    "GalleryPhoto": {
+      "title": "GalleryPhoto",
+      "description": "Fotos da galeria da ACEDEP",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "url": { "type": "string" },
+        "date": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "url"]
     }
   },
   "firestore": {
     "/site_photos/{photoId}": {
       "schema": "SitePhoto",
       "description": "Armazena as fotos oficiais configuradas para cada seção do site da ACEDEP"
+    },
+    "/gallery/{photoId}": {
+      "schema": "GalleryPhoto",
+      "description": "Fotos da galeria da ACEDEP"
     },
     "/settings/{settingId}": {
       "schema": "AdminSettings",

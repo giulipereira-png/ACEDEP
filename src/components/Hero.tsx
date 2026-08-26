@@ -27,18 +27,29 @@ export const Hero: React.FC<HeroProps> = ({
       id="home" 
       className="relative min-h-[92vh] flex items-center justify-center pt-28 pb-16 overflow-hidden bg-[#0a192f]"
     >
-      {/* Background Image com a foto oficial da equipe */}
+      {/* Background Image with Darkened Cinematic Overlays */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://i.ibb.co/6R2Z1234/team.jpg" 
-          alt="Equipe ACEDEP reunida com a bandeira"
-          className="w-full h-full object-cover object-center"
+          src="https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=2000&q=85"
+          alt="Atleta em nado de alta performance nas piscinas da ACEDEP"
+          className="w-full h-full object-cover object-center scale-105 transform motion-safe:animate-pulse [animation-duration:12s]"
           loading="eager"
         />
-        {/* Camadas escuras e degradê para destacar os textos em cima da foto */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#060e1c]/95 via-[#0a192f]/90 to-[#0a192f]/80" />
+        {/* Layered Rich Gradients to ensure exceptional legibility and deep athletic mood */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#060e1c]/95 via-[#0a192f]/90 to-[#0a192f]/75" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a192f] via-transparent to-[#060e1c]/70" />
+        {/* Subtle geometric grid background */}
+        <div 
+          className="absolute inset-0 opacity-10" 
+          style={{
+            backgroundImage: `radial-gradient(circle at 25px 25px, #d4af37 2%, transparent 0%), radial-gradient(circle at 75px 75px, #ffffff 1.5%, transparent 0%)`,
+            backgroundSize: '100px 100px',
+          }}
+        />
       </div>
+
+      {/* Decorative Gold Light Beam Effect */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#d4af37]/10 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">

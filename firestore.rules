@@ -7,6 +7,12 @@ service cloud.firestore {
       allow write: if true;
     }
     
+    // Galeria de fotos da ACEDEP
+    match /gallery/{photoId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
     // Configurações do painel administrativo
     match /settings/{settingId} {
       allow read, write: if true;

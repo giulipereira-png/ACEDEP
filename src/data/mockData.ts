@@ -96,14 +96,14 @@ export const TEAM_MEMBERS: TeamMember[] = [
     name: 'Enio Salvador Sanches',
     role: 'Coordenador Técnico',
     credentials: 'CREF: 118973-G/SP',
-    experience: 'Coordenação técnica geral das equipes de natação da ACEDEP, planejamento esportivo e acompanhamento no Centro Paralímpico Brasileiro.',
+    experience: 'Coordenação técnica geral das equipes de natação da ACEDEP, planejamento esportivo e acompanhamento nos treinamentos e competições.',
     image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=500&q=80',
   },
   {
     name: 'Giuliana Sousa',
     role: 'Técnica de Natação',
     credentials: 'CREF: 158743-G/SP',
-    experience: 'Treinamento e preparação técnica dos atletas em desenvolvimento e alto rendimento nas piscinas do Centro Paralímpico.',
+    experience: 'Treinamento e preparação técnica dos atletas em desenvolvimento e alto rendimento.',
     image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=500&q=80',
   },
   {

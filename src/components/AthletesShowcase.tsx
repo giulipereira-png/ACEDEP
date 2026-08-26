@@ -91,38 +91,6 @@ export const AthletesShowcase: React.FC = () => {
           </div>
         </div>
 
-        {/* Athletes & Championship Highlights Banner com a Foto Real */}
-        <div className="rounded-2xl bg-gradient-to-r from-[#0a192f] via-[#0f2744] to-[#0a192f] border border-[#d4af37]/40 p-6 sm:p-10 mb-20 shadow-2xl relative overflow-hidden">
-          
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            
-            <div className="lg:col-span-7 space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-[#d4af37]/20 border border-[#d4af37]/40 text-[#f3e5ab] text-xs font-bold uppercase tracking-wider">
-                <Trophy className="w-4 h-4 text-[#d4af37]" />
-                Equipe ACEDEP • Garra, foco e determinação nas piscinas
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Mais de 30 anos revelando talentos e disputando o topo
-              </h3>
-              <p className="text-sm text-slate-200 leading-relaxed font-normal">
-                Nossos atletas com deficiência intelectual provam diariamente que a disciplina e o treinamento constante nas piscinas superam qualquer barreira. Com a camisa da ACEDEP, participamos ativamente de <strong>Campeonatos Regionais, Nacionais e Internacionais</strong>, honrando o paradesporto paulista e brasileiro.
-              </p>
-            </div>
-
-            {/* Inserção da sua foto fixa aqui */}
-            <div className="lg:col-span-5">
-              <div className="rounded-xl overflow-hidden border-2 border-[#d4af37]/50 shadow-2xl bg-black/50">
-                <img 
-                  src="/assets/.aistudio/IMG_4378.jpeg" 
-                  alt="Equipe ACEDEP" 
-                  className="w-full h-64 sm:h-72 object-cover hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-            </div>
-
-          </div>
-        </div>
-
         {/* Perguntas Frequentes (FAQ) */}
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-8">

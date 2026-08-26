@@ -97,6 +97,11 @@ export const Footer: React.FC<FooterProps> = ({
                 </a>
               </li>
               <li>
+                <a href="#galeria" className="hover:text-[#d4af37] transition-colors block py-0.5">
+                  Galeria de Fotos
+                </a>
+              </li>
+              <li>
                 <button 
                   onClick={onOpenSupportModal}
                   className="text-[#d4af37] hover:underline font-semibold block py-0.5 cursor-pointer text-left"

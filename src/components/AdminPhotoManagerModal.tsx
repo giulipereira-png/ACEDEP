@@ -15,9 +15,13 @@ import {
   LogOut, 
   CheckCircle2, 
   RefreshCw,
-  Eye
+  Eye,
+  Images,
+  Trash2,
+  Plus,
+  Tag
 } from 'lucide-react';
-import { usePhotos, DEFAULT_PHOTOS } from '../context/PhotosContext';
+import { usePhotos, DEFAULT_PHOTOS, GalleryPhotoItem } from '../context/PhotosContext';
 
 export const AdminPhotoManagerModal: React.FC = () => {
   const {
@@ -27,11 +31,15 @@ export const AdminPhotoManagerModal: React.FC = () => {
     loginAdmin,
     logoutAdmin,
     photos,
+    galleryPhotos,
     savePhotoToDatabase,
     resetPhotoToDefault,
+    addGalleryPhoto,
+    deleteGalleryPhoto,
     isFirebaseConnected
   } = usePhotos();
 
+  const [activeTab, setActiveTab] = useState<'site' | 'gallery'>('site');
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string>('about_team');
@@ -39,6 +47,19 @@ export const AdminPhotoManagerModal: React.FC = () => {
   const [successState, setSuccessState] = useState<Record<string, string>>({});
   const [customUrlInput, setCustomUrlInput] = useState('');
   const [previewOverride, setPreviewOverride] = useState<Record<string, string>>({});
+
+  // New Gallery Photo form state
+  const [newGalTitle, setNewGalTitle] = useState('');
+  const [newGalCategory, setNewGalCategory] = useState('Equipe Oficial');
+  const [newGalDate, setNewGalDate] = useState('');
+  const [newGalUrl, setNewGalUrl] = useState('');
+  const [newGalPreview, setNewGalPreview] = useState('');
+  const [isSavingGallery, setIsSavingGallery] = useState(false);
+  const [gallerySuccess, setGallerySuccess] = useState('');
+  const [galleryError, setGalleryError] = useState('');
+  const [confirmDeleteGalleryId, setConfirmDeleteGalleryId] = useState<string | null>(null);
+  const [isDeletingGalleryId, setIsDeletingGalleryId] = useState<string | null>(null);
+  const [confirmResetId, setConfirmResetId] = useState<string | null>(null);
 
   if (!adminModalOpen) return null;
 
@@ -105,27 +126,81 @@ export const AdminPhotoManagerModal: React.FC = () => {
     }
   };
 
-  const handleReset = async (photoId: string) => {
-    if (window.confirm('Tem certeza que deseja restaurar a foto padrão desta seção?')) {
-      setUploadingState((prev) => ({ ...prev, [photoId]: true }));
-      await resetPhotoToDefault(photoId);
-      setPreviewOverride((prev) => {
-        const copy = { ...prev };
-        delete copy[photoId];
-        return copy;
-      });
-      setUploadingState((prev) => ({ ...prev, [photoId]: false }));
-      setSuccessState((prev) => ({ ...prev, [photoId]: 'Restaurada para o padrão!' }));
-      setTimeout(() => {
-        setSuccessState((prev) => ({ ...prev, [photoId]: '' }));
-      }, 4000);
+  const handleResetExecute = async (photoId: string) => {
+    setUploadingState((prev) => ({ ...prev, [photoId]: true }));
+    setConfirmResetId(null);
+    await resetPhotoToDefault(photoId);
+    setPreviewOverride((prev) => {
+      const copy = { ...prev };
+      delete copy[photoId];
+      return copy;
+    });
+    setUploadingState((prev) => ({ ...prev, [photoId]: false }));
+    setSuccessState((prev) => ({ ...prev, [photoId]: 'Restaurada para o padrão!' }));
+    setTimeout(() => {
+      setSuccessState((prev) => ({ ...prev, [photoId]: '' }));
+    }, 4000);
+  };
+
+  // Gallery photo upload handler
+  const handleGalleryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        setNewGalPreview(dataUrl);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAddGalleryPhotoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGalleryError('');
+    const finalUrl = newGalPreview || newGalUrl.trim();
+    if (!finalUrl) {
+      setGalleryError('Por favor, selecione uma foto ou informe o link da imagem.');
+      setTimeout(() => setGalleryError(''), 5000);
+      return;
+    }
+
+    setIsSavingGallery(true);
+    const success = await addGalleryPhoto({
+      title: newGalTitle.trim() || 'Foto ACEDEP',
+      category: newGalCategory,
+      url: finalUrl,
+      date: newGalDate.trim() || new Date().toLocaleDateString('pt-BR'),
+    });
+    setIsSavingGallery(false);
+
+    if (success) {
+      setGallerySuccess('Foto adicionada com sucesso à galeria!');
+      setNewGalTitle('');
+      setNewGalUrl('');
+      setNewGalPreview('');
+      setNewGalDate('');
+      setTimeout(() => setGallerySuccess(''), 4000);
+    }
+  };
+
+  const executeDeleteGalleryPhoto = async (photo: GalleryPhotoItem) => {
+    setIsDeletingGalleryId(photo.id);
+    const success = await deleteGalleryPhoto(photo.id);
+    setIsDeletingGalleryId(null);
+    setConfirmDeleteGalleryId(null);
+
+    if (success) {
+      setGallerySuccess(`Foto "${photo.title}" excluída com sucesso da galeria!`);
+      setTimeout(() => setGallerySuccess(''), 4000);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
       <div 
-        className="relative w-full max-w-3xl bg-[#060e1c] border border-[#1e3a5f] rounded-2xl shadow-2xl overflow-hidden my-8"
+        className="relative w-full max-w-4xl bg-[#060e1c] border border-[#1e3a5f] rounded-2xl shadow-2xl overflow-hidden my-8"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -136,13 +211,13 @@ export const AdminPhotoManagerModal: React.FC = () => {
             </div>
             <div>
               <h2 className="text-lg font-bold text-white font-serif flex items-center gap-2">
-                Painel Administrativo da ACEDEP
+                Painel de Gestão de Fotos • ACEDEP
                 <span className="text-[10px] font-sans px-2 py-0.5 rounded-full bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40">
-                  Banco Firestore
+                  Firebase Ativo
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Gestão restrita de fotos oficiais e conteúdo do site
+                Gerencie as fotos das seções e a nova Galeria de Fotos
               </p>
             </div>
           </div>
@@ -168,7 +243,7 @@ export const AdminPhotoManagerModal: React.FC = () => {
         </div>
 
         {/* Modal Body */}
-        <div className="p-6">
+        <div className="p-6 max-h-[75vh] overflow-y-auto">
           {!isAdminAuthenticated ? (
             /* PIN Login Form */
             <div className="max-w-md mx-auto py-8 text-center">
@@ -179,7 +254,7 @@ export const AdminPhotoManagerModal: React.FC = () => {
                 Acesso Restrito à Coordenação
               </h3>
               <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-                Insira a senha de administrador da ACEDEP para gerenciar e salvar as fotos permanentemente no banco de dados.
+                Insira a senha de administrador da ACEDEP para gerenciar fotos principais e a galeria no banco de dados.
               </p>
 
               <form onSubmit={handleLogin} className="space-y-4">
@@ -222,187 +297,480 @@ export const AdminPhotoManagerModal: React.FC = () => {
             /* Admin Management Interface */
             <div className="space-y-6">
               
-              {/* Firestore Status Bar */}
+              {/* Status Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-[#0a192f] border border-[#1e3a5f]">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="font-semibold text-slate-200">
-                    Banco de Dados Firebase Firestore Conectado
+                    Banco de Dados Firebase Firestore Ativo
                   </span>
                   <span className="text-slate-500">•</span>
-                  <span className="text-slate-400">Sincronização em tempo real ativa</span>
+                  <span className="text-slate-400">Sincronização em tempo real</span>
                 </div>
                 <div className="text-[11px] text-[#f3e5ab] font-medium flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#d4af37]" />
-                  <span>Sessão Autenticada como Administrador</span>
+                  <span>Sessão de Administrador Ativa</span>
                 </div>
               </div>
 
-              {/* Section Selector Tabs */}
-              <div className="flex flex-wrap gap-2 border-b border-[#1e3a5f] pb-3">
-                {Object.keys(DEFAULT_PHOTOS).map((photoKey) => {
-                  const meta = DEFAULT_PHOTOS[photoKey];
-                  const isSelected = selectedPhotoId === photoKey;
-                  return (
-                    <button
-                      key={photoKey}
-                      onClick={() => {
-                        setSelectedPhotoId(photoKey);
-                        setCustomUrlInput('');
-                      }}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-                        isSelected
-                          ? 'bg-[#d4af37] text-[#060e1c] shadow-lg'
-                          : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/5'
-                      }`}
-                    >
-                      <ImageIcon className="w-3.5 h-3.5" />
-                      <span>{meta.title}</span>
-                    </button>
-                  );
-                })}
+              {/* Top Navigation Mode Tabs */}
+              <div className="flex gap-2 p-1 bg-black/40 rounded-xl border border-[#1e3a5f]">
+                <button
+                  onClick={() => setActiveTab('site')}
+                  className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    activeTab === 'site'
+                      ? 'bg-[#d4af37] text-[#060e1c] shadow'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  <span>Fotos Principais das Seções</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('gallery')}
+                  className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    activeTab === 'gallery'
+                      ? 'bg-[#d4af37] text-[#060e1c] shadow'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Images className="w-4 h-4" />
+                  <span>Galeria de Fotos ({galleryPhotos.length})</span>
+                </button>
               </div>
 
-              {/* Active Section Editor Card */}
-              {selectedPhotoId && (
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-[#0a192f]/60 p-5 rounded-2xl border border-[#1e3a5f]">
-                  
-                  {/* Left Column: Live Preview */}
-                  <div className="md:col-span-5 space-y-2">
-                    <label className="block text-xs font-bold text-slate-300 flex items-center justify-between">
-                      <span>Visualização Atual</span>
-                      {previewOverride[selectedPhotoId] && (
-                        <span className="text-[10px] text-amber-400 font-semibold px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/30">
-                          Prévia não salva
-                        </span>
-                      )}
-                    </label>
-
-                    <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-black/60 border border-[#1e3a5f] group shadow-inner">
-                      <img
-                        src={previewOverride[selectedPhotoId] || photos[selectedPhotoId] || DEFAULT_PHOTOS[selectedPhotoId]?.defaultUrl}
-                        alt="Prévia da foto"
-                        className="w-full h-full object-cover object-center"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80';
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
-                      
-                      <div className="absolute bottom-2 left-2 right-2 p-2 rounded-lg bg-black/60 backdrop-blur-sm text-[11px] text-slate-300">
-                        <span className="font-bold text-[#f3e5ab] block">
-                          {DEFAULT_PHOTOS[selectedPhotoId]?.title}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          Seção: {DEFAULT_PHOTOS[selectedPhotoId]?.category}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column: Upload & Actions */}
-                  <div className="md:col-span-7 space-y-4 flex flex-col justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-white mb-1">
-                        Atualizar Foto desta Seção
-                      </h4>
-                      <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                        Envie uma foto do seu computador/celular. Ao salvar, ela será persistida no <strong>Firebase Firestore</strong> e ficará visível para todos os visitantes do site permanentemente.
-                      </p>
-
-                      {/* Dropzone & File Input */}
-                      <div
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => handleDrop(selectedPhotoId, e)}
-                        className="p-6 rounded-xl border-2 border-dashed border-[#1e3a5f] hover:border-[#d4af37] bg-black/40 text-center transition-colors mb-4"
-                      >
-                        <Upload className="w-8 h-8 mx-auto text-[#d4af37] mb-2" />
-                        <p className="text-xs font-semibold text-white mb-1">
-                          Arraste e solte a nova foto aqui
-                        </p>
-                        <p className="text-[11px] text-slate-400 mb-3">
-                          ou clique no botão abaixo para escolher do seu dispositivo
-                        </p>
-
-                        <input
-                          type="file"
-                          id={`file-input-${selectedPhotoId}`}
-                          accept="image/*"
-                          onChange={(e) => handleFileChange(selectedPhotoId, e)}
-                          className="sr-only"
-                        />
-                        <label
-                          htmlFor={`file-input-${selectedPhotoId}`}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-[#d4af37] text-white hover:text-[#060e1c] text-xs font-bold transition-all border border-white/20 hover:border-[#d4af37] cursor-pointer shadow"
+              {activeTab === 'site' ? (
+                /* TAB 1: Site Main Sections Photos */
+                <div className="space-y-6">
+                  {/* Section Selector Tabs */}
+                  <div className="flex flex-wrap gap-2 border-b border-[#1e3a5f] pb-3">
+                    {Object.keys(DEFAULT_PHOTOS).map((photoKey) => {
+                      const meta = DEFAULT_PHOTOS[photoKey];
+                      const isSelected = selectedPhotoId === photoKey;
+                      return (
+                        <button
+                          key={photoKey}
+                          onClick={() => {
+                            setSelectedPhotoId(photoKey);
+                            setCustomUrlInput('');
+                          }}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                            isSelected
+                              ? 'bg-[#d4af37] text-[#060e1c] shadow-lg'
+                              : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/5'
+                          }`}
                         >
                           <ImageIcon className="w-3.5 h-3.5" />
-                          <span>Selecionar Imagem...</span>
+                          <span>{meta.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Active Section Editor Card */}
+                  {selectedPhotoId && (
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-[#0a192f]/60 p-5 rounded-2xl border border-[#1e3a5f]">
+                      
+                      {/* Left Column: Live Preview */}
+                      <div className="md:col-span-5 space-y-2">
+                        <label className="block text-xs font-bold text-slate-300 flex items-center justify-between">
+                          <span>Visualização Atual</span>
+                          {previewOverride[selectedPhotoId] && (
+                            <span className="text-[10px] text-amber-400 font-semibold px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/30">
+                              Prévia não salva
+                            </span>
+                          )}
                         </label>
+
+                        <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-black/60 border border-[#1e3a5f] group shadow-inner">
+                          <img
+                            src={previewOverride[selectedPhotoId] || photos[selectedPhotoId] || DEFAULT_PHOTOS[selectedPhotoId]?.defaultUrl}
+                            alt="Prévia da foto"
+                            className="w-full h-full object-cover object-center"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80';
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
+                          
+                          <div className="absolute bottom-2 left-2 right-2 p-2 rounded-lg bg-black/60 backdrop-blur-sm text-[11px] text-slate-300">
+                            <span className="font-bold text-[#f3e5ab] block">
+                              {DEFAULT_PHOTOS[selectedPhotoId]?.title}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              Seção: {DEFAULT_PHOTOS[selectedPhotoId]?.category}
+                            </span>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Optional URL input */}
-                      <div className="space-y-1">
-                        <label className="text-[11px] text-slate-400 block font-medium">
-                          Ou digite o link direto de uma imagem (URL):
-                        </label>
-                        <input
-                          type="url"
-                          value={customUrlInput}
-                          onChange={(e) => {
-                            setCustomUrlInput(e.target.value);
-                            if (e.target.value) {
-                              setPreviewOverride((prev) => ({ ...prev, [selectedPhotoId]: e.target.value }));
+                      {/* Right Column: Upload & Actions */}
+                      <div className="md:col-span-7 space-y-4 flex flex-col justify-between">
+                        <div>
+                          <h4 className="text-sm font-bold text-white mb-1">
+                            Atualizar Foto desta Seção
+                          </h4>
+                          <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+                            Envie a foto do seu dispositivo. Ao salvar, ela será atualizada no <strong>Firebase Firestore</strong> instantaneamente para todos os visitantes.
+                          </p>
+
+                          {/* Dropzone & File Input */}
+                          <div
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => handleDrop(selectedPhotoId, e)}
+                            className="p-6 rounded-xl border-2 border-dashed border-[#1e3a5f] hover:border-[#d4af37] bg-black/40 text-center transition-colors mb-4"
+                          >
+                            <Upload className="w-8 h-8 mx-auto text-[#d4af37] mb-2" />
+                            <p className="text-xs font-semibold text-white mb-1">
+                              Arraste e solte a nova foto aqui
+                            </p>
+                            <p className="text-[11px] text-slate-400 mb-3">
+                              ou clique no botão abaixo para escolher
+                            </p>
+
+                            <input
+                              type="file"
+                              id={`file-input-${selectedPhotoId}`}
+                              accept="image/*"
+                              onChange={(e) => handleFileChange(selectedPhotoId, e)}
+                              className="sr-only"
+                            />
+                            <label
+                              htmlFor={`file-input-${selectedPhotoId}`}
+                              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-[#d4af37] text-white hover:text-[#060e1c] text-xs font-bold transition-all border border-white/20 hover:border-[#d4af37] cursor-pointer shadow"
+                            >
+                              <ImageIcon className="w-3.5 h-3.5" />
+                              <span>Selecionar Imagem...</span>
+                            </label>
+                          </div>
+
+                          {/* Optional URL input */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] text-slate-400 block font-medium">
+                              Ou digite o link direto de uma imagem (URL):
+                            </label>
+                            <input
+                              type="url"
+                              value={customUrlInput}
+                              onChange={(e) => {
+                                setCustomUrlInput(e.target.value);
+                                if (e.target.value) {
+                                  setPreviewOverride((prev) => ({ ...prev, [selectedPhotoId]: e.target.value }));
+                                }
+                              }}
+                              placeholder="https://exemplo.com/minha-foto.jpg"
+                              className="w-full px-3 py-2 text-xs rounded-lg bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Feedback Messages */}
+                        {successState[selectedPhotoId] && (
+                          <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs flex items-center gap-2 animate-fadeIn">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <span>{successState[selectedPhotoId]}</span>
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#1e3a5f]">
+                          {confirmResetId === selectedPhotoId ? (
+                            <div className="flex items-center gap-2 bg-amber-950/80 border border-amber-500/50 px-3 py-1.5 rounded-xl">
+                              <span className="text-[11px] text-amber-200 font-semibold">Restaurar original?</span>
+                              <button
+                                type="button"
+                                onClick={() => handleResetExecute(selectedPhotoId)}
+                                className="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-500 text-[#060e1c] font-bold text-xs cursor-pointer transition-colors"
+                              >
+                                Sim
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmResetId(null)}
+                                className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-slate-300 font-semibold text-xs cursor-pointer transition-colors"
+                              >
+                                Não
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmResetId(selectedPhotoId)}
+                              disabled={uploadingState[selectedPhotoId]}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Restaurar Padrão</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => handleSaveToFirestore(selectedPhotoId)}
+                            disabled={
+                              uploadingState[selectedPhotoId] ||
+                              (!previewOverride[selectedPhotoId] && !customUrlInput.trim())
                             }
-                          }}
-                          placeholder="https://exemplo.com/minha-foto.jpg"
-                          className="w-full px-3 py-2 text-xs rounded-lg bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
-                        />
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all shadow-lg cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {uploadingState[selectedPhotoId] ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span>Gravando no Banco...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Database className="w-3.5 h-3.5" />
+                                <span>Salvar no Banco de Dados</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* TAB 2: Gallery Photos Manager */
+                <div className="space-y-6">
+                  
+                  {/* Add New Gallery Photo Card */}
+                  <form 
+                    onSubmit={handleAddGalleryPhotoSubmit}
+                    className="p-5 rounded-2xl bg-[#0a192f]/80 border border-[#1e3a5f] space-y-4"
+                  >
+                    <div className="flex items-center justify-between border-b border-[#1e3a5f] pb-3">
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Plus className="w-4 h-4 text-[#d4af37]" />
+                        Adicionar Nova Foto na Galeria
+                      </h4>
+                      <span className="text-[11px] text-slate-400">Salvo diretamente no Firestore</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                      {/* Photo inputs */}
+                      <div className="md:col-span-8 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-semibold text-slate-300 block mb-1">
+                              Título / Descrição da Foto *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={newGalTitle}
+                              onChange={(e) => setNewGalTitle(e.target.value)}
+                              placeholder="Ex: Treino da equipe nas piscinas"
+                              className="w-full px-3 py-2 text-xs rounded-lg bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-300 block mb-1">
+                              Categoria *
+                            </label>
+                            <select
+                              value={newGalCategory}
+                              onChange={(e) => setNewGalCategory(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-lg bg-[#060e1c] border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                            >
+                              <option value="Equipe Oficial">Equipe Oficial</option>
+                              <option value="Iniciação Esportiva">Iniciação Esportiva</option>
+                              <option value="Alto Rendimento">Alto Rendimento</option>
+                              <option value="Competições">Competições</option>
+                              <option value="Treinamento">Treinamento</option>
+                              <option value="Comunidade ACEDEP">Comunidade ACEDEP</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-semibold text-slate-300 block mb-1">
+                              Data / Evento (opcional)
+                            </label>
+                            <input
+                              type="text"
+                              value={newGalDate}
+                              onChange={(e) => setNewGalDate(e.target.value)}
+                              placeholder="Ex: Campeonato Paulista 2026"
+                              className="w-full px-3 py-2 text-xs rounded-lg bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-300 block mb-1">
+                              Ou Link da Imagem (URL)
+                            </label>
+                            <input
+                              type="url"
+                              value={newGalUrl}
+                              onChange={(e) => setNewGalUrl(e.target.value)}
+                              placeholder="https://exemplo.com/foto.jpg"
+                              className="w-full px-3 py-2 text-xs rounded-lg bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                            />
+                          </div>
+                        </div>
+
+                        {/* File Upload Selector */}
+                        <div>
+                          <input
+                            type="file"
+                            id="gallery-file-upload"
+                            accept="image/*"
+                            onChange={handleGalleryFileChange}
+                            className="sr-only"
+                          />
+                          <label
+                            htmlFor="gallery-file-upload"
+                            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-[#d4af37] text-slate-300 hover:text-[#060e1c] text-xs font-semibold transition-all border border-white/10 hover:border-[#d4af37] cursor-pointer"
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Carregar foto do seu computador / celular</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Photo preview box */}
+                      <div className="md:col-span-4 flex flex-col items-center justify-center p-3 rounded-xl bg-black/40 border border-[#1e3a5f]">
+                        {newGalPreview || newGalUrl ? (
+                          <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-[#d4af37]/40">
+                            <img
+                              src={newGalPreview || newGalUrl}
+                              alt="Prévia"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-slate-500">
+                            <ImageIcon className="w-8 h-8 mx-auto mb-1 opacity-50" />
+                            <span className="text-[10px]">Nenhuma foto selecionada</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Feedback Messages */}
-                    {successState[selectedPhotoId] && (
-                      <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs flex items-center gap-2 animate-fadeIn">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span>{successState[selectedPhotoId]}</span>
+                    {galleryError && (
+                      <div className="p-3 rounded-xl bg-red-950/80 border border-red-500/50 text-red-300 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                        <span>{galleryError}</span>
                       </div>
                     )}
 
-                    {/* Action Buttons */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#1e3a5f]">
-                      <button
-                        onClick={() => handleReset(selectedPhotoId)}
-                        disabled={uploadingState[selectedPhotoId]}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>Restaurar Padrão</span>
-                      </button>
+                    {gallerySuccess && (
+                      <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>{gallerySuccess}</span>
+                      </div>
+                    )}
 
+                    <div className="flex justify-end pt-2">
                       <button
-                        onClick={() => handleSaveToFirestore(selectedPhotoId)}
-                        disabled={
-                          uploadingState[selectedPhotoId] ||
-                          (!previewOverride[selectedPhotoId] && !customUrlInput.trim())
-                        }
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all shadow-lg cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        type="submit"
+                        disabled={isSavingGallery || (!newGalPreview && !newGalUrl.trim())}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all shadow cursor-pointer disabled:opacity-40"
                       >
-                        {uploadingState[selectedPhotoId] ? (
+                        {isSavingGallery ? (
                           <>
                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Gravando no Banco...</span>
+                            <span>Salvando na Galeria...</span>
                           </>
                         ) : (
                           <>
-                            <Database className="w-3.5 h-3.5" />
-                            <span>Salvar no Banco de Dados</span>
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Adicionar à Galeria</span>
                           </>
                         )}
                       </button>
                     </div>
+                  </form>
 
+                  {/* List of existing gallery photos with delete option */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                      <span>Fotos Atuais na Galeria ({galleryPhotos.length})</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Clique no ícone de lixeira para remover</span>
+                    </h4>
+
+                    {galleryPhotos.length === 0 ? (
+                      <div className="p-8 rounded-2xl bg-[#0a192f]/40 border border-dashed border-[#1e3a5f] text-center text-slate-400">
+                        <Images className="w-8 h-8 mx-auto mb-2 text-slate-500" />
+                        <p className="text-xs font-semibold text-slate-300">Nenhuma foto na galeria no momento.</p>
+                        <p className="text-[11px] text-slate-500 mt-1">Adicione novas fotos usando o formulário acima.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {galleryPhotos.map((photo) => {
+                          const isConfirming = confirmDeleteGalleryId === photo.id;
+                          const isDeleting = isDeletingGalleryId === photo.id;
+
+                          return (
+                            <div
+                              key={photo.id}
+                              className="relative rounded-xl overflow-hidden bg-[#0a192f] border border-white/10 p-2.5 flex gap-3 items-center group transition-all hover:border-[#1e3a5f]"
+                            >
+                              <div className="w-16 h-16 rounded-lg overflow-hidden bg-black shrink-0 border border-white/10">
+                                <img
+                                  src={photo.url}
+                                  alt={photo.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#d4af37]/20 text-[#f3e5ab] font-semibold">
+                                  {photo.category}
+                                </span>
+                                <h5 className="text-xs font-bold text-white truncate mt-1">
+                                  {photo.title}
+                                </h5>
+                                {photo.date && (
+                                  <p className="text-[10px] text-slate-400 truncate">
+                                    {photo.date}
+                                  </p>
+                                )}
+                              </div>
+
+                              {isConfirming ? (
+                                <div className="flex flex-col gap-1 shrink-0 bg-red-950/90 border border-red-500/60 p-1.5 rounded-lg z-10">
+                                  <span className="text-[9px] text-red-200 font-bold text-center">Excluir?</span>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      disabled={isDeleting}
+                                      onClick={() => executeDeleteGalleryPhoto(photo)}
+                                      className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold cursor-pointer transition-colors shadow"
+                                    >
+                                      {isDeleting ? '...' : 'Sim'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteGalleryId(null)}
+                                      className="px-2 py-1 bg-white/10 hover:bg-white/20 text-slate-300 rounded text-[10px] font-semibold cursor-pointer transition-colors"
+                                    >
+                                      Não
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteGalleryId(photo.id)}
+                                  className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 transition-colors cursor-pointer shrink-0"
+                                  title="Remover foto da galeria"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
+
                 </div>
               )}
 

@@ -10,6 +10,7 @@ import { StatsImpact } from './components/StatsImpact';
 import { AboutSection } from './components/AboutSection';
 import { ModalitiesSection } from './components/ModalitiesSection';
 import { AthletesShowcase } from './components/AthletesShowcase';
+import { PhotoGallery } from './components/PhotoGallery';
 import { CtaSection } from './components/CtaSection';
 import { Footer } from './components/Footer';
 import { SupportModal } from './components/SupportModal';
@@ -57,10 +58,13 @@ export default function App() {
           {/* 4. Athletes & Technical Staff (Nossa Equipe) */}
           <AthletesShowcase />
 
-          {/* 5. Impact & Structure (Excelência & Conquistas) */}
+          {/* 5. Photo Gallery (Galeria de Fotos) */}
+          <PhotoGallery />
+
+          {/* 6. Impact & Structure (Excelência & Conquistas) */}
           <StatsImpact onOpenNucleos={() => scrollToSection('modalidades')} />
 
-          {/* 6. Call To Action (Novos Atletas / Apoiadores) */}
+          {/* 7. Call To Action (Novos Atletas / Apoiadores) */}
           <CtaSection
             onOpenSupportModal={() => setSupportModalOpen(true)}
             onOpenEnrollModal={() => setEnrollModalOpen(true)}
