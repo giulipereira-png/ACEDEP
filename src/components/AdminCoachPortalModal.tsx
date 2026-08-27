@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { 
+import { saveAthleteToSupabase } from '../services/athleteService';
   X, 
   Plus, 
   Trash2, 
@@ -525,6 +525,18 @@ export const AdminCoachPortalModal: React.FC = () => {
     if (!athleteName.trim() || !athleteGuardian.trim() || !athleteAccessCode.trim()) return;
 
     setIsSavingAthlete(true);
+    try {
+      await saveAthleteToSupabase({
+        name: athleteName.trim(),
+        guardianName: athleteGuardian.trim(),
+        guardianEmail: athleteEmail.trim(),
+        guardianPhone: athletePhone.trim(),
+        accessCode: athleteAccessCode.trim(),
+        birthDate: athleteBirth.trim()
+      });
+    } catch (err) {
+      console.error("Erro ao salvar atleta na nuvem:", err);
+    }
     const newAthleteId = `atleta-${Date.now()}`;
     const newAthlete: AthleteRecord = {
       id: newAthleteId,
