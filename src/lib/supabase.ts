@@ -1,21 +1,27 @@
-// Configuração limpa e direta do Supabase para o Admin
+// Configuração de login com liberação direta para o e-mail da ADM
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY || import.meta.env.SUPABASE_PUBLISHABLE_KEY;
 
 export const supabase = {
   auth: {
     async getSession() {
-      // Verifica se há um admin salvo no navegador para manter a sessão ativa
       const savedAdmin = localStorage.getItem('acedep_admin_logged');
       if (savedAdmin) {
         return { data: { session: { user: { email: savedAdmin } } } };
       }
       return { data: { session: null } };
     },
-    async signInWithPassword({ email }: any) {
+    async signInWithPassword({ email, password }: any) {
+      const cleanEmail = email.trim().toLowerCase();
+      
+      // LIBERAÇÃO DIRETA: Se for o seu e-mail, entra na hora independentemente do banco
+      if (cleanEmail === 'giuli.pereira@gmail.com') {
+        localStorage.setItem('acedep_admin_logged', cleanEmail);
+        return { data: { session: { user: { email: cleanEmail } } }, error: null };
+      }
+
       try {
-        // Consulta direta na tabela 'admins' que criamos no Supabase
-        const res = await fetch(`${supabaseUrl}/rest/v1/admins?email=eq.${email.trim()}&select=*`, {
+        const res = await fetch(`${supabaseUrl}/rest/v1/admins?email=eq.${cleanEmail}&select=*`, {
           headers: {
             'apikey': supabaseAnonKey,
             'Authorization': `Bearer ${supabaseAnonKey}`
@@ -24,9 +30,8 @@ export const supabase = {
         const data = await res.json();
         
         if (Array.isArray(data) && data.length > 0) {
-          // Salva localmente para manter logado
-          localStorage.setItem('acedep_admin_logged', email.trim());
-          return { data: { session: { user: { email } } }, error: null };
+          localStorage.setItem('acedep_admin_logged', cleanEmail);
+          return { data: { session: { user: { email: cleanEmail } } }, error: null };
         }
         
         return { data: { session: null }, error: { message: 'E-mail não autorizado como administrador.' } };
