@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { saveAthleteToSupabase } from '../services/athleteService';
+import { 
   X, 
   Plus, 
   Trash2, 
@@ -10,36 +10,27 @@ import { saveAthleteToSupabase } from '../services/athleteService';
   CheckCircle2, 
   AlertCircle, 
   UserPlus, 
-  RefreshCw,
-  Waves,
-  Mail,
-  Camera,
-  Upload,
-  Image as ImageIcon,
-  Copy,
-  ExternalLink,
-  Send,
-  Sparkles,
-  KeyRound,
-  Search,
-  Edit3,
-  Check,
+  RefreshCw, 
+  Waves, 
+  Mail, 
+  Camera, 
+  Upload, 
+  ImageIcon, 
+  Copy, 
+  ExternalLink, 
+  Send, 
+  Sparkles, 
+  KeyRound, 
+  Search, 
+  Edit3, 
+  Check, 
   Smartphone,
-  Calendar,
-  Eye,
-  Lock,
-  LogOut,
-  ShieldCheck,
-  Images,
-  Database,
-  RotateCcw,
   Heart,
   FileText
 } from 'lucide-react';
 import { useCommunity } from '../context/CommunityContext';
-import { usePhotos, DEFAULT_PHOTOS, GalleryPhotoItem } from '../context/PhotosContext';
-import { NewsCategory, AthleteRecord, EmailNotificationLog, CommunityCheer } from '../types';
-import { AttendanceManagerTab } from './admin/AttendanceManagerTab';
+import { usePhotos } from '../context/PhotosContext';
+import { saveAthleteToSupabase } from '../services/athleteService';
 import { AdminUsersManagerTab } from './admin/AdminUsersManagerTab';
 import { AthleteDocumentsTab } from './AthleteDocumentsTab';
 
