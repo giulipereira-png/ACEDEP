@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection } from '../lib/firebase';
+import { db, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, handleFirestoreError, OperationType } from '../lib/firebase';
 
 export interface SitePhotoData {
   id: string;
@@ -193,7 +193,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setPhotos(updated);
         },
         (error) => {
-          console.warn('Firestore site_photos subscription error:', error);
+          handleFirestoreError(error, OperationType.LIST, 'site_photos');
           setIsFirebaseConnected(false);
           setIsLoading(false);
         }
@@ -213,12 +213,12 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               }
               await setDoc(galleryInitDocRef, { initialized: true, seededAt: new Date().toISOString() });
             } catch (seedErr) {
-              console.warn('Could not auto-seed gallery in Firestore:', seedErr);
+              handleFirestoreError(seedErr, OperationType.WRITE, 'gallery_seed');
             }
           }
         })
         .catch((err) => {
-          console.warn('Init settings check failed:', err);
+          handleFirestoreError(err, OperationType.GET, 'settings/gallery_init');
         });
 
       unsubscribeGallery = onSnapshot(
@@ -256,11 +256,11 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         },
         (error) => {
-          console.warn('Firestore gallery subscription error:', error);
+          handleFirestoreError(error, OperationType.LIST, 'gallery');
         }
       );
     } catch (err) {
-      console.warn('Failed to attach Firestore listener:', err);
+      handleFirestoreError(err, OperationType.LIST, 'firestore_init');
       setIsLoading(false);
     }
 

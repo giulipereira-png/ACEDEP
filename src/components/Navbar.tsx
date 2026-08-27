@@ -9,20 +9,25 @@ import {
   Mail, 
   ChevronRight,
   ShieldCheck,
-  Lock
+  Lock,
+  UserCheck
 } from 'lucide-react';
 import { usePhotos } from '../context/PhotosContext';
+import { useCommunity } from '../context/CommunityContext';
 
 interface NavbarProps {
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
+  onOpenMemberPortal: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
+  onOpenMemberPortal,
 }) => {
   const { openAdminModal, isAdminAuthenticated } = usePhotos();
+  const { isGuardianAuthenticated, currentAthlete } = useCommunity();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
@@ -36,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       }
 
       // Active section tracker
-      const sections = ['home', 'sobre', 'modalidades', 'equipe', 'galeria', 'contato'];
+      const sections = ['home', 'sobre', 'modalidades', 'equipe', 'galeria', 'comunidade', 'contato'];
       const scrollPosition = window.scrollY + 200;
 
       for (const section of sections) {
@@ -59,9 +64,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   const navLinks = [
     { name: 'Home', href: '#home' },
     { name: 'Nossa História', href: '#sobre' },
-    { name: 'Natação & Treinos', href: '#modalidades' },
+    { name: 'Natação S14', href: '#modalidades' },
     { name: 'Nossa Equipe', href: '#equipe' },
     { name: 'Galeria', href: '#galeria' },
+    { name: 'Comunidade & Notícias', href: '#comunidade' },
+    { name: 'FAQ', href: '#faq' },
     { name: 'Contato', href: '#contato' },
   ];
 
@@ -160,14 +167,35 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Action Button & Mobile Toggle */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Portal do Responsável Button */}
+            <button
+              id="btn-portal-responsavel-nav"
+              onClick={onOpenMemberPortal}
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold border transition-all duration-200 flex items-center gap-2 cursor-pointer ${
+                isGuardianAuthenticated
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 shadow-md'
+                  : 'bg-[#0f284a] hover:bg-[#163866] text-[#f3e5ab] border-[#1e3a5f] hover:border-[#d4af37]'
+              }`}
+              title={isGuardianAuthenticated ? `Portal: ${currentAthlete?.name}` : 'Acesso Individual do Responsável'}
+            >
+              <UserCheck className={`w-4 h-4 ${isGuardianAuthenticated ? 'text-emerald-400' : 'text-[#d4af37]'}`} />
+              <span className="hidden sm:inline">
+                {isGuardianAuthenticated ? `Portal (${currentAthlete?.name?.split(' ')[0]})` : 'Portal do Responsável'}
+              </span>
+              <span className="sm:hidden">
+                {isGuardianAuthenticated ? 'Portal' : 'Responsável'}
+              </span>
+            </button>
+
             <button
               id="btn-seja-apoiador-nav"
               onClick={onOpenSupportModal}
-              className="relative group overflow-hidden rounded-md bg-gradient-to-r from-[#d4af37] via-[#e5c058] to-[#c49e29] px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-bold text-[#060e1c] shadow-lg shadow-[#d4af37]/20 hover:shadow-[#d4af37]/40 transition-all duration-200 active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="relative group overflow-hidden rounded-xl bg-gradient-to-r from-[#d4af37] via-[#e5c058] to-[#c49e29] px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-[#060e1c] shadow-lg shadow-[#d4af37]/20 hover:shadow-[#d4af37]/40 transition-all duration-200 active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               <HeartHandshake className="w-4 h-4 text-[#060e1c] group-hover:scale-110 transition-transform duration-200" />
-              <span>Seja um Apoiador</span>
+              <span className="hidden sm:inline">Seja um Apoiador</span>
+              <span className="sm:hidden">Apoiar</span>
             </button>
 
             {/* Mobile menu button */}
@@ -208,9 +236,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
+                  onOpenMemberPortal();
+                }}
+                className="w-full py-3 bg-[#0f284a] border border-[#1e3a5f] text-[#f3e5ab] font-bold rounded-xl flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4 text-[#d4af37]" />
+                <span>{isGuardianAuthenticated ? `Ver Portal de ${currentAthlete?.name}` : 'Acessar Portal do Responsável'}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
                   onOpenSupportModal();
                 }}
-                className="w-full py-3 bg-[#d4af37] text-[#060e1c] font-bold rounded-md flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                className="w-full py-3 bg-[#d4af37] text-[#060e1c] font-bold rounded-xl flex items-center justify-center gap-2 shadow-md cursor-pointer"
               >
                 <HeartHandshake className="w-4 h-4" />
                 Seja um Apoiador / Patrocinador
@@ -221,7 +260,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setMobileMenuOpen(false);
                   onOpenContactModal();
                 }}
-                className="w-full py-2.5 border border-slate-700 hover:border-[#d4af37] text-slate-300 hover:text-[#d4af37] font-semibold text-sm rounded-md flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2.5 border border-slate-700 hover:border-[#d4af37] text-slate-300 hover:text-[#d4af37] font-semibold text-sm rounded-xl flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Phone className="w-4 h-4" />
                 Fale Conosco / Avaliação

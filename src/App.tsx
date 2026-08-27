@@ -11,18 +11,25 @@ import { AboutSection } from './components/AboutSection';
 import { ModalitiesSection } from './components/ModalitiesSection';
 import { AthletesShowcase } from './components/AthletesShowcase';
 import { PhotoGallery } from './components/PhotoGallery';
+import { CommunitySection } from './components/CommunitySection';
 import { CtaSection } from './components/CtaSection';
+import { FaqSection } from './components/FaqSection';
 import { Footer } from './components/Footer';
 import { SupportModal } from './components/SupportModal';
 import { ContactModal } from './components/ContactModal';
 import { AthleteEnrollmentModal } from './components/AthleteEnrollmentModal';
 import { PhotosProvider } from './context/PhotosContext';
+import { CommunityProvider } from './context/CommunityContext';
 import { AdminPhotoManagerModal } from './components/AdminPhotoManagerModal';
+import { MemberPortalModal } from './components/MemberPortalModal';
+import { AdminCoachPortalModal } from './components/AdminCoachPortalModal';
+import { CommunityNewsModal } from './components/CommunityNewsModal';
 
 export default function App() {
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
+  const [memberPortalOpen, setMemberPortalOpen] = useState(false);
 
   const scrollToSection = (sectionId: string) => {
     const el = document.getElementById(sectionId);
@@ -33,69 +40,95 @@ export default function App() {
 
   return (
     <PhotosProvider>
-      <div className="min-h-screen bg-[#0a192f] text-slate-100 selection:bg-[#d4af37] selection:text-[#060e1c]">
-        {/* Header & Navbar */}
-        <Navbar
-          onOpenSupportModal={() => setSupportModalOpen(true)}
-          onOpenContactModal={() => setContactModalOpen(true)}
-        />
-
-        {/* Main Content Area */}
-        <main>
-          {/* 1. Hero Section */}
-          <Hero
+      <CommunityProvider>
+        <div className="min-h-screen bg-[#0a192f] text-slate-100 selection:bg-[#d4af37] selection:text-[#060e1c]">
+          {/* Header & Navbar */}
+          <Navbar
             onOpenSupportModal={() => setSupportModalOpen(true)}
             onOpenContactModal={() => setContactModalOpen(true)}
-            onOpenEnrollModal={() => setEnrollModalOpen(true)}
+            onOpenMemberPortal={() => setMemberPortalOpen(true)}
           />
 
-          {/* 2. About Section (Nossa História / Quem Somos) */}
-          <AboutSection />
+          {/* Main Content Area */}
+          <main>
+            {/* 1. Hero Section */}
+            <Hero
+              onOpenSupportModal={() => setSupportModalOpen(true)}
+              onOpenContactModal={() => setContactModalOpen(true)}
+              onOpenEnrollModal={() => setEnrollModalOpen(true)}
+            />
 
-          {/* 3. Modalities & Training Programs */}
-          <ModalitiesSection onOpenEnrollModal={() => setEnrollModalOpen(true)} />
+            {/* 2. About Section (Nossa História / Quem Somos) */}
+            <AboutSection />
 
-          {/* 4. Athletes & Technical Staff (Nossa Equipe) */}
-          <AthletesShowcase />
+            {/* 3. Modalities & Training Programs (Natação S14) */}
+            <ModalitiesSection onOpenEnrollModal={() => setEnrollModalOpen(true)} />
 
-          {/* 5. Photo Gallery (Galeria de Fotos) */}
-          <PhotoGallery />
+            {/* 4. Athletes & Technical Staff (Nossa Equipe) */}
+            <AthletesShowcase />
 
-          {/* 6. Impact & Structure (Excelência & Conquistas) */}
-          <StatsImpact onOpenNucleos={() => scrollToSection('modalidades')} />
+            {/* 5. Photo Gallery (Galeria de Fotos) */}
+            <PhotoGallery />
 
-          {/* 7. Call To Action (Novos Atletas / Apoiadores) */}
-          <CtaSection
+            {/* 6. Community & News Section (Mural de Notícias & Comunidade) */}
+            <CommunitySection />
+
+            {/* 7. Impact & Structure (Excelência & Conquistas) */}
+            <StatsImpact onOpenNucleos={() => scrollToSection('modalidades')} />
+
+            {/* 8. Call To Action (Novos Atletas / Apoiadores) */}
+            <CtaSection
+              onOpenSupportModal={() => setSupportModalOpen(true)}
+              onOpenEnrollModal={() => setEnrollModalOpen(true)}
+            />
+
+            {/* 9. Perguntas Frequentes (FAQ Compacto no final da página) */}
+            <FaqSection
+              onOpenContactModal={() => setContactModalOpen(true)}
+              onOpenEnrollModal={() => setEnrollModalOpen(true)}
+            />
+          </main>
+
+          {/* 10. Footer (Rodapé) */}
+          <Footer
             onOpenSupportModal={() => setSupportModalOpen(true)}
-            onOpenEnrollModal={() => setEnrollModalOpen(true)}
+            onOpenContactModal={() => setContactModalOpen(true)}
+            onOpenMemberPortal={() => setMemberPortalOpen(true)}
           />
-        </main>
 
-        {/* 8. Footer (Rodapé) */}
-        <Footer
-          onOpenSupportModal={() => setSupportModalOpen(true)}
-          onOpenContactModal={() => setContactModalOpen(true)}
-        />
+          {/* Interactive Modals */}
+          <SupportModal
+            isOpen={supportModalOpen}
+            onClose={() => setSupportModalOpen(false)}
+          />
 
-        {/* Interactive Modals */}
-        <SupportModal
-          isOpen={supportModalOpen}
-          onClose={() => setSupportModalOpen(false)}
-        />
+          <ContactModal
+            isOpen={contactModalOpen}
+            onClose={() => setContactModalOpen(false)}
+          />
 
-        <ContactModal
-          isOpen={contactModalOpen}
-          onClose={() => setContactModalOpen(false)}
-        />
+          <AthleteEnrollmentModal
+            isOpen={enrollModalOpen}
+            onClose={() => setEnrollModalOpen(false)}
+          />
 
-        <AthleteEnrollmentModal
-          isOpen={enrollModalOpen}
-          onClose={() => setEnrollModalOpen(false)}
-        />
+          {/* Individual Member / Guardian Portal Modal */}
+          <MemberPortalModal
+            isOpen={memberPortalOpen}
+            onClose={() => setMemberPortalOpen(false)}
+          />
 
-        {/* Admin Photo Manager Modal */}
-        <AdminPhotoManagerModal />
-      </div>
+          {/* News Article Reader Modal */}
+          <CommunityNewsModal />
+
+          {/* Coach & Admin Management Portal Modal */}
+          <AdminCoachPortalModal />
+
+          {/* Admin Photo Manager Modal */}
+          <AdminPhotoManagerModal />
+        </div>
+      </CommunityProvider>
     </PhotosProvider>
   );
 }
+

@@ -15,11 +15,13 @@ import { usePhotos } from '../context/PhotosContext';
 interface FooterProps {
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
+  onOpenMemberPortal?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
+  onOpenMemberPortal,
 }) => {
   const { openAdminModal, isAdminAuthenticated } = usePhotos();
   const scrollToTop = () => {
@@ -88,12 +90,7 @@ export const Footer: React.FC<FooterProps> = ({
               </li>
               <li>
                 <a href="#modalidades" className="hover:text-[#d4af37] transition-colors block py-0.5">
-                  Natação & Treinos
-                </a>
-              </li>
-              <li>
-                <a href="#equipe" className="hover:text-[#d4af37] transition-colors block py-0.5">
-                  Nossa Equipe
+                  Natação S14
                 </a>
               </li>
               <li>
@@ -102,9 +99,24 @@ export const Footer: React.FC<FooterProps> = ({
                 </a>
               </li>
               <li>
+                <a href="#comunidade" className="text-[#f3e5ab] hover:text-[#d4af37] font-semibold transition-colors block py-0.5">
+                  Mural & Comunidade
+                </a>
+              </li>
+              {onOpenMemberPortal && (
+                <li>
+                  <button 
+                    onClick={onOpenMemberPortal}
+                    className="text-[#d4af37] hover:underline font-bold block py-0.5 cursor-pointer text-left"
+                  >
+                    Portal do Responsável
+                  </button>
+                </li>
+              )}
+              <li>
                 <button 
                   onClick={onOpenSupportModal}
-                  className="text-[#d4af37] hover:underline font-semibold block py-0.5 cursor-pointer text-left"
+                  className="text-slate-300 hover:text-[#d4af37] hover:underline block py-0.5 cursor-pointer text-left"
                 >
                   Seja um Apoiador
                 </button>

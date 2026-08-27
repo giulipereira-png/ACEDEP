@@ -41,6 +41,12 @@
           "type": "string",
           "description": "PIN de acesso administrativo"
         },
+        "initialized": {
+          "type": "boolean"
+        },
+        "seededAt": {
+          "type": "string"
+        },
         "updatedAt": {
           "type": "string"
         }
@@ -59,6 +65,85 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "url"]
+    },
+    "NewsPost": {
+      "title": "NewsPost",
+      "description": "Notícias e comunicados oficiais da ACEDEP",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "date": { "type": "string" },
+        "author": { "type": "string" },
+        "authorRole": { "type": "string" },
+        "likesCount": { "type": "number" },
+        "tags": { "type": "array" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "content"]
+    },
+    "CommunityCheer": {
+      "title": "CommunityCheer",
+      "description": "Mensagens de incentivo e torcida para os atletas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorName": { "type": "string" },
+        "relationship": { "type": "string" },
+        "message": { "type": "string" },
+        "avatarColor": { "type": "string" },
+        "likes": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "authorName", "message"]
+    },
+    "Athlete": {
+      "title": "Athlete",
+      "description": "Cadastro de nadador paradesportivo e dados de treino",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "paralympicClass": { "type": "string" },
+        "clubRegistration": { "type": "string" },
+        "cbdiRegistration": { "type": "string" },
+        "guardianName": { "type": "string" },
+        "guardianEmail": { "type": "string" },
+        "guardianPhone": { "type": "string" },
+        "accessCode": { "type": "string" },
+        "attendanceRate": { "type": "number" },
+        "trainingSchedule": { "type": "object" },
+        "recentAttendance": { "type": "array" },
+        "swimmingMetrics": { "type": "array" },
+        "medicalDocuments": { "type": "array" },
+        "coachNotes": { "type": "array" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "guardianName", "accessCode"]
+    },
+    "EmailNotificationLog": {
+      "title": "EmailNotificationLog",
+      "description": "Registro de e-mails e comunicados disparados aos responsáveis",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string" },
+        "recipientSummary": { "type": "string" },
+        "recipientEmails": { "type": "array" },
+        "senderName": { "type": "string" },
+        "contentPreview": { "type": "string" },
+        "sentAt": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "status"]
     }
   },
   "firestore": {
@@ -72,7 +157,23 @@
     },
     "/settings/{settingId}": {
       "schema": "AdminSettings",
-      "description": "Configurações do painel administrativo"
+      "description": "Configurações do painel administrativo e marcadores de inicialização"
+    },
+    "/news_posts/{postId}": {
+      "schema": "NewsPost",
+      "description": "Mural de notícias e comunicados da ACEDEP"
+    },
+    "/community_cheers/{cheerId}": {
+      "schema": "CommunityCheer",
+      "description": "Recados e mensagens de apoio da comunidade e familiares"
+    },
+    "/athletes/{athleteId}": {
+      "schema": "Athlete",
+      "description": "Fichas cadastrais dos atletas e dados de desempenho do portal individual"
+    },
+    "/email_notifications/{notificationId}": {
+      "schema": "EmailNotificationLog",
+      "description": "Histórico de disparos de e-mail e notificações aos responsáveis"
     }
   }
 }
