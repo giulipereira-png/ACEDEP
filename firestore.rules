@@ -45,5 +45,20 @@ service cloud.firestore {
     match /email_notifications/{notificationId} {
       allow read, write: if true;
     }
+
+    // Sessões de chamada de presença de treinos e competições
+    match /attendance_sessions/{sessionId} {
+      allow read, write: if true;
+    }
+
+    // Eventos e competições do calendário oficial
+    match /annual_events/{eventId} {
+      allow read, write: if true;
+    }
+
+    // Usuários administrativos e equipe técnica
+    match /admin_users/{userId} {
+      allow read, write: if true;
+    }
   }
 }

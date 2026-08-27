@@ -218,6 +218,32 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       // 1. Site photos
       const photosCollection = collection(db, 'site_photos');
+      const sitePhotosInitDocRef = doc(db, 'settings', 'site_photos_init');
+
+      getDoc(sitePhotosInitDocRef)
+        .then(async (initSnap) => {
+          if (!initSnap.exists()) {
+            try {
+              for (const [photoKey, photoInfo] of Object.entries(DEFAULT_PHOTOS)) {
+                await setDoc(doc(db, 'site_photos', photoKey), {
+                  id: photoKey,
+                  title: photoInfo.title,
+                  category: photoInfo.category,
+                  url: photoInfo.defaultUrl,
+                  updatedAt: new Date().toISOString(),
+                  updatedBy: 'Sistema ACEDEP',
+                }, { merge: true });
+              }
+              await setDoc(sitePhotosInitDocRef, { initialized: true, seededAt: new Date().toISOString() });
+            } catch (seedErr) {
+              handleFirestoreError(seedErr, OperationType.WRITE, 'site_photos_seed');
+            }
+          }
+        })
+        .catch((err) => {
+          handleFirestoreError(err, OperationType.GET, 'settings/site_photos_init');
+        });
+
       unsubscribeSitePhotos = onSnapshot(
         photosCollection,
         (snapshot) => {

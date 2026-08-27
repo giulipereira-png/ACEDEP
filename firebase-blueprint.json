@@ -144,6 +144,54 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "title", "status"]
+    },
+    "AttendanceSession": {
+      "title": "AttendanceSession",
+      "description": "Sessão de chamada de presença de treino ou competição",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "location": { "type": "string" },
+        "coachName": { "type": "string" },
+        "attendeeIds": { "type": "array" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "date", "type", "title"]
+    },
+    "AnnualCalendarEvent": {
+      "title": "AnnualCalendarEvent",
+      "description": "Evento anual ou competição do calendário oficial",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "location": { "type": "string" },
+        "city": { "type": "string" },
+        "status": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "title", "type", "startDate", "location", "status"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Perfil de administrador ou coordenador técnico",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "pin": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "role"]
     }
   },
   "firestore": {
@@ -174,6 +222,18 @@
     "/email_notifications/{notificationId}": {
       "schema": "EmailNotificationLog",
       "description": "Histórico de disparos de e-mail e notificações aos responsáveis"
+    },
+    "/attendance_sessions/{sessionId}": {
+      "schema": "AttendanceSession",
+      "description": "Chamadas de frequência de treinos e competições"
+    },
+    "/annual_events/{eventId}": {
+      "schema": "AnnualCalendarEvent",
+      "description": "Eventos e competições do calendário oficial da ACEDEP"
+    },
+    "/admin_users/{userId}": {
+      "schema": "AdminUser",
+      "description": "Usuários e comissão técnica com acesso administrativo"
     }
   }
 }
