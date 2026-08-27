@@ -4,7 +4,6 @@ import {
   CalendarCheck, 
   CheckCircle2, 
   AlertCircle,
-  Mail,
   MessageCircle,
   Copy,
   Check,
@@ -12,7 +11,6 @@ import {
   Loader2
 } from 'lucide-react';
 import { Logo } from './Logo';
-import { useCommunity } from '../context/CommunityContext';
 import { insertAthlete } from '../lib/supabase';
 
 interface AthleteEnrollmentModalProps {
@@ -24,7 +22,6 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { setCoachManagerModalOpen } = useCommunity();
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -43,24 +40,10 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
 
   if (!isOpen) return null;
 
-  const targetEmail = 'giuli.pereira@gmail.com';
-  const targetPhone = '5511998809708';
-
-  const generateEmailBody = () => {
-    return `Olá Equipe ACEDEP,\n\nSolicitação de Avaliação Técnica enviada pelo site:\n\n` +
-      `• Nome do Atleta: ${formData.athleteName}\n` +
-      `• Idade: ${formData.age} anos\n` +
-      `• Responsável: ${formData.guardianName}\n` +
-      `• Telefone/WhatsApp: ${formData.phone}\n` +
-      `• Diagnóstico / Condição: ${formData.disabilityType}\n` +
-      `• Turma Desejada: ${formData.modalityType}\n` +
-      `• Experiência Aquática: ${formData.swimmingExperience}\n` +
-      `• Observações: ${formData.notes || 'Nenhuma'}\n\n` +
-      `Treinos: Seg/Qua/Sex (18h às 19h30) ou Ter/Qui (15h às 16h30).`;
-  };
+  const targetPhone = '5511998809708'; // WhatsApp Oficial ACEDEP
 
   const generateWhatsAppMessage = () => {
-    return `*ACEDEP - Solicitação de Avaliação*\n\n` +
+    return `*ACEDEP - Nova Solicitação de Avaliação*\n\n` +
       `*Atleta:* ${formData.athleteName} (${formData.age} anos)\n` +
       `*Responsável:* ${formData.guardianName}\n` +
       `*Telefone/WhatsApp:* ${formData.phone}\n` +
@@ -70,10 +53,6 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
       (formData.notes ? `*Obs:* ${formData.notes}\n` : '');
   };
 
-  const mailtoUrl = `mailto:${targetEmail}?subject=${encodeURIComponent(
-    `[ACEDEP - Avaliação] ${formData.athleteName} (${formData.age} anos)`
-  )}&body=${encodeURIComponent(generateEmailBody())}`;
-
   const whatsappUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(generateWhatsAppMessage())}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,20 +61,21 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
     setErrorMessage('');
 
     try {
+      // 1. Salva os dados permanentemente na nuvem (Supabase) - Acessível de qualquer aparelho
       await insertAthlete({
         full_name: formData.athleteName,
-        guardian_name: formData.guardianName,
-        disability_type: formData.disabilityType,
+        guardian_name: `${formData.guardianName} (Tel: ${formData.phone})`,
+        disability_type: `${formData.disabilityType} | Turma: ${formData.modalityType}`,
         swating_experience: formData.swimmingExperience,
         phone: formData.phone,
-        email: formData.email || targetEmail,
+        email: formData.email || 'contato@acedep.org.br',
         status: 'Pendente',
       });
 
       setSubmitted(true);
     } catch (err: any) {
       console.error('Erro ao salvar no Supabase:', err);
-      setErrorMessage('Aviso: O cadastro foi direcionado, mas houve uma falha ao salvar no banco online.');
+      setErrorMessage('Os dados foram processados, mas houve um alerta ao gravar na nuvem. Envie via WhatsApp abaixo para garantir!');
       setSubmitted(true);
     } finally {
       setLoading(false);
@@ -103,7 +83,7 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(generateEmailBody());
+    navigator.clipboard.writeText(generateWhatsAppMessage());
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
   };
@@ -144,10 +124,13 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
               </div>
               <div>
                 <h4 className="text-2xl font-bold text-white">
-                  Solicitação Registrada com Sucesso!
+                  Cadastro Salvo com Sucesso!
                 </h4>
                 <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed mt-1">
-                  Os dados foram salvos no sistema da ACEDEP e direcionados para <strong>{targetEmail}</strong>. Envie também pelo WhatsApp para agilizar o contato:
+                  Os dados do atleta foram salvos no sistema da ACEDEP na nuvem e já estão disponíveis no painel administrativo de qualquer aparelho. 
+                </p>
+                <p className="text-xs text-[#f3e5ab] mt-2 font-medium">
+                  Para atendimento imediato, clique abaixo para enviar a solicitação diretamente no WhatsApp da diretoria:
                 </p>
                 {errorMessage && (
                   <p className="text-xs text-amber-400 mt-2">{errorMessage}</p>
@@ -160,21 +143,11 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-3 px-4 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg"
+                  className="w-full py-3.5 px-4 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg"
                 >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Enviar Solicitação pelo WhatsApp</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-
-                <a
-                  href={mailtoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2.5 px-4 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition-all flex items-center justify-center gap-2"
-                >
-                  <Mail className="w-4 h-4 text-[#d4af37]" />
-                  <span>Abrir no Aplicativo de E-mail ({targetEmail})</span>
+                  <MessageCircle className="w-5 h-5" />
+                  <span>Enviar Confirmação pelo WhatsApp</span>
+                  <ExternalLink className="w-4 h-4" />
                 </a>
 
                 <button
@@ -190,7 +163,7 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
                   ) : (
                     <>
                       <Copy className="w-4 h-4 text-[#d4af37]" />
-                      <span>Copiar Dados da Solicitação</span>
+                      <span>Copiar Resumo da Inscrição</span>
                     </>
                   )}
                 </button>
@@ -215,8 +188,8 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
               <div className="p-3.5 rounded-xl bg-[#0f2744] border border-[#d4af37]/40 text-xs text-slate-200 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-[#d4af37] shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-white block mb-0.5">Público-Alvo & Requisitos:</strong>
-                  Pessoas com Deficiência Intelectual (Autismo, DI e Síndrome de Down) a partir de <strong>12 anos</strong> e com <strong>experiência prévia básica em natação</strong>. Turmas de Iniciação e Alto Rendimento (Classes S14 e S21).
+                  <strong className="text-white block mb-0.5">Sincronização em Nuvem:</strong>
+                  Ao enviar este formulário, o perfil do atleta é gravado permanentemente no banco de dados e poderá ser acessado de qualquer computador ou celular pela diretoria.
                 </div>
               </div>
 
@@ -315,7 +288,7 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Experiência Prévia na Água *
+                    Experiência Prévia na Água *
                 </label>
                 <select
                   value={formData.swimmingExperience}
@@ -356,12 +329,12 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Salvando...</span>
+                      <span>Salvando na Nuvem...</span>
                     </>
                   ) : (
                     <>
                       <CalendarCheck className="w-4 h-4" />
-                      <span>Solicitar Teste</span>
+                      <span>Cadastrar Atleta</span>
                     </>
                   )}
                 </button>
