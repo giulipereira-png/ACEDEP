@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { AboutSection } from './components/AboutSection';
@@ -20,6 +20,7 @@ import { CalendarPage } from './pages/CalendarPage';
 import { GalleryPage } from './pages/GalleryPage';
 import { FaqPage } from './pages/FaqPage';
 import { CommunityPage } from './pages/CommunityPage';
+import { AdminPage } from './pages/AdminPage'; // Nossa página de login ADM do Supabase
 
 // Action & Portal Modals
 import { SupportModal } from './components/SupportModal';
@@ -32,7 +33,7 @@ import { CommunityNewsModal } from './components/CommunityNewsModal';
 import { PhotosProvider } from './context/PhotosContext';
 import { CommunityProvider } from './context/CommunityContext';
 
-export type AppPage = 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade';
+export type AppPage = 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade' | 'admin';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>('home');
@@ -43,10 +44,22 @@ export default function App() {
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [memberPortalOpen, setMemberPortalOpen] = useState(false);
 
+  // Detecta se o usuário acessou via /admin na URL
+  useEffect(() => {
+    if (window.location.pathname.includes('/admin') || window.location.hash.includes('admin')) {
+      setCurrentPage('admin');
+    }
+  }, []);
+
   const handleNavigateToPage = (page: AppPage) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Se a página atual for admin, exibe a tela de login/painel ADM do Supabase
+  if (currentPage === 'admin') {
+    return <AdminPage />;
+  }
 
   return (
     <PhotosProvider>
@@ -190,4 +203,3 @@ export default function App() {
     </PhotosProvider>
   );
 }
-
