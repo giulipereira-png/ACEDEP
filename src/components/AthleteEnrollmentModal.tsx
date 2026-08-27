@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   X, 
-  Waves, 
   CalendarCheck, 
   CheckCircle2, 
   AlertCircle,
@@ -14,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { useCommunity } from '../context/CommunityContext';
-import { supabase } from '../lib/supabase';
+import { insertAthlete } from '../lib/supabase';
 
 interface AthleteEnrollmentModalProps {
   isOpen: boolean;
@@ -83,26 +82,19 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
     setErrorMessage('');
 
     try {
-      // Salva diretamente na tabela 'athletes' do Supabase
-      const { error } = await supabase.from('athletes').insert([
-        {
-          full_name: formData.athleteName,
-          guardian_name: formData.guardianName,
-          birth_date: null, // opcional, mantemos nulo se for inserido só idade
-          disability_type: formData.disabilityType,
-          swating_experience: formData.swimmingExperience,
-          phone: formData.phone,
-          email: formData.email || targetEmail,
-          status: 'Pendente',
-        },
-      ]);
-
-      if (error) throw error;
+      await insertAthlete({
+        full_name: formData.athleteName,
+        guardian_name: formData.guardianName,
+        disability_type: formData.disabilityType,
+        swating_experience: formData.swimmingExperience,
+        phone: formData.phone,
+        email: formData.email || targetEmail,
+        status: 'Pendente',
+      });
 
       setSubmitted(true);
     } catch (err: any) {
       console.error('Erro ao salvar no Supabase:', err);
-      // Mesmo se houver falha no banco, permitimos abrir o WhatsApp/E-mail para não perder o contato do usuário
       setErrorMessage('Aviso: O cadastro foi direcionado, mas houve uma falha ao salvar no banco online.');
       setSubmitted(true);
     } finally {
