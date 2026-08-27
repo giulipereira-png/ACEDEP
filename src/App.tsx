@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { AboutSection } from './components/AboutSection';
@@ -20,7 +20,6 @@ import { CalendarPage } from './pages/CalendarPage';
 import { GalleryPage } from './pages/GalleryPage';
 import { FaqPage } from './pages/FaqPage';
 import { CommunityPage } from './pages/CommunityPage';
-import { AdminPage } from './pages/AdminPage'; // Nossa página de login ADM do Supabase
 
 // Action & Portal Modals
 import { SupportModal } from './components/SupportModal';
@@ -33,7 +32,7 @@ import { CommunityNewsModal } from './components/CommunityNewsModal';
 import { PhotosProvider } from './context/PhotosContext';
 import { CommunityProvider } from './context/CommunityContext';
 
-export type AppPage = 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade' | 'admin';
+export type AppPage = 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>('home');
@@ -44,22 +43,10 @@ export default function App() {
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [memberPortalOpen, setMemberPortalOpen] = useState(false);
 
-  // Detecta se o usuário acessou via /admin na URL
-  useEffect(() => {
-    if (window.location.pathname.includes('/admin') || window.location.hash.includes('admin')) {
-      setCurrentPage('admin');
-    }
-  }, []);
-
   const handleNavigateToPage = (page: AppPage) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  // Se a página atual for admin, exibe a tela de login/painel ADM do Supabase
-  if (currentPage === 'admin') {
-    return <AdminPage />;
-  }
 
   return (
     <PhotosProvider>
@@ -91,23 +78,23 @@ export default function App() {
                 {/* 3. Modalities & Training Programs (Natação S14 & Grade Horária) */}
                 <ModalitiesSection onOpenEnrollModal={() => setEnrollModalOpen(true)} />
 
-                {/* 4. Notícias Recentes & Mural de Recados da Torcida (Carrossel Compacto + Manchetes) */}
+                {/* 4. Notícias Recentes & Mural de Recados da Torcida */}
                 <NewsAndCheersLanding 
                   onOpenCommunityModal={() => handleNavigateToPage('comunidade')}
                 />
 
-                {/* 5. Galeria de Fotos Compacta (Preview na Landing Page) */}
+                {/* 5. Galeria de Fotos Compacta */}
                 <CompactPhotoGallery
                   onOpenFullGallery={() => handleNavigateToPage('galeria')}
                 />
 
-                {/* 6. Explore Hub Section (Navegação Rápida para Páginas Dedicadas) */}
+                {/* 6. Explore Hub Section */}
                 <ExploreHubSection
                   onNavigateToPage={handleNavigateToPage}
                   onOpenSupportModal={() => setSupportModalOpen(true)}
                 />
 
-                {/* 7. Call To Action (Novos Atletas / Apoiadores) */}
+                {/* 7. Call To Action */}
                 <CtaSection
                   onOpenSupportModal={() => setSupportModalOpen(true)}
                   onOpenEnrollModal={() => setEnrollModalOpen(true)}
@@ -115,7 +102,6 @@ export default function App() {
               </>
             )}
 
-            {/* Dedicated Page: Nossa Equipe & Atletas */}
             {currentPage === 'equipe' && (
               <TeamPage
                 onBackToHome={() => handleNavigateToPage('home')}
@@ -125,7 +111,6 @@ export default function App() {
               />
             )}
 
-            {/* Dedicated Page: Calendário Oficial 2026 */}
             {currentPage === 'calendario' && (
               <CalendarPage
                 onBackToHome={() => handleNavigateToPage('home')}
@@ -134,7 +119,6 @@ export default function App() {
               />
             )}
 
-            {/* Dedicated Page: Galeria de Fotos Completa */}
             {currentPage === 'galeria' && (
               <GalleryPage
                 onBackToHome={() => handleNavigateToPage('home')}
@@ -143,7 +127,6 @@ export default function App() {
               />
             )}
 
-            {/* Dedicated Page: FAQ (Dúvidas Frequentes) */}
             {currentPage === 'faq' && (
               <FaqPage
                 onBackToHome={() => handleNavigateToPage('home')}
@@ -153,7 +136,6 @@ export default function App() {
               />
             )}
 
-            {/* Dedicated Page: Mural & Comunidade */}
             {currentPage === 'comunidade' && (
               <CommunityPage
                 onBackToHome={() => handleNavigateToPage('home')}
@@ -163,7 +145,7 @@ export default function App() {
             )}
           </main>
 
-          {/* Footer (Rodapé Institucional) */}
+          {/* Footer */}
           <Footer
             onNavigateToPage={handleNavigateToPage}
             onOpenSupportModal={() => setSupportModalOpen(true)}
@@ -187,16 +169,13 @@ export default function App() {
             onClose={() => setEnrollModalOpen(false)}
           />
 
-          {/* Individual Member / Guardian Portal Modal */}
           <MemberPortalModal
             isOpen={memberPortalOpen}
             onClose={() => setMemberPortalOpen(false)}
           />
 
-          {/* News Article Reader Modal */}
           <CommunityNewsModal />
 
-          {/* Coach & Admin Management Portal Modal */}
           <AdminCoachPortalModal />
         </div>
       </CommunityProvider>
