@@ -1,6 +1,6 @@
-// Configuração limpa do Supabase via nativo (Fetch)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Configuração inteligente do Supabase (lê tanto VITE_ quanto as novas chaves)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY || import.meta.env.SUPABASE_PUBLISHABLE_KEY;
 
 export async function insertAthlete(data: {
   full_name: string;
@@ -12,7 +12,7 @@ export async function insertAthlete(data: {
   status: string;
 }) {
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('As variáveis de ambiente do Supabase não estão configuradas.');
+    throw new Error('As chaves do Supabase não foram encontradas nas variáveis de ambiente da Vercel.');
   }
 
   const response = await fetch(`${supabaseUrl}/rest/v1/athletes`, {
