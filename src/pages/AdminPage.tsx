@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
+import { Lock, ArrowLeft } from 'lucide-react';
 import { AdminCoachPortalModal } from '../components/AdminCoachPortalModal';
-import { ShieldCheck, Lock, ArrowLeft, Loader2 } from 'lucide-react';
 import { Logo } from '../components/Logo';
 
 export const AdminPage: React.FC = () => {
@@ -10,7 +10,6 @@ export const AdminPage: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Liberação direta para o e-mail da diretoria acessar o painel completo
     if (email.trim().toLowerCase() === 'giuli.pereira@gmail.com') {
       setIsLoggedIn(true);
     } else {
@@ -18,7 +17,7 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  // Se não estiver logado, mostra a tela de segurança ADM
+  // Se não estiver logado, exibe a caixinha elegante de login ADM
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a192f] flex flex-col items-center justify-center p-4">
@@ -59,7 +58,7 @@ export const AdminPage: React.FC = () => {
               className="w-full py-3 rounded-lg bg-gradient-to-r from-[#d4af37] to-[#c49e29] text-[#060e1c] font-bold text-xs uppercase tracking-wider hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               <Lock className="w-4 h-4" />
-              <span>Entrar no Painel Completo</span>
+              <span>Entrar no Painel</span>
             </button>
           </form>
 
@@ -73,27 +72,28 @@ export const AdminPage: React.FC = () => {
     );
   }
 
-  // Se estiver logado, exibe o painel completo original de gestão da ACEDEP
+  // Se logado, renderiza a home do site de fundo e abre o modal de administração completo por cima
   return (
-    <div className="min-h-screen bg-[#060e1c] text-slate-100">
-      {/* Força o painel completo original a ficar visível em tela cheia */}
-      <div className="p-4 bg-[#0a192f] border-b border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Logo variant="emblem" className="h-8" />
-          <span className="text-xs font-bold text-[#d4af37] uppercase tracking-wider">Painel Administrativo Geral - ACEDEP</span>
+    <div className="min-h-screen bg-[#060e1c] text-slate-100 relative">
+      {/* Fundo com um aviso e botão de voltar para o site */}
+      <div className="p-8 text-center space-y-4 max-w-xl mx-auto pt-20">
+        <Logo variant="emblem" className="h-20 mx-auto" />
+        <h2 className="text-2xl font-bold text-white">Sessão Administrativa Ativa</h2>
+        <p className="text-xs text-slate-300">
+          O painel de gestão completo da ACEDEP foi aberto. Caso queira fechar e retornar à página inicial do site, utilize o botão abaixo.
+        </p>
+        <div>
+          <a
+            href="/"
+            className="inline-block px-6 py-2.5 rounded-md bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#e5c058] transition-colors"
+          >
+            Voltar ao Site Principal
+          </a>
         </div>
-        <a 
-          href="/" 
-          className="px-3 py-1.5 rounded bg-red-500/20 text-red-300 text-xs font-semibold hover:bg-red-500/30 transition-colors"
-        >
-          Sair / Fechar Painel
-        </a>
       </div>
-      
-      {/* Renderiza o modal completo original em formato de página cheia */}
-      <div className="w-full">
-        <AdminCoachPortalModal />
-      </div>
+
+      {/* Força o painel original de coordenação a abrir por cima em modo aberto (isOpen = true) */}
+      <AdminCoachPortalModal forcedOpen={true} />
     </div>
   );
 };
