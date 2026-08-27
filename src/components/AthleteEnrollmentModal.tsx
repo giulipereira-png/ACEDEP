@@ -4,18 +4,17 @@ import {
   Waves, 
   CalendarCheck, 
   CheckCircle2, 
-  Activity, 
   AlertCircle,
   Mail,
   MessageCircle,
   Copy,
   Check,
   ExternalLink,
-  Phone,
-  UserPlus
+  Loader2
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { useCommunity } from '../context/CommunityContext';
+import { supabase } from '../lib/supabase';
 
 interface AthleteEnrollmentModalProps {
   isOpen: boolean;
@@ -28,6 +27,8 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
 }) => {
   const { setCoachManagerModalOpen } = useCommunity();
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
   const [formData, setFormData] = useState({
     athleteName: '',
@@ -76,10 +77,37 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
 
   const whatsappUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(generateWhatsAppMessage())}`;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    window.open(mailtoUrl, '_blank');
-    setSubmitted(true);
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      // Salva diretamente na tabela 'athletes' do Supabase
+      const { error } = await supabase.from('athletes').insert([
+        {
+          full_name: formData.athleteName,
+          guardian_name: formData.guardianName,
+          birth_date: null, // opcional, mantemos nulo se for inserido só idade
+          disability_type: formData.disabilityType,
+          swating_experience: formData.swimmingExperience,
+          phone: formData.phone,
+          email: formData.email || targetEmail,
+          status: 'Pendente',
+        },
+      ]);
+
+      if (error) throw error;
+
+      setSubmitted(true);
+    } catch (err: any) {
+      console.error('Erro ao salvar no Supabase:', err);
+      // Mesmo se houver falha no banco, permitimos abrir o WhatsApp/E-mail para não perder o contato do usuário
+      setErrorMessage('Aviso: O cadastro foi direcionado, mas houve uma falha ao salvar no banco online.');
+      setSubmitted(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCopy = () => {
@@ -124,11 +152,14 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
               </div>
               <div>
                 <h4 className="text-2xl font-bold text-white">
-                  Solicitação Preparada com Sucesso!
+                  Solicitação Registrada com Sucesso!
                 </h4>
                 <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed mt-1">
-                  Os dados foram direcionados para <strong>{targetEmail}</strong> e <strong>(11) 99880-9708</strong>. Clique abaixo para enviar agora mesmo:
+                  Os dados foram salvos no sistema da ACEDEP e direcionados para <strong>{targetEmail}</strong>. Envie também pelo WhatsApp para agilizar o contato:
                 </p>
+                {errorMessage && (
+                  <p className="text-xs text-amber-400 mt-2">{errorMessage}</p>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -327,10 +358,20 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-md bg-gradient-to-r from-[#d4af37] to-[#c49e29] text-[#060e1c] font-bold text-xs uppercase tracking-wider hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
+                  disabled={loading}
+                  className="px-6 py-2.5 rounded-md bg-gradient-to-r from-[#d4af37] to-[#c49e29] text-[#060e1c] font-bold text-xs uppercase tracking-wider hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  <CalendarCheck className="w-4 h-4" />
-                  <span>Solicitar Teste</span>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CalendarCheck className="w-4 h-4" />
+                      <span>Solicitar Teste</span>
+                    </>
+                  )}
                 </button>
               </div>
 
