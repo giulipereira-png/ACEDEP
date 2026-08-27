@@ -7,10 +7,11 @@ import {
   MapPin, 
   Phone, 
   Mail, 
-  ChevronRight,
-  ShieldCheck,
-  Lock,
-  UserCheck
+  ChevronRight, 
+  ShieldCheck, 
+  Lock, 
+  UserCheck,
+  UserPlus
 } from 'lucide-react';
 import { usePhotos } from '../context/PhotosContext';
 import { useCommunity } from '../context/CommunityContext';
@@ -19,15 +20,17 @@ interface NavbarProps {
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
   onOpenMemberPortal: () => void;
+  onOpenCalendarModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
   onOpenMemberPortal,
+  onOpenCalendarModal,
 }) => {
   const { openAdminModal, isAdminAuthenticated } = usePhotos();
-  const { isGuardianAuthenticated, currentAthlete } = useCommunity();
+  const { isGuardianAuthenticated, currentAthlete, setCoachManagerModalOpen } = useCommunity();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
@@ -41,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       }
 
       // Active section tracker
-      const sections = ['home', 'sobre', 'modalidades', 'equipe', 'galeria', 'comunidade', 'contato'];
+      const sections = ['home', 'sobre', 'modalidades', 'calendario', 'equipe', 'galeria', 'comunidade', 'faq', 'contato'];
       const scrollPosition = window.scrollY + 200;
 
       for (const section of sections) {
@@ -64,7 +67,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const navLinks = [
     { name: 'Home', href: '#home' },
     { name: 'Nossa História', href: '#sobre' },
-    { name: 'Natação S14', href: '#modalidades' },
+    { name: 'Modalidades', href: '#modalidades' },
+    { name: 'Calendário', href: '#calendario' },
     { name: 'Nossa Equipe', href: '#equipe' },
     { name: 'Galeria', href: '#galeria' },
     { name: 'Comunidade & Notícias', href: '#comunidade' },
@@ -131,14 +135,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          {/* Logo with secret double-click / triple-click handler */}
+          {/* Logo */}
           <a
             href="#home"
             id="nav-logo-link"
-            onDoubleClick={(e) => {
-              e.preventDefault();
-              openAdminModal();
-            }}
             className="flex items-center gap-2 group transition-transform duration-200 hover:scale-[1.02] cursor-pointer"
             title="ACEDEP Paradesporto"
           >
@@ -148,7 +148,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Desktop Nav Items */}
           <div className="hidden lg:flex items-center space-x-1 xl:space-x-2">
             {navLinks.map((link) => {
-              const isActive = activeSection === link.href.replace('#', '');
+              const isCalendar = link.name === 'Calendário';
+              const isActive = !isCalendar && activeSection === link.href.replace('#', '');
+
+              if (isCalendar && onOpenCalendarModal) {
+                return (
+                  <button
+                    key={link.name}
+                    type="button"
+                    onClick={onOpenCalendarModal}
+                    id={`nav-link-${link.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    className="px-3 py-2 text-sm font-semibold tracking-wide rounded-md text-slate-200 hover:text-[#d4af37] hover:bg-white/5 transition-all duration-200 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>{link.name}</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+                  </button>
+                );
+              }
+
               return (
                 <a
                   key={link.name}
@@ -219,17 +236,43 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <div className="space-y-1 divide-y divide-white/5">
             <div className="py-2 space-y-1">
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-md text-base font-medium text-slate-200 hover:text-[#d4af37] hover:bg-white/5"
-                >
-                  <span>{link.name}</span>
-                  <ChevronRight className="w-4 h-4 text-slate-500" />
-                </a>
-              ))}
+              {navLinks.map((link) => {
+                const isCalendar = link.name === 'Calendário';
+
+                if (isCalendar && onOpenCalendarModal) {
+                  return (
+                    <button
+                      key={link.name}
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onOpenCalendarModal();
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2.5 rounded-md text-base font-medium text-[#d4af37] bg-white/5 hover:bg-white/10 text-left cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{link.name}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#d4af37]/20 text-[#f3e5ab]">
+                          Eventos 2026
+                        </span>
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-[#d4af37]" />
+                    </button>
+                  );
+                }
+
+                return (
+                  <a
+                    key={link.name}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-md text-base font-medium text-slate-200 hover:text-[#d4af37] hover:bg-white/5"
+                  >
+                    <span>{link.name}</span>
+                    <ChevronRight className="w-4 h-4 text-slate-500" />
+                  </a>
+                );
+              })}
             </div>
 
             <div className="pt-4 space-y-3">
@@ -272,3 +315,4 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
+

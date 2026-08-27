@@ -1,3 +1,26 @@
+export type EventCategory = 
+  | 'Campeonato Nacional' 
+  | 'Campeonato Estadual' 
+  | 'Torneio Regional' 
+  | 'Festival & Confraternização' 
+  | 'Seletiva & Avaliação' 
+  | 'Reunião de Pais';
+
+export interface AnnualCalendarEvent {
+  id: string;
+  title: string;
+  category: EventCategory;
+  date: string; // e.g. "18/04/2026" or "18 a 20 de Abril de 2026"
+  month: number; // 1-12
+  year: number; // e.g. 2026
+  location: string; // e.g. "Centro Paralímpico Brasileiro - São Paulo, SP"
+  description?: string;
+  targetCategory?: string; // e.g. "Classes S14 & S21", "Alto Rendimento", "Todos os Atletas"
+  status: 'confirmado' | 'previsto' | 'concluido';
+  highlight?: boolean;
+  createdAt?: string;
+}
+
 export interface NavItem {
   label: string;
   href: string;
@@ -161,3 +184,37 @@ export interface EmailNotificationLog {
   contentPreview: string;
   status: 'enviado' | 'pendente';
 }
+
+export type AttendanceStatus = 'presente' | 'ausente' | 'justificado';
+
+export interface AttendanceRecordItem {
+  athleteId: string;
+  athleteName: string;
+  status: AttendanceStatus;
+  notes?: string;
+}
+
+export interface AttendanceSession {
+  id: string;
+  type: 'treino' | 'campeonato';
+  title: string; // ex: "Treino Foco Crawl/Viradas - CPB Raia 3" ou "Campeonato Paulista FAP - 1ª Etapa"
+  date: string; // YYYY-MM-DD ou DD/MM/YYYY
+  location?: string;
+  records: AttendanceRecordItem[];
+  presentAthleteIds?: string[];
+  totalAthletesCount?: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'Super Admin' | 'Professor' | 'Coordenador Técnico' | 'Treinador' | 'Técnico de Natação' | 'Gestor de Comunicação' | 'Administrador' | string;
+  pin: string;
+  createdAt: string;
+  isActive: boolean;
+  lastLogin?: string;
+}
+

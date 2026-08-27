@@ -5,6 +5,7 @@ import {
   doc, 
   getDoc, 
   setDoc, 
+  updateDoc,
   deleteDoc, 
   addDoc, 
   onSnapshot, 
@@ -78,5 +79,5 @@ export async function testConnection() {
 
 testConnection();
 
-export { doc, getDoc, setDoc, deleteDoc, addDoc, onSnapshot, collection, query, orderBy };
+export { doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, collection, query, orderBy };
 

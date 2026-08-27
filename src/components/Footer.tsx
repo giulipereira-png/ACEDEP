@@ -7,23 +7,28 @@ import {
   Facebook, 
   ShieldCheck,
   ChevronUp,
-  Lock
+  Lock,
+  UserPlus
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { usePhotos } from '../context/PhotosContext';
+import { useCommunity } from '../context/CommunityContext';
 
 interface FooterProps {
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
   onOpenMemberPortal?: () => void;
+  onOpenCalendarModal?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
   onOpenMemberPortal,
+  onOpenCalendarModal,
 }) => {
   const { openAdminModal, isAdminAuthenticated } = usePhotos();
+  const { setCoachManagerModalOpen } = useCommunity();
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -90,7 +95,23 @@ export const Footer: React.FC<FooterProps> = ({
               </li>
               <li>
                 <a href="#modalidades" className="hover:text-[#d4af37] transition-colors block py-0.5">
-                  Natação S14
+                  Modalidades
+                </a>
+              </li>
+              {onOpenCalendarModal && (
+                <li>
+                  <button 
+                    onClick={onOpenCalendarModal}
+                    className="text-slate-300 hover:text-[#d4af37] transition-colors block py-0.5 cursor-pointer text-left flex items-center gap-1"
+                  >
+                    <span>Calendário de Eventos</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+                  </button>
+                </li>
+              )}
+              <li>
+                <a href="#equipe" className="hover:text-[#d4af37] transition-colors block py-0.5">
+                  Nossa Equipe
                 </a>
               </li>
               <li>
@@ -101,6 +122,11 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <a href="#comunidade" className="text-[#f3e5ab] hover:text-[#d4af37] font-semibold transition-colors block py-0.5">
                   Mural & Comunidade
+                </a>
+              </li>
+              <li>
+                <a href="#faq" className="text-[#d4af37] hover:underline font-semibold transition-colors block py-0.5">
+                  Dúvidas Frequentes (FAQ)
                 </a>
               </li>
               {onOpenMemberPortal && (
@@ -119,6 +145,15 @@ export const Footer: React.FC<FooterProps> = ({
                   className="text-slate-300 hover:text-[#d4af37] hover:underline block py-0.5 cursor-pointer text-left"
                 >
                   Seja um Apoiador
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={openAdminModal}
+                  className="text-slate-500 hover:text-[#d4af37] transition-colors block py-0.5 cursor-pointer text-left flex items-center gap-1.5 text-xs"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Acesso Administrativo (Painel)</span>
                 </button>
               </li>
             </ul>

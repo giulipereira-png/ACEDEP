@@ -5,9 +5,14 @@ import {
   CheckCircle2, 
   CalendarCheck,
   Info,
-  Sparkles
+  Sparkles,
+  MapPin,
+  Clock,
+  Navigation,
+  ExternalLink,
+  ShieldCheck
 } from 'lucide-react';
-import { MODALITIES_DATA } from '../data/mockData';
+import { MODALITIES_DATA, NUCLEOS_DATA } from '../data/mockData';
 import { usePhotos } from '../context/PhotosContext';
 
 interface ModalitiesSectionProps {
@@ -18,6 +23,7 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
   const { photos } = usePhotos();
   const defaultFallbackIniciacao = '/IMG_2382.jpeg';
   const defaultFallbackAltoRendimento = '/IMG_5625.jpeg';
+  const cpbData = NUCLEOS_DATA[0];
 
   const candidatePaths: Record<string, string[]> = {
     'natacao-iniciacao': [
@@ -178,14 +184,88 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
           })}
         </div>
 
-        {/* Note about Pool Usage and Schedule */}
-        <div className="mt-12 max-w-3xl mx-auto p-4 rounded-xl bg-[#060e1c]/80 border border-[#1e3a5f] text-center text-xs text-slate-300 space-y-1">
-          <p>
-            <strong className="text-white">Local & Horários de Treino:</strong> Todas as aulas ocorrem no Centro Paralímpico Brasileiro.
-          </p>
-          <p className="text-[#f3e5ab] font-medium">
-            Segunda, quarta e sexta: 18:00 às 19:30 • Terça e quinta: 15:00 às 16:30
-          </p>
+        {/* COMPACT & DISCREET VISUAL TIMETABLE & LOCATION BAR */}
+        <div className="mt-10 max-w-4xl mx-auto rounded-2xl bg-[#08172c]/90 border border-[#1e3a5f] p-4 sm:p-5 shadow-lg backdrop-blur-sm">
+          {/* Header Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3 mb-3.5">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-[#d4af37]/20 text-[#d4af37]">
+                <MapPin className="w-4 h-4" />
+              </span>
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Local & Horários de Treino</span>
+                  <span className="hidden sm:inline text-slate-500">•</span>
+                  <span className="text-xs font-semibold text-[#f3e5ab]">Centro Paralímpico Brasileiro (CPB)</span>
+                </h4>
+              </div>
+            </div>
+
+            <a
+              href={cpbData?.mapUrl || "https://maps.google.com/?q=Centro+Paralimpico+Brasileiro"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#d4af37] hover:text-[#f3e5ab] transition-colors self-start sm:self-auto"
+            >
+              <span>Rod. dos Imigrantes, km 11,5 - SP</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+
+          {/* 2 Visual Compact Schedule Chips */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Turma 1 */}
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+              <div className="p-2 rounded-lg bg-[#d4af37]/15 text-[#d4af37] shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white">Seg, Qua e Sex</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#d4af37]/20 text-[#f3e5ab]">
+                    18:00 às 19:30
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 truncate">
+                  Rendimento & Base • Piscina Olímpica (50m)
+                </p>
+              </div>
+            </div>
+
+            {/* Turma 2 */}
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+              <div className="p-2 rounded-lg bg-cyan-500/15 text-cyan-300 shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white">Ter e Qui</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
+                    15:00 às 16:30
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 truncate">
+                  Iniciação & Aperfeiçoamento • Piscina Semiolímpica (25m)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Micro Notice & CTA */}
+          <div className="mt-3.5 pt-3 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
+            <span className="flex items-center gap-1.5 text-[11px]">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              Presença e frequência acompanhadas em tempo real pela comissão técnica.
+            </span>
+
+            <button
+              onClick={onOpenEnrollModal}
+              className="text-[11px] font-bold text-[#d4af37] hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <CalendarCheck className="w-3.5 h-3.5" />
+              <span>Agendar Avaliação Aquática</span>
+            </button>
+          </div>
         </div>
 
       </div>

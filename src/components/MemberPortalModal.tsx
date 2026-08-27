@@ -24,7 +24,8 @@ import {
   Mail,
   ExternalLink,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  UserPlus
 } from 'lucide-react';
 import { useCommunity } from '../context/CommunityContext';
 
@@ -50,7 +51,8 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
     guardianLogout,
     updateAthleteAccessCode,
     saveAthleteRecord,
-    emailLogs
+    emailLogs,
+    setCoachManagerModalOpen
   } = useCommunity();
 
   // Login form state
@@ -530,13 +532,17 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
                             <span className="text-slate-200 font-medium">{att.note}</span>
                           </div>
                           <div>
-                            {att.status === 'presente' ? (
-                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px] uppercase">
+                            {att.status === 'presente' || att.status === 'treino_extra' ? (
+                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-[10px] uppercase">
                                 Presente
                               </span>
-                            ) : (
-                              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[10px] uppercase">
+                            ) : att.status === 'falta_justificada' ? (
+                              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold text-[10px] uppercase">
                                 Justificado
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-bold text-[10px] uppercase">
+                                Falta
                               </span>
                             )}
                           </div>

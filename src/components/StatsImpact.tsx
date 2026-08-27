@@ -44,38 +44,42 @@ export const StatsImpact: React.FC<StatsImpactProps> = () => {
           </p>
         </div>
 
-        {/* 4 Impact Stat Cards */}
+        {/* 4 Impact Stat / Pillars Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {IMPACT_STATS.map((stat) => (
             <div
               key={stat.id}
               id={`stat-card-${stat.id}`}
-              className="relative group p-6 rounded-xl bg-gradient-to-b from-[#0f2744]/70 to-[#0a192f]/90 border border-white/10 hover:border-[#d4af37]/60 transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-xl hover:shadow-[#d4af37]/5"
+              className="relative group p-6 rounded-2xl bg-gradient-to-b from-[#0f2744]/80 to-[#0a192f]/95 border border-white/10 hover:border-[#d4af37]/60 transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-xl hover:shadow-[#d4af37]/5 flex flex-col justify-between"
             >
-              {/* Top Accent Line */}
-              <div className="h-1 w-10 bg-[#d4af37] rounded-full mb-5 group-hover:w-16 transition-all duration-300" />
-              
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 rounded-lg bg-white/5 border border-white/5 group-hover:bg-[#d4af37]/10 group-hover:border-[#d4af37]/30 transition-colors">
-                  {getIcon(stat.iconName)}
+              <div>
+                {/* Top Accent Line */}
+                <div className="h-1 w-10 bg-[#d4af37] rounded-full mb-5 group-hover:w-16 transition-all duration-300" />
+                
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 group-hover:bg-[#d4af37]/15 group-hover:border-[#d4af37]/40 transition-colors">
+                    {getIcon(stat.iconName)}
+                  </div>
+                  {stat.number && (
+                    <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-serif group-hover:text-[#f3e5ab] transition-colors">
+                      {stat.number}
+                    </span>
+                  )}
                 </div>
-                <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-serif group-hover:text-[#f3e5ab] transition-colors">
-                  {stat.number}
-                </span>
+
+                <h3 className="text-base font-bold text-white mb-2 tracking-wide font-serif">
+                  {stat.label}
+                </h3>
+
+                <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                  {stat.description}
+                </p>
               </div>
-
-              <h3 className="text-base font-bold text-white mb-2 tracking-wide">
-                {stat.label}
-              </h3>
-
-              <p className="text-xs text-slate-300 leading-relaxed font-normal">
-                {stat.description}
-              </p>
 
               {stat.id === 'polo' && (
                 <a
                   href="#modalidades"
-                  className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#d4af37] hover:underline"
+                  className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-[#d4af37] hover:text-[#f3e5ab] transition-colors"
                 >
                   <span>Conhecer Nossos Treinos</span>
                   <ArrowUpRight className="w-3.5 h-3.5" />

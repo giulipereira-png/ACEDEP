@@ -11,9 +11,11 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Phone
+  Phone,
+  UserPlus
 } from 'lucide-react';
 import { Logo } from './Logo';
+import { useCommunity } from '../context/CommunityContext';
 
 interface AthleteEnrollmentModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { setCoachManagerModalOpen } = useCommunity();
   const [submitted, setSubmitted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [formData, setFormData] = useState({

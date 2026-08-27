@@ -17,12 +17,16 @@ import {
   CoachNote, 
   MedicalDocument,
   TrainingAttendanceDay,
-  EmailNotificationLog 
+  EmailNotificationLog,
+  AttendanceSession,
+  AnnualCalendarEvent
 } from '../types';
 import { 
   INITIAL_NEWS_POSTS, 
   INITIAL_COMMUNITY_CHEERS, 
-  INITIAL_ATHLETES 
+  INITIAL_ATHLETES,
+  INITIAL_ATTENDANCE_SESSIONS,
+  INITIAL_ANNUAL_EVENTS
 } from '../data/initialCommunityData';
 
 const INITIAL_EMAIL_LOGS: EmailNotificationLog[] = [
@@ -60,7 +64,27 @@ interface CommunityContextType {
   // Community cheers state
   cheers: CommunityCheer[];
   addCheer: (data: { authorName: string; relationship: string; message: string }) => Promise<boolean>;
+  updateCheer: (id: string, data: { authorName: string; relationship: string; message: string }) => Promise<boolean>;
+  deleteCheer: (id: string) => Promise<boolean>;
   likeCheer: (id: string) => Promise<void>;
+
+  // Attendance management (Treinos & Campeonatos)
+  attendanceSessions: AttendanceSession[];
+  addAttendanceSession: (session: Omit<AttendanceSession, 'id' | 'createdAt'>) => Promise<boolean>;
+  updateAttendanceSession: (id: string, updates: Partial<AttendanceSession>) => Promise<boolean>;
+  deleteAttendanceSession: (id: string) => Promise<boolean>;
+  toggleAthletePresence: (sessionId: string, athleteId: string) => Promise<boolean>;
+  getAthleteAttendanceStats: (athleteId: string) => {
+    totalSessions: number;
+    totalPresent: number;
+    percentage: number;
+    treinosCount: number;
+    treinosPresent: number;
+    treinosPercentage: number;
+    campeonatosCount: number;
+    campeonatosPresent: number;
+    campeonatosPercentage: number;
+  };
 
   // Athletes & Members Portal state
   athletes: AthleteRecord[];
@@ -77,6 +101,8 @@ interface CommunityContextType {
   addCoachNote: (athleteId: string, note: Omit<CoachNote, 'id'>, notifyGuardianEmail?: boolean) => Promise<boolean>;
   updateMedicalDocumentStatus: (athleteId: string, docId: string, status: MedicalDocument['status'], expiryDate: string) => Promise<boolean>;
   addAttendanceRecord: (athleteId: string, record: TrainingAttendanceDay) => Promise<boolean>;
+  setAthleteDayPresence: (athleteId: string, dateStr: string, status: 'presente' | 'falta' | 'falta_justificada' | 'remover') => Promise<boolean>;
+  batchSetAthleteMonthAttendance: (athleteId: string, records: { date: string; status: 'presente' | 'falta' | 'falta_justificada' }[]) => Promise<boolean>;
 
   // Email Notifications to Parents
   emailLogs: EmailNotificationLog[];
@@ -90,6 +116,12 @@ interface CommunityContextType {
   setSelectedNewsForModal: (post: NewsPost | null) => void;
   coachManagerModalOpen: boolean;
   setCoachManagerModalOpen: (open: boolean) => void;
+
+  // Annual Calendar Events & Competitions
+  annualEvents: AnnualCalendarEvent[];
+  addAnnualEvent: (event: Omit<AnnualCalendarEvent, 'id' | 'createdAt'>) => Promise<boolean>;
+  updateAnnualEvent: (id: string, updates: Partial<AnnualCalendarEvent>) => Promise<boolean>;
+  deleteAnnualEvent: (id: string) => Promise<boolean>;
 }
 
 const CommunityContext = createContext<CommunityContextType | undefined>(undefined);
@@ -98,7 +130,9 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [newsPosts, setNewsPosts] = useState<NewsPost[]>(INITIAL_NEWS_POSTS);
   const [cheers, setCheers] = useState<CommunityCheer[]>(INITIAL_COMMUNITY_CHEERS);
   const [athletes, setAthletes] = useState<AthleteRecord[]>(INITIAL_ATHLETES);
+  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>(INITIAL_ATTENDANCE_SESSIONS);
   const [emailLogs, setEmailLogs] = useState<EmailNotificationLog[]>(INITIAL_EMAIL_LOGS);
+  const [annualEvents, setAnnualEvents] = useState<AnnualCalendarEvent[]>(INITIAL_ANNUAL_EVENTS);
   
   // Authenticated Guardian State
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(() => {
@@ -275,6 +309,84 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           handleFirestoreError(error, OperationType.LIST, 'email_notifications');
         }
       );
+
+      // 5. Sync Attendance Sessions (Treinos e Campeonatos)
+      let unsubscribeAttendance = () => {};
+      const attendanceInitDoc = doc(db, 'settings', 'attendance_init');
+      getDoc(attendanceInitDoc)
+        .then(async (snap) => {
+          if (!snap.exists()) {
+            try {
+              for (const sess of INITIAL_ATTENDANCE_SESSIONS) {
+                await setDoc(doc(db, 'attendance_sessions', sess.id), sess);
+              }
+              await setDoc(attendanceInitDoc, { initialized: true, seededAt: new Date().toISOString() });
+            } catch (e) {
+              handleFirestoreError(e, OperationType.WRITE, 'attendance_seed');
+            }
+          }
+        })
+        .catch((e) => {
+          handleFirestoreError(e, OperationType.GET, 'settings/attendance_init');
+        });
+
+      unsubscribeAttendance = onSnapshot(
+        collection(db, 'attendance_sessions'),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const list: AttendanceSession[] = [];
+            snapshot.forEach((docSnap) => {
+              list.push({ ...docSnap.data(), id: docSnap.id } as AttendanceSession);
+            });
+            list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+            setAttendanceSessions(list);
+          } else {
+            setAttendanceSessions(INITIAL_ATTENDANCE_SESSIONS);
+          }
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.LIST, 'attendance_sessions');
+        }
+      );
+
+      // 6. Sync Annual Calendar Events (Competições e Atividades Anuais)
+      let unsubscribeAnnualEvents = () => {};
+      const annualEventsInitDoc = doc(db, 'settings', 'annual_events_init');
+      getDoc(annualEventsInitDoc)
+        .then(async (snap) => {
+          if (!snap.exists()) {
+            try {
+              for (const evt of INITIAL_ANNUAL_EVENTS) {
+                await setDoc(doc(db, 'annual_events', evt.id), evt);
+              }
+              await setDoc(annualEventsInitDoc, { initialized: true, seededAt: new Date().toISOString() });
+            } catch (e) {
+              handleFirestoreError(e, OperationType.WRITE, 'annual_events_seed');
+            }
+          }
+        })
+        .catch((e) => {
+          handleFirestoreError(e, OperationType.GET, 'settings/annual_events_init');
+        });
+
+      unsubscribeAnnualEvents = onSnapshot(
+        collection(db, 'annual_events'),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const list: AnnualCalendarEvent[] = [];
+            snapshot.forEach((docSnap) => {
+              list.push({ ...docSnap.data(), id: docSnap.id } as AnnualCalendarEvent);
+            });
+            list.sort((a, b) => a.month - b.month);
+            setAnnualEvents(list);
+          } else {
+            setAnnualEvents(INITIAL_ANNUAL_EVENTS);
+          }
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.LIST, 'annual_events');
+        }
+      );
     };
 
     setupFirestore();
@@ -430,6 +542,42 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (e) {
       handleFirestoreError(e, OperationType.CREATE, `community_cheers/${newId}`);
       setCheers((prev) => [newCheer, ...prev]);
+      return true;
+    }
+  };
+
+  const updateCheer = async (
+    id: string, 
+    data: { authorName: string; relationship: string; message: string }
+  ): Promise<boolean> => {
+    const cleanData = {
+      authorName: data.authorName.trim(),
+      relationship: data.relationship.trim(),
+      message: data.message.trim(),
+    };
+    try {
+      await updateDoc(doc(db, 'community_cheers', id), cleanData);
+      setCheers((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, ...cleanData } : c))
+      );
+      return true;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `community_cheers/${id}`);
+      setCheers((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, ...cleanData } : c))
+      );
+      return true;
+    }
+  };
+
+  const deleteCheer = async (id: string): Promise<boolean> => {
+    try {
+      await deleteDoc(doc(db, 'community_cheers', id));
+      setCheers((prev) => prev.filter((c) => c.id !== id));
+      return true;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `community_cheers/${id}`);
+      setCheers((prev) => prev.filter((c) => c.id !== id));
       return true;
     }
   };
@@ -626,6 +774,277 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return saveAthleteRecord(updatedAthlete);
   };
 
+  const setAthleteDayPresence = async (
+    athleteId: string,
+    dateStr: string,
+    status: 'presente' | 'falta' | 'falta_justificada' | 'remover'
+  ): Promise<boolean> => {
+    const target = athletes.find((a) => a.id === athleteId);
+    if (!target) return false;
+
+    const currentAttendance = [...(target.recentAttendance || [])];
+    let updatedAttendance: TrainingAttendanceDay[] = [];
+
+    if (status === 'remover') {
+      updatedAttendance = currentAttendance.filter((r) => r.date !== dateStr);
+    } else {
+      const existingIdx = currentAttendance.findIndex((r) => r.date === dateStr);
+      const newRec: TrainingAttendanceDay = {
+        date: dateStr,
+        status: status,
+        note: status === 'presente' ? 'Treino de Natação' : status === 'falta_justificada' ? 'Falta Justificada' : 'Falta',
+      };
+
+      if (existingIdx >= 0) {
+        currentAttendance[existingIdx] = newRec;
+        updatedAttendance = currentAttendance;
+      } else {
+        updatedAttendance = [newRec, ...currentAttendance];
+      }
+    }
+
+    // Sort by date descending
+    updatedAttendance.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    // Recompute athlete's attendance rate
+    const totalDays = updatedAttendance.length;
+    const presentDays = updatedAttendance.filter((r) => r.status === 'presente' || r.status === 'falta_justificada' || r.status === 'treino_extra').length;
+    const calculatedRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
+
+    const updatedAthlete: AthleteRecord = {
+      ...target,
+      recentAttendance: updatedAttendance,
+      attendanceRate: calculatedRate,
+    };
+
+    // Also sync with attendance_sessions if a session exists for this date
+    try {
+      const existingSession = attendanceSessions.find((s) => s.date === dateStr);
+      if (existingSession) {
+        const records = [...existingSession.records];
+        const recIdx = records.findIndex((r) => r.athleteId === athleteId);
+        const sessionStatus = status === 'presente' ? 'presente' : status === 'falta_justificada' ? 'justificado' : 'ausente';
+        if (recIdx >= 0) {
+          records[recIdx] = { ...records[recIdx], status: sessionStatus };
+        } else {
+          records.push({ athleteId, athleteName: target.name, status: sessionStatus });
+        }
+        await updateAttendanceSession(existingSession.id, { records });
+      }
+    } catch {}
+
+    return saveAthleteRecord(updatedAthlete);
+  };
+
+  const batchSetAthleteMonthAttendance = async (
+    athleteId: string,
+    records: { date: string; status: 'presente' | 'falta' | 'falta_justificada' }[]
+  ): Promise<boolean> => {
+    const target = athletes.find((a) => a.id === athleteId);
+    if (!target) return false;
+
+    let updatedAttendance = [...(target.recentAttendance || [])];
+
+    records.forEach((rec) => {
+      const idx = updatedAttendance.findIndex((r) => r.date === rec.date);
+      const newRec: TrainingAttendanceDay = {
+        date: rec.date,
+        status: rec.status,
+        note: rec.status === 'presente' ? 'Treino de Natação' : 'Falta',
+      };
+      if (idx >= 0) {
+        updatedAttendance[idx] = newRec;
+      } else {
+        updatedAttendance.push(newRec);
+      }
+    });
+
+    updatedAttendance.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    const totalDays = updatedAttendance.length;
+    const presentDays = updatedAttendance.filter((r) => r.status === 'presente' || r.status === 'falta_justificada').length;
+    const calculatedRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
+
+    const updatedAthlete: AthleteRecord = {
+      ...target,
+      recentAttendance: updatedAttendance,
+      attendanceRate: calculatedRate,
+    };
+
+    return saveAthleteRecord(updatedAthlete);
+  };
+
+  const addAttendanceSession = async (
+    sessionData: Omit<AttendanceSession, 'id' | 'createdAt'>
+  ): Promise<boolean> => {
+    const id = `att_sess_${Date.now()}`;
+    const newSession: AttendanceSession = {
+      ...sessionData,
+      id,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      await setDoc(doc(db, 'attendance_sessions', id), newSession);
+      setAttendanceSessions((prev) => [newSession, ...prev]);
+      return true;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `attendance_sessions/${id}`);
+      setAttendanceSessions((prev) => [newSession, ...prev]);
+      return true;
+    }
+  };
+
+  const updateAttendanceSession = async (
+    id: string,
+    updates: Partial<AttendanceSession>
+  ): Promise<boolean> => {
+    try {
+      await updateDoc(doc(db, 'attendance_sessions', id), updates);
+      setAttendanceSessions((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+      );
+      return true;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `attendance_sessions/${id}`);
+      setAttendanceSessions((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+      );
+      return true;
+    }
+  };
+
+  const deleteAttendanceSession = async (id: string): Promise<boolean> => {
+    try {
+      await deleteDoc(doc(db, 'attendance_sessions', id));
+      setAttendanceSessions((prev) => prev.filter((s) => s.id !== id));
+      return true;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `attendance_sessions/${id}`);
+      setAttendanceSessions((prev) => prev.filter((s) => s.id !== id));
+      return true;
+    }
+  };
+
+  const toggleAthletePresence = async (
+    sessionId: string,
+    athleteId: string
+  ): Promise<boolean> => {
+    const session = attendanceSessions.find((s) => s.id === sessionId);
+    if (!session) return false;
+
+    const currentRecords = session.records || [];
+    const recordIndex = currentRecords.findIndex((r) => r.athleteId === athleteId);
+
+    let updatedRecords = [...currentRecords];
+    if (recordIndex >= 0) {
+      const current = updatedRecords[recordIndex];
+      const nextStatus = current.status === 'presente' ? 'ausente' : current.status === 'ausente' ? 'justificado' : 'presente';
+      updatedRecords[recordIndex] = {
+        ...current,
+        status: nextStatus,
+      };
+    } else {
+      const athlete = athletes.find((a) => a.id === athleteId);
+      updatedRecords.push({
+        athleteId,
+        athleteName: athlete?.name || 'Atleta',
+        status: 'presente',
+      });
+    }
+
+    return updateAttendanceSession(sessionId, { records: updatedRecords });
+  };
+
+  const getAthleteAttendanceStats = (athleteId: string) => {
+    const totalSessions = attendanceSessions.length;
+    let totalPresent = 0;
+
+    const treinos = attendanceSessions.filter((s) => s.type === 'treino');
+    const campeonatos = attendanceSessions.filter((s) => s.type === 'campeonato');
+
+    let treinosPresent = 0;
+    let campeonatosPresent = 0;
+
+    attendanceSessions.forEach((sess) => {
+      const rec = sess.records.find((r) => r.athleteId === athleteId);
+      if (rec && (rec.status === 'presente' || rec.status === 'justificado')) {
+        totalPresent++;
+        if (sess.type === 'treino') treinosPresent++;
+        if (sess.type === 'campeonato') campeonatosPresent++;
+      }
+    });
+
+    const percentage = totalSessions > 0 ? Math.round((totalPresent / totalSessions) * 100) : 0;
+    const treinosPercentage = treinos.length > 0 ? Math.round((treinosPresent / treinos.length) * 100) : 0;
+    const campeonatosPercentage = campeonatos.length > 0 ? Math.round((campeonatosPresent / campeonatos.length) * 100) : 0;
+
+    return {
+      totalSessions,
+      totalPresent,
+      percentage,
+      treinosCount: treinos.length,
+      treinosPresent,
+      treinosPercentage,
+      campeonatosCount: campeonatos.length,
+      campeonatosPresent,
+      campeonatosPercentage,
+    };
+  };
+
+  // Annual Calendar Events Actions
+  const addAnnualEvent = async (
+    eventData: Omit<AnnualCalendarEvent, 'id' | 'createdAt'>
+  ): Promise<boolean> => {
+    const newId = `evt-${Date.now()}`;
+    const newEvent: AnnualCalendarEvent = {
+      ...eventData,
+      id: newId,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      await setDoc(doc(db, 'annual_events', newId), newEvent);
+      setAnnualEvents((prev) => [...prev, newEvent].sort((a, b) => a.month - b.month));
+      return true;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `annual_events/${newId}`);
+      setAnnualEvents((prev) => [...prev, newEvent].sort((a, b) => a.month - b.month));
+      return true;
+    }
+  };
+
+  const updateAnnualEvent = async (
+    id: string,
+    updates: Partial<AnnualCalendarEvent>
+  ): Promise<boolean> => {
+    try {
+      await updateDoc(doc(db, 'annual_events', id), updates);
+      setAnnualEvents((prev) =>
+        prev.map((evt) => (evt.id === id ? { ...evt, ...updates } : evt)).sort((a, b) => a.month - b.month)
+      );
+      return true;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `annual_events/${id}`);
+      setAnnualEvents((prev) =>
+        prev.map((evt) => (evt.id === id ? { ...evt, ...updates } : evt)).sort((a, b) => a.month - b.month)
+      );
+      return true;
+    }
+  };
+
+  const deleteAnnualEvent = async (id: string): Promise<boolean> => {
+    try {
+      await deleteDoc(doc(db, 'annual_events', id));
+      setAnnualEvents((prev) => prev.filter((evt) => evt.id !== id));
+      return true;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `annual_events/${id}`);
+      setAnnualEvents((prev) => prev.filter((evt) => evt.id !== id));
+      return true;
+    }
+  };
+
   return (
     <CommunityContext.Provider
       value={{
@@ -635,7 +1054,15 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         likeNewsPost,
         cheers,
         addCheer,
+        updateCheer,
+        deleteCheer,
         likeCheer,
+        attendanceSessions,
+        addAttendanceSession,
+        updateAttendanceSession,
+        deleteAttendanceSession,
+        toggleAthletePresence,
+        getAthleteAttendanceStats,
         athletes,
         currentAthlete,
         isGuardianAuthenticated,
@@ -648,6 +1075,8 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         addCoachNote,
         updateMedicalDocumentStatus,
         addAttendanceRecord,
+        setAthleteDayPresence,
+        batchSetAthleteMonthAttendance,
         emailLogs,
         sendEmailNotification,
         getAllParentEmails,
@@ -657,6 +1086,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setSelectedNewsForModal,
         coachManagerModalOpen,
         setCoachManagerModalOpen,
+        annualEvents,
+        addAnnualEvent,
+        updateAnnualEvent,
+        deleteAnnualEvent,
       }}
     >
       {children}

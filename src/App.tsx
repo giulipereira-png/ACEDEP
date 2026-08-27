@@ -9,6 +9,7 @@ import { Hero } from './components/Hero';
 import { StatsImpact } from './components/StatsImpact';
 import { AboutSection } from './components/AboutSection';
 import { ModalitiesSection } from './components/ModalitiesSection';
+import { CalendarModal } from './components/CalendarModal';
 import { AthletesShowcase } from './components/AthletesShowcase';
 import { PhotoGallery } from './components/PhotoGallery';
 import { CommunitySection } from './components/CommunitySection';
@@ -20,7 +21,6 @@ import { ContactModal } from './components/ContactModal';
 import { AthleteEnrollmentModal } from './components/AthleteEnrollmentModal';
 import { PhotosProvider } from './context/PhotosContext';
 import { CommunityProvider } from './context/CommunityContext';
-import { AdminPhotoManagerModal } from './components/AdminPhotoManagerModal';
 import { MemberPortalModal } from './components/MemberPortalModal';
 import { AdminCoachPortalModal } from './components/AdminCoachPortalModal';
 import { CommunityNewsModal } from './components/CommunityNewsModal';
@@ -30,6 +30,7 @@ export default function App() {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [memberPortalOpen, setMemberPortalOpen] = useState(false);
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
 
   const scrollToSection = (sectionId: string) => {
     const el = document.getElementById(sectionId);
@@ -47,6 +48,7 @@ export default function App() {
             onOpenSupportModal={() => setSupportModalOpen(true)}
             onOpenContactModal={() => setContactModalOpen(true)}
             onOpenMemberPortal={() => setMemberPortalOpen(true)}
+            onOpenCalendarModal={() => setCalendarModalOpen(true)}
           />
 
           {/* Main Content Area */}
@@ -61,7 +63,7 @@ export default function App() {
             {/* 2. About Section (Nossa História / Quem Somos) */}
             <AboutSection />
 
-            {/* 3. Modalities & Training Programs (Natação S14) */}
+            {/* 3. Modalities & Training Programs (Natação S14 & Grade Horária) */}
             <ModalitiesSection onOpenEnrollModal={() => setEnrollModalOpen(true)} />
 
             {/* 4. Athletes & Technical Staff (Nossa Equipe) */}
@@ -94,9 +96,18 @@ export default function App() {
             onOpenSupportModal={() => setSupportModalOpen(true)}
             onOpenContactModal={() => setContactModalOpen(true)}
             onOpenMemberPortal={() => setMemberPortalOpen(true)}
+            onOpenCalendarModal={() => setCalendarModalOpen(true)}
           />
 
           {/* Interactive Modals */}
+          <CalendarModal
+            isOpen={calendarModalOpen}
+            onClose={() => setCalendarModalOpen(false)}
+            onOpenEnrollModal={() => {
+              setCalendarModalOpen(false);
+              setEnrollModalOpen(true);
+            }}
+          />
           <SupportModal
             isOpen={supportModalOpen}
             onClose={() => setSupportModalOpen(false)}
@@ -123,9 +134,6 @@ export default function App() {
 
           {/* Coach & Admin Management Portal Modal */}
           <AdminCoachPortalModal />
-
-          {/* Admin Photo Manager Modal */}
-          <AdminPhotoManagerModal />
         </div>
       </CommunityProvider>
     </PhotosProvider>

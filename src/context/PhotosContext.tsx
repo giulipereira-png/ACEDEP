@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, handleFirestoreError, OperationType } from '../lib/firebase';
+import { AdminUser } from '../types';
+import { INITIAL_ADMIN_USERS } from '../data/initialCommunityData';
 
 export interface SitePhotoData {
   id: string;
@@ -37,6 +39,24 @@ export const DEFAULT_PHOTOS: Record<string, { title: string; category: string; d
     category: 'Modalidades & Treinos',
     defaultUrl: '/IMG_5625.jpeg',
     fallbackList: ['/IMG_5625.jpeg', '/IMG_5625.jpg', 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80'],
+  },
+  staff_enio: {
+    title: 'Prof. Enio Salvador Sanches (Coordenador Técnico)',
+    category: 'Equipe Técnica',
+    defaultUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80'],
+  },
+  staff_giuliana: {
+    title: 'Profª. Giuliana Sousa (Técnica de Natação)',
+    category: 'Equipe Técnica',
+    defaultUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80'],
+  },
+  staff_tatiana: {
+    title: 'Profª. Tatiana Farias (Técnica Iniciação Esportiva)',
+    category: 'Equipe Técnica',
+    defaultUrl: 'https://images.unsplash.com/photo-1580894732488-874ff095f9c4?auto=format&fit=crop&w=600&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1580894732488-874ff095f9c4?auto=format&fit=crop&w=600&q=80'],
   },
 };
 
@@ -86,13 +106,15 @@ export const INITIAL_GALLERY_PHOTOS: GalleryPhotoItem[] = [
 interface PhotosContextType {
   photos: Record<string, string>;
   galleryPhotos: GalleryPhotoItem[];
+  adminUsers: AdminUser[];
+  currentAdminProfile: AdminUser | null;
   isLoading: boolean;
   isFirebaseConnected: boolean;
   isAdminAuthenticated: boolean;
   adminModalOpen: boolean;
   openAdminModal: () => void;
   closeAdminModal: () => void;
-  loginAdmin: (pin: string) => Promise<boolean>;
+  loginAdmin: (pin: string, email?: string) => Promise<boolean>;
   logoutAdmin: () => void;
   savePhotoToDatabase: (photoId: string, dataUrl: string, title?: string) => Promise<boolean>;
   resetPhotoToDefault: (photoId: string) => Promise<boolean>;
@@ -100,6 +122,9 @@ interface PhotosContextType {
   addGalleryPhoto: (data: { title: string; category: string; url: string; date?: string }) => Promise<boolean>;
   deleteGalleryPhoto: (photoId: string) => Promise<boolean>;
   updateAdminPin: (newPin: string) => Promise<boolean>;
+  addAdminUser: (admin: Omit<AdminUser, 'id' | 'createdAt'>) => Promise<boolean>;
+  updateAdminUser: (id: string, updates: Partial<AdminUser>) => Promise<boolean>;
+  deleteAdminUser: (id: string) => Promise<boolean>;
 }
 
 const PhotosContext = createContext<PhotosContextType | undefined>(undefined);
@@ -114,6 +139,15 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
 
   const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhotoItem[]>(INITIAL_GALLERY_PHOTOS);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(INITIAL_ADMIN_USERS);
+  const [currentAdminProfile, setCurrentAdminProfile] = useState<AdminUser | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('acedep_admin_profile');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
@@ -259,6 +293,53 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           handleFirestoreError(error, OperationType.LIST, 'gallery');
         }
       );
+
+      // 3. Admin Users
+      let unsubscribeAdminUsers = () => {};
+      const adminsCollection = collection(db, 'admin_users');
+      const adminInitDocRef = doc(db, 'settings', 'admin_users_init');
+
+      getDoc(adminInitDocRef)
+        .then(async (initSnap) => {
+          if (!initSnap.exists()) {
+            try {
+              for (const adm of INITIAL_ADMIN_USERS) {
+                await setDoc(doc(db, 'admin_users', adm.id), adm);
+              }
+              await setDoc(adminInitDocRef, { initialized: true, seededAt: new Date().toISOString() });
+            } catch (seedErr) {
+              handleFirestoreError(seedErr, OperationType.WRITE, 'admin_users_seed');
+            }
+          }
+        })
+        .catch((err) => {
+          handleFirestoreError(err, OperationType.GET, 'settings/admin_users_init');
+        });
+
+      unsubscribeAdminUsers = onSnapshot(
+        adminsCollection,
+        (snapshot) => {
+          const list: AdminUser[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data() as AdminUser;
+            if (data && data.name) {
+              list.push({
+                ...data,
+                id: docSnap.id,
+              });
+            }
+          });
+
+          if (list.length > 0) {
+            setAdminUsers(list);
+          } else {
+            setAdminUsers(INITIAL_ADMIN_USERS);
+          }
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.LIST, 'admin_users');
+        }
+      );
     } catch (err) {
       handleFirestoreError(err, OperationType.LIST, 'firestore_init');
       setIsLoading(false);
@@ -301,38 +382,132 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
-  const loginAdmin = async (pin: string): Promise<boolean> => {
-    const normalized = pin.trim();
-    if (!normalized) return false;
+  const loginAdmin = async (pin: string, email?: string): Promise<boolean> => {
+    const normalizedPin = pin.trim();
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    if (!normalizedPin) return false;
 
+    // 1. Check if matches any active admin in adminUsers collection
+    const matchedAdmin = adminUsers.find(
+      (a) => a.isActive && a.pin === normalizedPin && (!normalizedEmail || a.email.toLowerCase() === normalizedEmail)
+    );
+
+    if (matchedAdmin) {
+      setIsAdminAuthenticated(true);
+      setCurrentAdminProfile(matchedAdmin);
+      try {
+        sessionStorage.setItem('acedep_admin_auth', 'true');
+        sessionStorage.setItem('acedep_admin_profile', JSON.stringify(matchedAdmin));
+      } catch {}
+      // update lastLogin in firestore non-blockingly
+      updateDoc(doc(db, 'admin_users', matchedAdmin.id), {
+        lastLogin: new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      }).catch(() => {});
+      return true;
+    }
+
+    // 2. Check remote master pin in settings/admin
     try {
       const settingsDoc = await getDoc(doc(db, 'settings', 'admin'));
       if (settingsDoc.exists() && settingsDoc.data().adminPin) {
         const storedPin = settingsDoc.data().adminPin;
-        if (storedPin === normalized) {
+        if (storedPin === normalizedPin) {
           setIsAdminAuthenticated(true);
+          const masterAdmin = adminUsers[0] || {
+            id: 'admin-master',
+            name: 'Super Admin ACEDEP',
+            email: 'giuli.pereira@gmail.com',
+            role: 'Super Admin',
+            pin: storedPin,
+            createdAt: new Date().toISOString(),
+            isActive: true,
+          };
+          setCurrentAdminProfile(masterAdmin);
           try {
             sessionStorage.setItem('acedep_admin_auth', 'true');
+            sessionStorage.setItem('acedep_admin_profile', JSON.stringify(masterAdmin));
           } catch {}
           return true;
         }
-        // Custom PIN is set, do not allow default password
         return false;
       }
     } catch (e) {
       console.warn('Could not verify remote admin pin from Firestore:', e);
     }
 
-    // Default password fallback only if no custom PIN was set yet
-    if (normalized === 'acedep1990' || normalized === '1990' || normalized === 'admin1990') {
+    // 3. Fallback PINs (initial bootstrap)
+    if (['acedep1990', '1990', 'admin1990', '2026'].includes(normalizedPin)) {
       setIsAdminAuthenticated(true);
+      const fallbackAdmin: AdminUser = {
+        id: 'admin-master-1',
+        name: 'Coordenação Geral ACEDEP',
+        email: 'giuli.pereira@gmail.com',
+        role: 'Super Admin',
+        pin: normalizedPin,
+        createdAt: new Date().toISOString(),
+        isActive: true,
+      };
+      setCurrentAdminProfile(fallbackAdmin);
       try {
         sessionStorage.setItem('acedep_admin_auth', 'true');
+        sessionStorage.setItem('acedep_admin_profile', JSON.stringify(fallbackAdmin));
       } catch {}
       return true;
     }
 
     return false;
+  };
+
+  const addAdminUser = async (admin: Omit<AdminUser, 'id' | 'createdAt'>): Promise<boolean> => {
+    try {
+      const id = 'admin_' + Date.now();
+      const newAdmin: AdminUser = {
+        ...admin,
+        id,
+        createdAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, 'admin_users', id), newAdmin);
+      setAdminUsers((prev) => [...prev.filter((a) => a.id !== id), newAdmin]);
+      return true;
+    } catch (err) {
+      console.error('Error adding admin user to Firestore:', err);
+      return false;
+    }
+  };
+
+  const updateAdminUser = async (id: string, updates: Partial<AdminUser>): Promise<boolean> => {
+    try {
+      await updateDoc(doc(db, 'admin_users', id), updates);
+      setAdminUsers((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
+      );
+      if (currentAdminProfile?.id === id) {
+        const updated = { ...currentAdminProfile, ...updates };
+        setCurrentAdminProfile(updated);
+        try {
+          sessionStorage.setItem('acedep_admin_profile', JSON.stringify(updated));
+        } catch {}
+      }
+      return true;
+    } catch (err) {
+      console.error('Error updating admin user:', err);
+      return false;
+    }
+  };
+
+  const deleteAdminUser = async (id: string): Promise<boolean> => {
+    try {
+      if (adminUsers.length <= 1) {
+        alert('Não é permitido excluir o único administrador do sistema.');
+        return false;
+      }
+      await deleteDoc(doc(db, 'admin_users', id));
+      setAdminUsers((prev) => prev.filter((a) => a.id !== id));
+      return true;
+    } catch (err) {
+      console.error('Error deleting admin user:', err);
+      return false;
+    }
   };
 
   const updateAdminPin = async (newPin: string): Promise<boolean> => {
@@ -360,8 +535,10 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const logoutAdmin = () => {
     setIsAdminAuthenticated(false);
+    setCurrentAdminProfile(null);
     try {
       sessionStorage.removeItem('acedep_admin_auth');
+      sessionStorage.removeItem('acedep_admin_profile');
     } catch {}
   };
 
@@ -479,6 +656,8 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       value={{
         photos,
         galleryPhotos,
+        adminUsers,
+        currentAdminProfile,
         isLoading,
         isFirebaseConnected,
         isAdminAuthenticated,
@@ -493,6 +672,9 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addGalleryPhoto,
         deleteGalleryPhoto,
         updateAdminPin,
+        addAdminUser,
+        updateAdminUser,
+        deleteAdminUser,
       }}
     >
       {children}
