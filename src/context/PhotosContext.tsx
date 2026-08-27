@@ -23,10 +23,22 @@ export interface GalleryPhotoItem {
 
 export const DEFAULT_PHOTOS: Record<string, { title: string; category: string; defaultUrl: string; fallbackList: string[] }> = {
   about_team: {
-    title: 'Sobre a ACEDEP (Equipe Oficial)',
+    title: 'Sobre a ACEDEP (Foto Oficial da Equipe 1)',
     category: 'Quem Somos',
     defaultUrl: '/IMG_4378.jpeg',
     fallbackList: ['/IMG_4378.jpeg', '/IMG_4378.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=85'],
+  },
+  about_team_2: {
+    title: 'Sobre a ACEDEP (Treinos & Piscinas 2)',
+    category: 'Quem Somos',
+    defaultUrl: '/IMG_2382.jpeg',
+    fallbackList: ['/IMG_2382.jpeg', '/IMG_2382.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80'],
+  },
+  about_team_3: {
+    title: 'Sobre a ACEDEP (Pódios & Premiações 3)',
+    category: 'Quem Somos',
+    defaultUrl: '/IMG_5625.jpeg',
+    fallbackList: ['/IMG_5625.jpeg', '/IMG_5625.jpg', 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80'],
   },
   modality_iniciacao: {
     title: 'Iniciação Esportiva (Aperfeiçoamento)',

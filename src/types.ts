@@ -123,6 +123,38 @@ export interface SwimmingMetric {
   laneType: '25m' | '50m';
 }
 
+export type DocumentCategory = 
+  | 'Laudo Médico / Neurológico (S14)'
+  | 'Laudo Psicológico / Neuropsicológico (WISC/WAIS)'
+  | 'Classificação Funcional CBDI / CPB'
+  | 'Atestado Médico / Liberação Piscina'
+  | 'RG / Documento de Identidade do Atleta'
+  | 'RG / CPF do Responsável Legal'
+  | 'Comprovante de Residência'
+  | 'Termo de Autorização & Imagem'
+  | 'Exame Laboratorial / Cardiológico'
+  | 'Outro Documento';
+
+export interface AthleteDocumentItem {
+  id: string;
+  title: string; // ex: "Laudo Médico Elegibilidade S14", "RG Frente e Verso", "Atestado Cardiológico 2026"
+  category: DocumentCategory;
+  fileName: string; // ex: "laudo-medico-s14.pdf", "rg-frente-verso.jpg"
+  fileUrl: string; // Data URL base64 ou link
+  fileSize?: string; // ex: "1.2 MB"
+  fileType?: string; // ex: "application/pdf" | "image/jpeg" | "image/png"
+  uploadedBy: 'Responsável' | 'Técnico' | 'Administrador' | string;
+  uploadedByName?: string;
+  uploadedAt: string; // ex: "27/08/2026"
+  expiryDate?: string; // ex: "15/12/2026" (para atestados e exames)
+  status: 'Válido' | 'A vencer' | 'Em Análise' | 'Pendente';
+  notes?: string;
+  driveFileId?: string;
+  driveViewLink?: string;
+  driveFolderLink?: string;
+  syncedToDrive?: boolean;
+}
+
 export interface MedicalDocument {
   id: string;
   name: string;
@@ -169,6 +201,7 @@ export interface AthleteRecord {
   recentAttendance: TrainingAttendanceDay[];
   swimmingMetrics: SwimmingMetric[];
   medicalDocuments: MedicalDocument[];
+  documents?: AthleteDocumentItem[]; // Documentação completa com upload e download
   coachNotes: CoachNote[];
   createdAt: string;
 }

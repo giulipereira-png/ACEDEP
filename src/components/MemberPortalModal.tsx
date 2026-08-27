@@ -28,6 +28,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { useCommunity } from '../context/CommunityContext';
+import { AthleteDocumentsTab } from './AthleteDocumentsTab';
 
 const AVATAR_PRESETS = [
   { id: 'p1', name: 'Atleta Masculino', url: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=400&q=80' },
@@ -93,13 +94,6 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
       setIdentifierInput('');
       setAccessCodeInput('');
     }
-  };
-
-  const handleQuickLogin = async (identifier: string, code: string) => {
-    setLoginError('');
-    setIsLoggingIn(true);
-    await guardianLogin(identifier, code);
-    setIsLoggingIn(false);
   };
 
   const handleChangePinSubmit = async (e: React.FormEvent) => {
@@ -298,41 +292,6 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
                   )}
                 </button>
               </form>
-
-              {/* DEMO QUICK ACCESS CARDS */}
-              <div className="p-4 rounded-2xl bg-black/30 border border-white/10 space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-[#d4af37]">
-                  <Sparkles className="w-4 h-4" />
-                  <span>Acessos Rápidos Disponíveis ({athletes.length} atletas):</span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-normal">
-                  Clique em qualquer atleta cadastrado para entrar instantaneamente e conferir o portal:
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-48 overflow-y-auto">
-                  {athletes.slice(0, 4).map((ath) => (
-                    <button
-                      key={ath.id}
-                      type="button"
-                      onClick={() => handleQuickLogin(ath.guardianEmail || ath.name, ath.accessCode)}
-                      className="p-2.5 rounded-xl bg-[#0a192f] hover:bg-[#132f52] border border-[#1e3a5f] hover:border-[#d4af37] text-left transition-all cursor-pointer group flex items-center gap-2.5"
-                    >
-                      <img 
-                        src={ath.photoUrl || AVATAR_PRESETS[0].url} 
-                        alt={ath.name} 
-                        className="w-8 h-8 rounded-lg object-cover border border-[#d4af37]/50 shrink-0" 
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="truncate">
-                        <p className="text-xs font-bold text-white group-hover:text-[#d4af37] truncate">
-                          {ath.name}
-                        </p>
-                        <p className="text-[10px] text-slate-400 truncate">Resp: {ath.guardianName}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           ) : (
             /* LOGGED IN DASHBOARD */
@@ -434,7 +393,7 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
                   }`}
                 >
                   <FileText className="w-4 h-4" />
-                  <span>Atestados</span>
+                  <span>Documentos & Laudos</span>
                 </button>
 
                 <button
@@ -604,49 +563,13 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
                 </div>
               )}
 
-              {/* TAB 3: ATESTADOS & SAÚDE */}
+              {/* TAB 3: ATESTADOS, LAUDOS, RG & EXAMES MÉDICOS (UPLOAD & DOWNLOAD) */}
               {activeTab === 'documentos' && (
-                <div className="space-y-6">
-                  <div className="p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
-                    <h4 className="text-sm font-bold text-[#d4af37] uppercase tracking-wider flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Status dos Atestados & Documentos Médicos
-                    </h4>
-                    <p className="text-xs text-slate-300">
-                      O Centro Paralímpico Brasileiro exige a renovação periódica dos laudos médicos e exames de piscina.
-                    </p>
-
-                    <div className="space-y-3 pt-2">
-                      {currentAthlete.medicalDocuments.map((doc) => (
-                        <div
-                          key={doc.id}
-                          className="p-4 rounded-xl bg-black/40 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-white">{doc.name}</span>
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                doc.status === 'Válido' 
-                                  ? 'bg-emerald-500/20 text-emerald-300' 
-                                  : doc.status === 'A vencer' 
-                                  ? 'bg-amber-500/20 text-amber-300' 
-                                  : 'bg-red-500/20 text-red-300'
-                              }`}>
-                                {doc.status}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-slate-400">{doc.notes}</p>
-                          </div>
-
-                          <div className="text-right text-xs">
-                            <span className="text-slate-400 block text-[10px]">Validade</span>
-                            <span className="text-[#f3e5ab] font-bold font-mono">{doc.expiryDate}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <AthleteDocumentsTab 
+                  athlete={currentAthlete} 
+                  isStaff={false} 
+                  uploaderName={currentAthlete.guardianName} 
+                />
               )}
 
               {/* TAB 4: RECADOS DA COMISSÃO TÉCNICA */}

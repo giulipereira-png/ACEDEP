@@ -17,17 +17,24 @@ import { usePhotos } from '../context/PhotosContext';
 import { useCommunity } from '../context/CommunityContext';
 
 interface NavbarProps {
+  currentPage?: string;
+  onNavigateToPage: (page: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade') => void;
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
   onOpenMemberPortal: () => void;
   onOpenCalendarModal?: () => void;
+  onOpenTeamModal?: () => void;
+  onOpenGalleryModal?: () => void;
+  onOpenCommunityModal?: () => void;
+  onOpenFaqModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
+  currentPage = 'home',
+  onNavigateToPage,
   onOpenSupportModal,
   onOpenContactModal,
   onOpenMemberPortal,
-  onOpenCalendarModal,
 }) => {
   const { openAdminModal, isAdminAuthenticated } = usePhotos();
   const { isGuardianAuthenticated, currentAthlete, setCoachManagerModalOpen } = useCommunity();
@@ -43,18 +50,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         setIsScrolled(false);
       }
 
-      // Active section tracker
-      const sections = ['home', 'sobre', 'modalidades', 'calendario', 'equipe', 'galeria', 'comunidade', 'faq', 'contato'];
-      const scrollPosition = window.scrollY + 200;
+      if (currentPage === 'home') {
+        const sections = ['home', 'sobre', 'modalidades', 'galeria-preview', 'explorar', 'contato'];
+        const scrollPosition = window.scrollY + 200;
 
-      for (const section of sections) {
-        const el = document.getElementById(section);
-        if (el) {
-          const top = el.offsetTop;
-          const height = el.offsetHeight;
-          if (scrollPosition >= top && scrollPosition < top + height) {
-            setActiveSection(section);
-            break;
+        for (const section of sections) {
+          const el = document.getElementById(section);
+          if (el) {
+            const top = el.offsetTop;
+            const height = el.offsetHeight;
+            if (scrollPosition >= top && scrollPosition < top + height) {
+              setActiveSection(section);
+              break;
+            }
           }
         }
       }
@@ -62,18 +70,31 @@ export const Navbar: React.FC<NavbarProps> = ({
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [currentPage]);
 
-  const navLinks = [
-    { name: 'Home', href: '#home' },
-    { name: 'Nossa História', href: '#sobre' },
-    { name: 'Modalidades', href: '#modalidades' },
-    { name: 'Calendário', href: '#calendario' },
-    { name: 'Nossa Equipe', href: '#equipe' },
-    { name: 'Galeria', href: '#galeria' },
-    { name: 'Comunidade & Notícias', href: '#comunidade' },
-    { name: 'FAQ', href: '#faq' },
-    { name: 'Contato', href: '#contato' },
+  const handleNavClick = (pageId: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => {
+    setMobileMenuOpen(false);
+    onNavigateToPage(pageId);
+    if (pageId === 'home' && hash) {
+      setTimeout(() => {
+        const el = document.getElementById(hash.replace('#', ''));
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  };
+
+  const navLinks: Array<{ name: string; page: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade'; hash?: string }> = [
+    { name: 'Home', page: 'home', hash: '#home' },
+    { name: 'Nossa História', page: 'home', hash: '#sobre' },
+    { name: 'Modalidades', page: 'home', hash: '#modalidades' },
+    { name: 'Nossa Equipe', page: 'equipe' },
+    { name: 'Calendário 2026', page: 'calendario' },
+    { name: 'Galeria de Fotos', page: 'galeria' },
+    { name: 'Comunidade & Notícias', page: 'comunidade' },
+    { name: 'FAQ', page: 'faq' },
+    { name: 'Contato', page: 'home', hash: '#contato' },
   ];
 
   return (
@@ -136,49 +157,36 @@ export const Navbar: React.FC<NavbarProps> = ({
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           {/* Logo */}
-          <a
-            href="#home"
+          {/* Brand / Logo Link */}
+          <button
+            type="button"
+            onClick={() => handleNavClick('home', '#home')}
             id="nav-logo-link"
-            className="flex items-center gap-2 group transition-transform duration-200 hover:scale-[1.02] cursor-pointer"
+            className="flex items-center gap-2 group transition-transform duration-200 hover:scale-[1.02] cursor-pointer text-left"
             title="ACEDEP Paradesporto"
           >
             <Logo variant="horizontal" className="h-12 md:h-14" />
-          </a>
+          </button>
 
           {/* Desktop Nav Items */}
           <div className="hidden lg:flex items-center space-x-1 xl:space-x-2">
             {navLinks.map((link) => {
-              const isCalendar = link.name === 'Calendário';
-              const isActive = !isCalendar && activeSection === link.href.replace('#', '');
-
-              if (isCalendar && onOpenCalendarModal) {
-                return (
-                  <button
-                    key={link.name}
-                    type="button"
-                    onClick={onOpenCalendarModal}
-                    id={`nav-link-${link.name.toLowerCase().replace(/\s+/g, '-')}`}
-                    className="px-3 py-2 text-sm font-semibold tracking-wide rounded-md text-slate-200 hover:text-[#d4af37] hover:bg-white/5 transition-all duration-200 cursor-pointer flex items-center gap-1.5"
-                  >
-                    <span>{link.name}</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
-                  </button>
-                );
-              }
+              const isCurrent = (currentPage === link.page && (!link.hash || activeSection === link.hash.replace('#', '')));
 
               return (
-                <a
+                <button
                   key={link.name}
-                  href={link.href}
+                  type="button"
+                  onClick={() => handleNavClick(link.page, link.hash)}
                   id={`nav-link-${link.name.toLowerCase().replace(/\s+/g, '-')}`}
-                  className={`px-3 py-2 text-sm font-semibold tracking-wide rounded-md transition-all duration-200 ${
-                    isActive
-                      ? 'text-[#d4af37] bg-white/5 shadow-inner'
+                  className={`px-3 py-2 text-xs xl:text-sm font-semibold tracking-wide rounded-md transition-all duration-200 cursor-pointer ${
+                    isCurrent
+                      ? 'text-[#d4af37] bg-white/10 shadow-inner'
                       : 'text-slate-200 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   {link.name}
-                </a>
+                </button>
               );
             })}
           </div>
@@ -237,40 +245,22 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="space-y-1 divide-y divide-white/5">
             <div className="py-2 space-y-1">
               {navLinks.map((link) => {
-                const isCalendar = link.name === 'Calendário';
-
-                if (isCalendar && onOpenCalendarModal) {
-                  return (
-                    <button
-                      key={link.name}
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        onOpenCalendarModal();
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2.5 rounded-md text-base font-medium text-[#d4af37] bg-white/5 hover:bg-white/10 text-left cursor-pointer"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span>{link.name}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#d4af37]/20 text-[#f3e5ab]">
-                          Eventos 2026
-                        </span>
-                      </span>
-                      <ChevronRight className="w-4 h-4 text-[#d4af37]" />
-                    </button>
-                  );
-                }
+                const isCurrent = (currentPage === link.page && (!link.hash || activeSection === link.hash.replace('#', '')));
 
                 return (
-                  <a
+                  <button
                     key={link.name}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-md text-base font-medium text-slate-200 hover:text-[#d4af37] hover:bg-white/5"
+                    type="button"
+                    onClick={() => handleNavClick(link.page, link.hash)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer text-left ${
+                      isCurrent
+                        ? 'text-[#d4af37] bg-white/10'
+                        : 'text-slate-200 hover:text-[#d4af37] hover:bg-white/5'
+                    }`}
                   >
                     <span>{link.name}</span>
-                    <ChevronRight className="w-4 h-4 text-slate-500" />
-                  </a>
+                    <ChevronRight className="w-4 h-4 text-[#d4af37]" />
+                  </button>
                 );
               })}
             </div>

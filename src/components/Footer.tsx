@@ -18,19 +18,41 @@ interface FooterProps {
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
   onOpenMemberPortal?: () => void;
+  onNavigateToPage?: (page: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => void;
   onOpenCalendarModal?: () => void;
+  onOpenTeamModal?: () => void;
+  onOpenGalleryModal?: () => void;
+  onOpenCommunityModal?: () => void;
+  onOpenFaqModal?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
   onOpenMemberPortal,
+  onNavigateToPage,
   onOpenCalendarModal,
+  onOpenTeamModal,
+  onOpenGalleryModal,
+  onOpenCommunityModal,
+  onOpenFaqModal,
 }) => {
   const { openAdminModal, isAdminAuthenticated } = usePhotos();
   const { setCoachManagerModalOpen } = useCommunity();
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLinkClick = (page: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => {
+    if (onNavigateToPage) {
+      onNavigateToPage(page, hash);
+      if (page === 'home' && hash) {
+        setTimeout(() => {
+          const el = document.getElementById(hash.replace('#', ''));
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    }
   };
 
   return (
@@ -84,50 +106,69 @@ export const Footer: React.FC<FooterProps> = ({
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <a href="#home" className="hover:text-[#d4af37] transition-colors block py-0.5">
+                <button 
+                  onClick={() => handleLinkClick('home', '#home')} 
+                  className="text-slate-300 hover:text-[#d4af37] transition-colors block py-0.5 cursor-pointer text-left"
+                >
                   Home (Início)
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#sobre" className="hover:text-[#d4af37] transition-colors block py-0.5">
+                <button 
+                  onClick={() => handleLinkClick('home', '#sobre')} 
+                  className="text-slate-300 hover:text-[#d4af37] transition-colors block py-0.5 cursor-pointer text-left"
+                >
                   Nossa História
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#modalidades" className="hover:text-[#d4af37] transition-colors block py-0.5">
-                  Modalidades
-                </a>
-              </li>
-              {onOpenCalendarModal && (
-                <li>
-                  <button 
-                    onClick={onOpenCalendarModal}
-                    className="text-slate-300 hover:text-[#d4af37] transition-colors block py-0.5 cursor-pointer text-left flex items-center gap-1"
-                  >
-                    <span>Calendário de Eventos</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
-                  </button>
-                </li>
-              )}
-              <li>
-                <a href="#equipe" className="hover:text-[#d4af37] transition-colors block py-0.5">
-                  Nossa Equipe
-                </a>
+                <button 
+                  onClick={() => handleLinkClick('home', '#modalidades')} 
+                  className="text-slate-300 hover:text-[#d4af37] transition-colors block py-0.5 cursor-pointer text-left"
+                >
+                  Modalidades & Horários
+                </button>
               </li>
               <li>
-                <a href="#galeria" className="hover:text-[#d4af37] transition-colors block py-0.5">
+                <button 
+                  onClick={() => handleLinkClick('calendario')}
+                  className="text-slate-300 hover:text-[#d4af37] transition-colors block py-0.5 cursor-pointer text-left flex items-center gap-1"
+                >
+                  <span>Calendário 2026</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => handleLinkClick('equipe')}
+                  className="text-slate-300 hover:text-[#d4af37] transition-colors block py-0.5 cursor-pointer text-left"
+                >
+                  Nossa Equipe & Atletas
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => handleLinkClick('galeria')}
+                  className="text-slate-300 hover:text-[#d4af37] transition-colors block py-0.5 cursor-pointer text-left"
+                >
                   Galeria de Fotos
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#comunidade" className="text-[#f3e5ab] hover:text-[#d4af37] font-semibold transition-colors block py-0.5">
+                <button 
+                  onClick={() => handleLinkClick('comunidade')}
+                  className="text-[#f3e5ab] hover:text-[#d4af37] font-semibold transition-colors block py-0.5 cursor-pointer text-left"
+                >
                   Mural & Comunidade
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#faq" className="text-[#d4af37] hover:underline font-semibold transition-colors block py-0.5">
+                <button 
+                  onClick={() => handleLinkClick('faq')}
+                  className="text-[#d4af37] hover:underline font-semibold transition-colors block py-0.5 cursor-pointer text-left"
+                >
                   Dúvidas Frequentes (FAQ)
-                </a>
+                </button>
               </li>
               {onOpenMemberPortal && (
                 <li>
