@@ -28,7 +28,7 @@ const firebaseConfig = {
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with robust long-polling support for web iframe sandbox environments
+// Initialize Firestore with robust long-polling support and undefined properties handling
 const databaseId = config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)' 
   ? config.firestoreDatabaseId 
   : undefined;
@@ -37,6 +37,7 @@ let firestoreDb;
 try {
   firestoreDb = initializeFirestore(app, {
     experimentalAutoDetectLongPolling: true,
+    ignoreUndefinedProperties: true,
   }, databaseId);
 } catch {
   firestoreDb = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
@@ -44,6 +45,22 @@ try {
 
 export const db = firestoreDb;
 export const auth = getAuth(app);
+
+// Helper to remove any undefined fields before writing to Firestore
+export function cleanFirestoreData<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj.map((item) => cleanFirestoreData(item)) as unknown as T;
+  }
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = cleanFirestoreData(value);
+    }
+  }
+  return result as T;
+}
 
 export enum OperationType {
   CREATE = 'create',

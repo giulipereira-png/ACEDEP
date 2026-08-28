@@ -446,24 +446,32 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-1.5">
                         <span className="text-xs text-slate-400 block">Local dos Treinos</span>
-                        <p className="text-sm font-bold text-white">{currentAthlete.trainingSchedule.pool}</p>
-                        <p className="text-xs text-[#f3e5ab]">{currentAthlete.trainingSchedule.lane}</p>
+                        <p className="text-sm font-bold text-white">
+                          {currentAthlete.trainingSchedule?.pool || 'Piscina Olímpica 50m - CPB'}
+                        </p>
+                        <p className="text-xs text-[#f3e5ab]">
+                          {currentAthlete.trainingSchedule?.lane || 'Raia 3 - Rendimento S14'}
+                        </p>
                       </div>
 
                       <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-1.5">
                         <span className="text-xs text-slate-400 block">Dias & Horários</span>
                         <p className="text-sm font-bold text-white">
-                          {currentAthlete.trainingSchedule.days.join(', ')}
+                          {Array.isArray(currentAthlete.trainingSchedule?.days)
+                            ? currentAthlete.trainingSchedule.days.join(', ')
+                            : (currentAthlete.trainingSchedule?.days || 'Segunda, Quarta, Sexta')}
                         </p>
                         <p className="text-xs text-cyan-300 flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
-                          {currentAthlete.trainingSchedule.time}
+                          {currentAthlete.trainingSchedule?.time || '14:00 às 15:30'}
                         </p>
                       </div>
                     </div>
 
                     <div className="p-3.5 rounded-xl bg-[#d4af37]/10 border border-[#d4af37]/30 flex items-center justify-between text-xs text-[#f3e5ab]">
-                      <span className="font-semibold">Treinador Responsável: {currentAthlete.trainingSchedule.coachName}</span>
+                      <span className="font-semibold">
+                        Treinador Responsável: {currentAthlete.trainingSchedule?.coachName || 'Prof. Leonardo Ramos'}
+                      </span>
                       <span className="text-slate-400">Padrão de Alto Rendimento Paralímpico</span>
                     </div>
                   </div>

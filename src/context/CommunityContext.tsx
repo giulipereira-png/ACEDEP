@@ -3,12 +3,13 @@ import {
   collection, 
   doc, 
   getDoc, 
+  getDocs,
   setDoc, 
   deleteDoc, 
   updateDoc,
   onSnapshot 
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, cleanFirestoreData } from '../lib/firebase';
 import { 
   NewsPost, 
   CommunityCheer, 
@@ -129,7 +130,16 @@ const CommunityContext = createContext<CommunityContextType | undefined>(undefin
 export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [newsPosts, setNewsPosts] = useState<NewsPost[]>(INITIAL_NEWS_POSTS);
   const [cheers, setCheers] = useState<CommunityCheer[]>(INITIAL_COMMUNITY_CHEERS);
-  const [athletes, setAthletes] = useState<AthleteRecord[]>(INITIAL_ATHLETES);
+  const [athletes, setAthletes] = useState<AthleteRecord[]>(() => {
+    try {
+      const stored = localStorage.getItem('acedep_cached_athletes');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_ATHLETES;
+  });
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>(INITIAL_ATTENDANCE_SESSIONS);
   const [emailLogs, setEmailLogs] = useState<EmailNotificationLog[]>(INITIAL_EMAIL_LOGS);
   const [annualEvents, setAnnualEvents] = useState<AnnualCalendarEvent[]>(INITIAL_ANNUAL_EVENTS);
@@ -246,7 +256,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           if (!snap.exists()) {
             try {
               for (const athlete of INITIAL_ATHLETES) {
-                await setDoc(doc(db, 'athletes', athlete.id), athlete);
+                await setDoc(doc(db, 'athletes', athlete.id), cleanFirestoreData(athlete));
               }
               await setDoc(athletesInitDoc, { initialized: true, seededAt: new Date().toISOString() });
             } catch (e) {
@@ -267,6 +277,9 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               list.push({ ...docSnap.data(), id: docSnap.id } as AthleteRecord);
             });
             setAthletes(list);
+            try {
+              localStorage.setItem('acedep_cached_athletes', JSON.stringify(list));
+            } catch {}
           }
         },
         (error) => {
@@ -408,16 +421,46 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return { success: false, message: 'Por favor, informe a identificação e a senha de acesso.' };
     }
 
-    // Match against athletes in state or check Firestore
-    const matched = athletes.find((a) => {
+    let currentList = athletes;
+
+    // First check local state
+    let matched = currentList.find((a) => {
       const emailMatch = (a.guardianEmail || '').trim().toLowerCase() === cleanId;
       const idMatch = a.id.toLowerCase() === cleanId;
       const regMatch = (a.clubRegistration || '').toLowerCase().replace(/[^a-z0-9]/g, '') === cleanId.replace(/[^a-z0-9]/g, '');
       const nameMatch = a.name.toLowerCase().includes(cleanId);
-      
       const codeMatch = a.accessCode === cleanCode;
       return (emailMatch || idMatch || regMatch || nameMatch) && codeMatch;
     });
+
+    // If not matched or to ensure fresh data from Firestore
+    if (!matched) {
+      try {
+        const snap = await getDocs(collection(db, 'athletes'));
+        if (!snap.empty) {
+          const freshList: AthleteRecord[] = [];
+          snap.forEach((docSnap) => {
+            freshList.push({ ...docSnap.data(), id: docSnap.id } as AthleteRecord);
+          });
+          setAthletes(freshList);
+          try {
+            localStorage.setItem('acedep_cached_athletes', JSON.stringify(freshList));
+          } catch {}
+          currentList = freshList;
+
+          matched = currentList.find((a) => {
+            const emailMatch = (a.guardianEmail || '').trim().toLowerCase() === cleanId;
+            const idMatch = a.id.toLowerCase() === cleanId;
+            const regMatch = (a.clubRegistration || '').toLowerCase().replace(/[^a-z0-9]/g, '') === cleanId.replace(/[^a-z0-9]/g, '');
+            const nameMatch = a.name.toLowerCase().includes(cleanId);
+            const codeMatch = a.accessCode === cleanCode;
+            return (emailMatch || idMatch || regMatch || nameMatch) && codeMatch;
+          });
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'athletes');
+      }
+    }
 
     if (matched) {
       setCurrentAthleteId(matched.id);
@@ -600,28 +643,50 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Coach / Admin Athlete Actions
   const saveAthleteRecord = async (athlete: AthleteRecord): Promise<boolean> => {
+    const sanitized: AthleteRecord = cleanFirestoreData({
+      ...athlete,
+      trainingSchedule: {
+        pool: athlete.trainingSchedule?.pool || 'Piscina Olímpica 50m - CPB',
+        lane: athlete.trainingSchedule?.lane || 'Raia 3 - Rendimento S14',
+        days: Array.isArray(athlete.trainingSchedule?.days)
+          ? athlete.trainingSchedule.days
+          : typeof athlete.trainingSchedule?.days === 'string'
+          ? (athlete.trainingSchedule.days as string).split(',').map((s: string) => s.trim())
+          : ['Segunda', 'Quarta', 'Sexta'],
+        time: athlete.trainingSchedule?.time || '14:00 às 15:30',
+        coachName: athlete.trainingSchedule?.coachName || 'Prof. Leonardo Ramos',
+      },
+      swimmingMetrics: athlete.swimmingMetrics || [],
+      coachNotes: athlete.coachNotes || [],
+      recentAttendance: athlete.recentAttendance || [],
+      documents: athlete.documents || [],
+      documentStatus: athlete.documentStatus || 'em_analise',
+    });
+
     try {
-      await setDoc(doc(db, 'athletes', athlete.id), athlete, { merge: true });
+      await setDoc(doc(db, 'athletes', sanitized.id), sanitized, { merge: true });
       setAthletes((prev) => {
-        const index = prev.findIndex((a) => a.id === athlete.id);
-        if (index >= 0) {
-          const updated = [...prev];
-          updated[index] = athlete;
-          return updated;
-        }
-        return [athlete, ...prev];
+        const index = prev.findIndex((a) => a.id === sanitized.id);
+        const updated = index >= 0
+          ? prev.map((a, idx) => (idx === index ? sanitized : a))
+          : [sanitized, ...prev];
+        try {
+          localStorage.setItem('acedep_cached_athletes', JSON.stringify(updated));
+        } catch {}
+        return updated;
       });
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, `athletes/${athlete.id}`);
+      handleFirestoreError(e, OperationType.WRITE, `athletes/${sanitized.id}`);
       setAthletes((prev) => {
-        const index = prev.findIndex((a) => a.id === athlete.id);
-        if (index >= 0) {
-          const updated = [...prev];
-          updated[index] = athlete;
-          return updated;
-        }
-        return [athlete, ...prev];
+        const index = prev.findIndex((a) => a.id === sanitized.id);
+        const updated = index >= 0
+          ? prev.map((a, idx) => (idx === index ? sanitized : a))
+          : [sanitized, ...prev];
+        try {
+          localStorage.setItem('acedep_cached_athletes', JSON.stringify(updated));
+        } catch {}
+        return updated;
       });
       return true;
     }

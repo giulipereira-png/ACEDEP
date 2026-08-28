@@ -133,6 +133,7 @@ export const AdminCoachPortalModal: React.FC = () => {
   const [athleteCoach, setAthleteCoach] = useState('Prof. Leonardo Ramos');
   const [athleteNotifyOnCreate, setAthleteNotifyOnCreate] = useState(true);
   const [isSavingAthlete, setIsSavingAthlete] = useState(false);
+  const [isSavingEditAthlete, setIsSavingEditAthlete] = useState(false);
   const [athleteSuccess, setAthleteSuccess] = useState('');
   const [copiedAccessCard, setCopiedAccessCard] = useState<string | null>(null);
   const [selectedAthleteForDocs, setSelectedAthleteForDocs] = useState<AthleteRecord | null>(null);
@@ -620,8 +621,15 @@ export const AdminCoachPortalModal: React.FC = () => {
     e.preventDefault();
     if (!editingAthlete) return;
 
-    await saveAthleteRecord(editingAthlete);
-    setEditingAthlete(null);
+    setIsSavingEditAthlete(true);
+    try {
+      await saveAthleteRecord(editingAthlete);
+      setAthleteSuccess(`Cadastro e dados de treinos de ${editingAthlete.name} atualizados com sucesso!`);
+      setTimeout(() => setAthleteSuccess(''), 6000);
+    } finally {
+      setIsSavingEditAthlete(false);
+      setEditingAthlete(null);
+    }
   };
 
   // Handle Add Swimming Metric
@@ -3000,9 +3008,10 @@ export const AdminCoachPortalModal: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 rounded-lg bg-[#d4af37] text-[#060e1c] font-bold hover:bg-[#b8952b] cursor-pointer"
+                    disabled={isSavingEditAthlete}
+                    className="px-4 py-1.5 rounded-lg bg-[#d4af37] text-[#060e1c] font-bold hover:bg-[#b8952b] cursor-pointer disabled:opacity-50"
                   >
-                    Salvar Alterações
+                    {isSavingEditAthlete ? 'Salvando...' : 'Salvar Alterações'}
                   </button>
                 </div>
               </form>
