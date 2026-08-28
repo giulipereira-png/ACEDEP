@@ -35,7 +35,9 @@ import {
   ShieldCheck,
   RotateCcw,
   Database,
-  Users
+  Users,
+  MapPin,
+  History
 } from 'lucide-react';
 import { useCommunity } from '../context/CommunityContext';
 import { usePhotos, DEFAULT_PHOTOS, GalleryPhotoItem } from '../context/PhotosContext';
@@ -70,10 +72,16 @@ export const AdminCoachPortalModal: React.FC = () => {
     saveAthleteRecord,
     deleteAthleteRecord,
     addSwimmingMetric,
+    deleteSwimmingMetric,
     addCoachNote,
+    deleteCoachNote,
     emailLogs,
     sendEmailNotification,
-    getAllParentEmails
+    getAllParentEmails,
+    annualEvents,
+    addAnnualEvent,
+    updateAnnualEvent,
+    deleteAnnualEvent,
   } = useCommunity();
 
   const {
@@ -96,7 +104,7 @@ export const AdminCoachPortalModal: React.FC = () => {
   const isSuperAdmin = currentAdminProfile?.email === 'giuli.pereira@gmail.com' || currentAdminProfile?.role === 'Super Admin';
   const isProfessor = currentAdminProfile?.role === 'Professor' || currentAdminProfile?.role === 'Treinador' || currentAdminProfile?.role === 'Técnico de Natação' || (currentAdminProfile && !isSuperAdmin);
 
-  const [activeTab, setActiveTab] = useState<'atletas' | 'presenca' | 'administradores' | 'fotos' | 'galeria' | 'noticias' | 'tempos' | 'recados' | 'mural_familia' | 'emails' | 'seguranca'>('atletas');
+  const [activeTab, setActiveTab] = useState<'atletas' | 'presenca' | 'tempos' | 'agenda' | 'recados' | 'mural_familia' | 'emails' | 'administradores' | 'fotos' | 'galeria' | 'noticias' | 'seguranca'>('atletas');
 
   // PIN Login Form State
   const [pinInput, setPinInput] = useState('');
@@ -159,6 +167,20 @@ export const AdminCoachPortalModal: React.FC = () => {
   const [noteNotifyEmail, setNoteNotifyEmail] = useState(true);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteSuccess, setNoteSuccess] = useState('');
+
+  // Form Annual Event (Agenda 2026) State
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventCategory, setEventCategory] = useState<string>('Competição Oficial');
+  const [eventDate, setEventDate] = useState('');
+  const [eventMonth, setEventMonth] = useState<number>(() => new Date().getMonth() + 1);
+  const [eventLocation, setEventLocation] = useState('Piscina Olímpica 50m - Centro Paralímpico Brasileiro');
+  const [eventDescription, setEventDescription] = useState('');
+  const [eventTarget, setEventTarget] = useState('Equipe Principal S14');
+  const [eventStatus, setEventStatus] = useState<'Confirmado' | 'Previsto'>('Confirmado');
+  const [eventNotifyEmail, setEventNotifyEmail] = useState(true);
+  const [isSavingEvent, setIsSavingEvent] = useState(false);
+  const [eventSuccess, setEventSuccess] = useState('');
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   // Email Broadcast Center State
   const [broadcastType, setBroadcastType] = useState<'boletim_geral' | 'noticia' | 'recado_treinador'>('boletim_geral');
@@ -635,17 +657,22 @@ export const AdminCoachPortalModal: React.FC = () => {
   // Handle Add Swimming Metric
   const handleAddTime = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAthleteIdForTime || !metricTime.trim()) return;
+    const targetAthleteId = selectedAthleteIdForTime || athletes[0]?.id;
+    if (!targetAthleteId || !metricTime.trim()) {
+      alert('Por favor, selecione um atleta e informe o tempo cronometrado.');
+      return;
+    }
 
     setIsSavingTime(true);
+    const targetAthlete = athletes.find((a) => a.id === targetAthleteId);
     const success = await addSwimmingMetric(
-      selectedAthleteIdForTime, 
+      targetAthleteId, 
       {
         event: metricEvent,
         bestTime: metricTime.trim(),
-        evolution: metricEvolution.trim(),
+        evolution: metricEvolution.trim() || 'Oficial',
         dateRecorded: new Date().toLocaleDateString('pt-BR'),
-        stageName: metricStage.trim(),
+        stageName: metricStage.trim() || 'Centro Paralímpico Brasileiro',
         laneType: metricLaneType,
       },
       timeNotifyEmail
@@ -653,25 +680,36 @@ export const AdminCoachPortalModal: React.FC = () => {
     setIsSavingTime(false);
 
     if (success) {
-      setTimeSuccess(`Tempo lançado com sucesso na ficha do atleta! ${timeNotifyEmail ? '📧 Responsável notificado por e-mail.' : ''}`);
+      setTimeSuccess(`Tempo lançado com sucesso na ficha de ${targetAthlete?.name || 'atleta'}! ${timeNotifyEmail ? '📧 Notificação enviada por e-mail.' : ''}`);
       setMetricTime('');
       setMetricEvolution('');
       setTimeout(() => setTimeSuccess(''), 5000);
     }
   };
 
+  const handleDeleteTime = async (athleteId: string, metricId: string) => {
+    if (window.confirm('Deseja realmente remover esta cronometragem?')) {
+      await deleteSwimmingMetric(athleteId, metricId);
+    }
+  };
+
   // Handle Add Coach Note
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAthleteIdForNote || !noteText.trim()) return;
+    const targetAthleteId = selectedAthleteIdForNote || athletes[0]?.id;
+    if (!targetAthleteId || !noteText.trim()) {
+      alert('Por favor, selecione um atleta e escreva o recado.');
+      return;
+    }
 
     setIsSavingNote(true);
+    const targetAthlete = athletes.find((a) => a.id === targetAthleteId);
     const success = await addCoachNote(
-      selectedAthleteIdForNote, 
+      targetAthleteId, 
       {
         title: noteTitle.trim() || 'Orientação Técnica da Piscina',
         text: noteText.trim(),
-        coachName: noteCoachName.trim(),
+        coachName: noteCoachName.trim() || 'Prof. Leonardo Ramos',
         date: new Date().toLocaleDateString('pt-BR'),
         importance: 'destaque',
       },
@@ -680,10 +718,94 @@ export const AdminCoachPortalModal: React.FC = () => {
     setIsSavingNote(false);
 
     if (success) {
-      setNoteSuccess(`Recado enviado ao responsável do atleta! ${noteNotifyEmail ? '📧 Notificação enviada por e-mail.' : ''}`);
+      setNoteSuccess(`Recado enviado ao responsável de ${targetAthlete?.name || 'atleta'}! ${noteNotifyEmail ? '📧 Notificação gravada e enviada por e-mail.' : ''}`);
       setNoteTitle('');
       setNoteText('');
       setTimeout(() => setNoteSuccess(''), 5000);
+    }
+  };
+
+  const handleDeleteNote = async (athleteId: string, noteId: string) => {
+    if (window.confirm('Deseja realmente remover este recado?')) {
+      await deleteCoachNote(athleteId, noteId);
+    }
+  };
+
+  // Handle Annual Calendar Events (Agenda 2026)
+  const handleSaveEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eventTitle.trim() || !eventDate.trim()) {
+      alert('Por favor, informe o título e a data do evento da agenda.');
+      return;
+    }
+
+    setIsSavingEvent(true);
+    let success = false;
+    if (editingEventId) {
+      success = await updateAnnualEvent(editingEventId, {
+        title: eventTitle.trim(),
+        category: eventCategory,
+        date: eventDate.trim(),
+        month: Number(eventMonth),
+        year: 2026,
+        location: eventLocation.trim(),
+        description: eventDescription.trim(),
+        targetCategory: eventTarget.trim(),
+        status: eventStatus,
+      });
+    } else {
+      success = await addAnnualEvent({
+        title: eventTitle.trim(),
+        category: eventCategory,
+        date: eventDate.trim(),
+        month: Number(eventMonth),
+        year: 2026,
+        location: eventLocation.trim(),
+        description: eventDescription.trim(),
+        targetCategory: eventTarget.trim(),
+        status: eventStatus,
+      });
+
+      if (success && eventNotifyEmail) {
+        await sendEmailNotification({
+          type: 'boletim_geral',
+          title: `Agenda 2026: Novo Evento Cadastrado - ${eventTitle.trim()}`,
+          recipientSummary: `Todos os Pais e Responsáveis (${getAllParentEmails().length} e-mails)`,
+          recipientEmails: getAllParentEmails(),
+          senderName: 'Coordenação Técnica ACEDEP',
+          contentPreview: `Evento: ${eventTitle.trim()} | Data: ${eventDate.trim()} | Local: ${eventLocation.trim()} | Categoria: ${eventCategory}`,
+          status: 'enviado',
+        });
+      }
+    }
+
+    setIsSavingEvent(false);
+    if (success) {
+      setEventSuccess(editingEventId ? 'Evento da Agenda 2026 atualizado com sucesso!' : 'Evento salvo na Agenda 2026 com sucesso!');
+      setEventTitle('');
+      setEventDate('');
+      setEventDescription('');
+      setEditingEventId(null);
+      setTimeout(() => setEventSuccess(''), 5000);
+    }
+  };
+
+  const handleEditEvent = (evt: any) => {
+    setEditingEventId(evt.id);
+    setEventTitle(evt.title);
+    setEventCategory(evt.category || 'Competição Oficial');
+    setEventDate(evt.date);
+    setEventMonth(evt.month || 1);
+    setEventLocation(evt.location || '');
+    setEventDescription(evt.description || '');
+    setEventTarget(evt.targetCategory || 'Equipe Principal S14');
+    setEventStatus(evt.status || 'Confirmado');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    if (window.confirm('Deseja realmente remover este evento da Agenda 2026?')) {
+      await deleteAnnualEvent(id);
     }
   };
 
@@ -701,7 +823,7 @@ export const AdminCoachPortalModal: React.FC = () => {
       recipients = getAllParentEmails();
       summary = `Todos os Pais e Responsáveis (${recipients.length} e-mails cadastrados)`;
     } else {
-      const target = athletes.find((a) => a.id === broadcastSpecificAthleteId);
+      const target = athletes.find((a) => a.id === (broadcastSpecificAthleteId || athletes[0]?.id));
       if (target && target.guardianEmail) {
         recipients = [target.guardianEmail];
         summary = `${target.guardianName} (${target.guardianEmail}) - Atleta: ${target.name}`;
@@ -728,6 +850,16 @@ export const AdminCoachPortalModal: React.FC = () => {
     setTimeout(() => setBroadcastSuccess(''), 6000);
   };
 
+  // Open Gmail Web directly in browser with recipients and subject filled
+  const handleOpenGmailWeb = (subject?: string, body?: string) => {
+    const target = athletes.find((a) => a.id === (broadcastRecipientMode === 'specific' ? (broadcastSpecificAthleteId || athletes[0]?.id) : ''));
+    const toEmail = broadcastRecipientMode === 'specific' ? (target?.guardianEmail || '') : getAllParentEmails().join(',');
+    const encodedSubject = encodeURIComponent(subject || broadcastSubject || 'Informativo ACEDEP Natação Paralímpica');
+    const encodedBody = encodeURIComponent(body || broadcastBody || 'Prezados pais e responsáveis,\n\nSegue atualização importante sobre as atividades e treinos da ACEDEP:\n\nAtenciosamente,\nCoordenação ACEDEP');
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(toEmail)}&su=${encodedSubject}&body=${encodedBody}`;
+    window.open(gmailUrl, '_blank');
+  };
+
   // Open default mail client with parent emails
   const handleOpenMailClient = (subject?: string, body?: string) => {
     let mailUrl = '';
@@ -735,7 +867,7 @@ export const AdminCoachPortalModal: React.FC = () => {
     const encodedBody = encodeURIComponent(body || broadcastBody || 'Prezados pais e responsáveis,\n\nSegue atualização importante sobre as atividades e treinos da ACEDEP:\n\nAtenciosamente,\nCoordenação ACEDEP');
 
     if (broadcastRecipientMode === 'specific') {
-      const target = athletes.find((a) => a.id === broadcastSpecificAthleteId);
+      const target = athletes.find((a) => a.id === (broadcastSpecificAthleteId || athletes[0]?.id));
       const toEmail = target?.guardianEmail || 'contato@acedep.org.br';
       mailUrl = `mailto:${toEmail}?subject=${encodedSubject}&body=${encodedBody}`;
     } else {
@@ -918,7 +1050,20 @@ export const AdminCoachPortalModal: React.FC = () => {
                   <span>Tempos RP</span>
                 </button>
 
-                {/* 4. Agenda, Campeonatos & Recados Técnicos (Professor & Admin) */}
+                {/* 4. Agenda 2026 & Competições (Professor & Admin) */}
+                <button
+                  onClick={() => setActiveTab('agenda')}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    activeTab === 'agenda'
+                      ? 'bg-[#d4af37] text-[#060e1c] shadow'
+                      : 'text-slate-300 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>Agenda 2026 ({annualEvents.length})</span>
+                </button>
+
+                {/* 5. Recados Técnicos aos Pais (Professor & Admin) */}
                 <button
                   onClick={() => setActiveTab('recados')}
                   className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
@@ -928,7 +1073,7 @@ export const AdminCoachPortalModal: React.FC = () => {
                   }`}
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Agenda & Recados</span>
+                  <span>Recados aos Pais</span>
                 </button>
 
                 {/* 5. Mural da Família (Professor & Admin) */}
@@ -1828,188 +1973,642 @@ export const AdminCoachPortalModal: React.FC = () => {
               TAB 4: LANÇAR TEMPOS & RECORDES (RP)
              ========================================================================= */}
           {activeTab === 'tempos' && (
-            <form onSubmit={handleAddTime} className="p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4 max-w-xl">
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <Timer className="w-4 h-4 text-[#d4af37]" />
-                Lançar Nova Marca / Cronometragem de Natação
-              </h4>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Form to Add New RP Metric */}
+                <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Timer className="w-4 h-4 text-[#d4af37]" />
+                    Lançar Nova Marca / Cronometragem de Natação
+                  </h4>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Selecione o Nadador *</label>
-                <select
-                  value={selectedAthleteIdForTime}
-                  onChange={(e) => setSelectedAthleteIdForTime(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
-                >
-                  {athletes.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name} - Classe S14</option>
-                  ))}
-                </select>
-              </div>
+                  <form onSubmit={handleAddTime} className="space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Selecione o Nadador *</label>
+                      <select
+                        value={selectedAthleteIdForTime}
+                        onChange={(e) => setSelectedAthleteIdForTime(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      >
+                        {athletes.map((a) => (
+                          <option key={a.id} value={a.id}>{a.name} (Classe S14)</option>
+                        ))}
+                      </select>
+                    </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Prova Aquática *</label>
-                  <select
-                    value={metricEvent}
-                    onChange={(e) => setMetricEvent(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
-                  >
-                    <option value="50m Livre">50m Livre</option>
-                    <option value="100m Livre">100m Livre</option>
-                    <option value="200m Livre">200m Livre</option>
-                    <option value="50m Costas">50m Costas</option>
-                    <option value="100m Costas">100m Costas</option>
-                    <option value="50m Peito">50m Peito</option>
-                    <option value="100m Peito">100m Peito</option>
-                    <option value="50m Borboleta">50m Borboleta</option>
-                    <option value="200m Medley">200m Medley</option>
-                  </select>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Prova Aquática *</label>
+                        <select
+                          value={metricEvent}
+                          onChange={(e) => setMetricEvent(e.target.value)}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        >
+                          <option value="50m Livre">50m Livre</option>
+                          <option value="100m Livre">100m Livre</option>
+                          <option value="200m Livre">200m Livre</option>
+                          <option value="400m Livre">400m Livre</option>
+                          <option value="50m Costas">50m Costas</option>
+                          <option value="100m Costas">100m Costas</option>
+                          <option value="50m Peito">50m Peito</option>
+                          <option value="100m Peito">100m Peito</option>
+                          <option value="50m Borboleta">50m Borboleta</option>
+                          <option value="100m Borboleta">100m Borboleta</option>
+                          <option value="200m Medley">200m Medley</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Tempo Cronometrado *</label>
+                        <input
+                          type="text"
+                          required
+                          value={metricTime}
+                          onChange={(e) => setMetricTime(e.target.value)}
+                          placeholder="Ex: 00:29.40"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Evolução / Marca</label>
+                        <input
+                          type="text"
+                          value={metricEvolution}
+                          onChange={(e) => setMetricEvolution(e.target.value)}
+                          placeholder="Ex: -0.40s (Novo RP)"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Competição / Etapa</label>
+                        <input
+                          type="text"
+                          value={metricStage}
+                          onChange={(e) => setMetricStage(e.target.value)}
+                          placeholder="Ex: Circuito Paralímpico SP"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Piscina</label>
+                        <select
+                          value={metricLaneType}
+                          onChange={(e) => setMetricLaneType(e.target.value as '25m' | '50m')}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        >
+                          <option value="50m">50m (Longa)</option>
+                          <option value="25m">25m (Curta)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-slate-300">
+                      <input
+                        type="checkbox"
+                        id="notifyTimeEmail"
+                        checked={timeNotifyEmail}
+                        onChange={(e) => setTimeNotifyEmail(e.target.checked)}
+                        className="rounded border-[#1e3a5f] text-[#d4af37] focus:ring-[#d4af37]"
+                      />
+                      <label htmlFor="notifyTimeEmail" className="cursor-pointer">
+                        📧 Notificar responsável do atleta por e-mail comemorando a nova marca
+                      </label>
+                    </div>
+
+                    {timeSuccess && (
+                      <p className="text-xs text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>{timeSuccess}</span>
+                      </p>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isSavingTime}
+                      className="px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isSavingTime ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Timer className="w-3.5 h-3.5" />}
+                      <span>{isSavingTime ? 'Gravando no Banco...' : 'Salvar Novo Tempo (RP)'}</span>
+                    </button>
+                  </form>
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Tempo Cronometrado *</label>
-                  <input
-                    type="text"
-                    required
-                    value={metricTime}
-                    onChange={(e) => setMetricTime(e.target.value)}
-                    placeholder="Ex: 00:29.40"
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
-                  />
+                {/* Right: Live List of Records for Selected Athlete */}
+                <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
+                  {(() => {
+                    const currentSelectedAthlete = athletes.find((a) => a.id === (selectedAthleteIdForTime || athletes[0]?.id));
+                    const metrics = currentSelectedAthlete?.swimmingMetrics || [];
+                    return (
+                      <>
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                          <div>
+                            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                              <Waves className="w-4 h-4 text-cyan-400" />
+                              <span>Tempos Salvos: {currentSelectedAthlete?.name || 'Nadador'}</span>
+                            </h4>
+                            <p className="text-[11px] text-slate-400">
+                              {metrics.length} marcas registradas em banco de dados
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                          {metrics.length === 0 ? (
+                            <div className="p-6 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-slate-400">
+                              Nenhum tempo RP lançado ainda para este atleta. Use o formulário ao lado para cadastrar.
+                            </div>
+                          ) : (
+                            metrics.map((m) => (
+                              <div
+                                key={m.id}
+                                className="p-3 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between gap-3 text-xs hover:border-white/10 transition-all"
+                              >
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-white">{m.event}</span>
+                                    <span className="font-mono font-black text-[#d4af37] text-sm">{m.bestTime}</span>
+                                    {m.evolution && (
+                                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                                        {m.evolution}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                    <span>{m.stageName || 'Centro Paralímpico'}</span>
+                                    <span>•</span>
+                                    <span>Piscina {m.laneType || '50m'}</span>
+                                    <span>•</span>
+                                    <span>{m.dateRecorded}</span>
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => currentSelectedAthlete && handleDeleteTime(currentSelectedAthlete.id, m.id)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                                  title="Remover tempo"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
+            </div>
+          )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Evolução / Marca</label>
-                  <input
-                    type="text"
-                    value={metricEvolution}
-                    onChange={(e) => setMetricEvolution(e.target.value)}
-                    placeholder="Ex: -0.40s (Novo RP)"
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
-                  />
+          {/* =========================================================================
+              TAB: AGENDA 2026 & EVENTOS OFICIAIS (FIREBASE FIRESTORE)
+             ========================================================================= */}
+          {activeTab === 'agenda' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Form Add/Edit Event */}
+                <div className="lg:col-span-5 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-[#d4af37]" />
+                      <span>{editingEventId ? 'Editar Evento da Agenda' : 'Novo Evento / Competição 2026'}</span>
+                    </h4>
+                    {editingEventId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingEventId(null);
+                          setEventTitle('');
+                          setEventDate('');
+                          setEventDescription('');
+                        }}
+                        className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+                      >
+                        Cancelar Edição
+                      </button>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleSaveEvent} className="space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Título do Evento / Etapa *</label>
+                      <input
+                        type="text"
+                        required
+                        value={eventTitle}
+                        onChange={(e) => setEventTitle(e.target.value)}
+                        placeholder="Ex: Circuito Nacional Paralímpico - 1ª Fase"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Mês do Calendário *</label>
+                        <select
+                          value={eventMonth}
+                          onChange={(e) => setEventMonth(Number(e.target.value))}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        >
+                          <option value={1}>01 - Janeiro</option>
+                          <option value={2}>02 - Fevereiro</option>
+                          <option value={3}>03 - Março</option>
+                          <option value={4}>04 - Abril</option>
+                          <option value={5}>05 - Maio</option>
+                          <option value={6}>06 - Junho</option>
+                          <option value={7}>07 - Julho</option>
+                          <option value={8}>08 - Agosto</option>
+                          <option value={9}>09 - Setembro</option>
+                          <option value={10}>10 - Outubro</option>
+                          <option value={11}>11 - Novembro</option>
+                          <option value={12}>12 - Dezembro</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Data Exata / Período *</label>
+                        <input
+                          type="text"
+                          required
+                          value={eventDate}
+                          onChange={(e) => setEventDate(e.target.value)}
+                          placeholder="Ex: 14 e 15 de Março"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Categoria do Evento</label>
+                        <select
+                          value={eventCategory}
+                          onChange={(e) => setEventCategory(e.target.value)}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        >
+                          <option value="Competição Oficial">Competição Oficial</option>
+                          <option value="Avaliação Técnica">Avaliação Técnica</option>
+                          <option value="Festival Inclusivo">Festival Inclusivo</option>
+                          <option value="Confraternização">Confraternização</option>
+                          <option value="Treino Especial">Treino Especial</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Status</label>
+                        <select
+                          value={eventStatus}
+                          onChange={(e) => setEventStatus(e.target.value as 'Confirmado' | 'Previsto')}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        >
+                          <option value="Confirmado">Confirmado</option>
+                          <option value="Previsto">Previsto</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Local do Evento</label>
+                      <input
+                        type="text"
+                        value={eventLocation}
+                        onChange={(e) => setEventLocation(e.target.value)}
+                        placeholder="Ex: Centro Paralímpico Brasileiro - São Paulo"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Categoria / Público Alvo</label>
+                      <input
+                        type="text"
+                        value={eventTarget}
+                        onChange={(e) => setEventTarget(e.target.value)}
+                        placeholder="Ex: Equipe Principal S14 e Base"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Descrição / Detalhes</label>
+                      <textarea
+                        rows={3}
+                        value={eventDescription}
+                        onChange={(e) => setEventDescription(e.target.value)}
+                        placeholder="Informações adicionais para atletas e responsáveis..."
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37] resize-none"
+                      />
+                    </div>
+
+                    {!editingEventId && (
+                      <div className="flex items-center gap-2 text-xs text-slate-300">
+                        <input
+                          type="checkbox"
+                          id="notifyEventEmail"
+                          checked={eventNotifyEmail}
+                          onChange={(e) => setEventNotifyEmail(e.target.checked)}
+                          className="rounded border-[#1e3a5f] text-[#d4af37] focus:ring-[#d4af37]"
+                        />
+                        <label htmlFor="notifyEventEmail" className="cursor-pointer">
+                          📧 Disparar e-mail informativo com este evento para todos os pais cadastrados
+                        </label>
+                      </div>
+                    )}
+
+                    {eventSuccess && (
+                      <p className="text-xs text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>{eventSuccess}</span>
+                      </p>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isSavingEvent}
+                      className="px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isSavingEvent ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Calendar className="w-3.5 h-3.5" />}
+                      <span>{isSavingEvent ? 'Salvando...' : editingEventId ? 'Atualizar Evento' : 'Salvar na Agenda 2026'}</span>
+                    </button>
+                  </form>
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Competição / Etapa</label>
-                  <input
-                    type="text"
-                    value={metricStage}
-                    onChange={(e) => setMetricStage(e.target.value)}
-                    placeholder="Ex: Circuito Paralímpico SP"
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
-                  />
+                {/* Right: List of 2026 Events in Firestore */}
+                <div className="lg:col-span-7 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-[#d4af37]" />
+                        <span>Calendário Oficial 2026 ({annualEvents.length} eventos)</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400">Sincronizado em tempo real na Home e no Portal dos Pais</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
+                    {annualEvents.length === 0 ? (
+                      <div className="p-8 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-slate-400">
+                        Nenhum evento cadastrado para a Agenda 2026.
+                      </div>
+                    ) : (
+                      annualEvents.map((evt) => (
+                        <div
+                          key={evt.id}
+                          className="p-4 rounded-xl bg-black/40 border border-white/5 hover:border-white/10 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-white text-sm">{evt.title}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                evt.status === 'confirmado'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              }`}>
+                                {evt.status || 'Confirmado'}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold">
+                                {evt.category}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+                              <span className="text-[#f3e5ab] font-medium flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-[#d4af37]" />
+                                {evt.date} (Mês {evt.month})
+                              </span>
+                              {evt.location && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3 text-slate-500" />
+                                  {evt.location}
+                                </span>
+                              )}
+                              {evt.targetCategory && (
+                                <span className="text-slate-400">
+                                  Alvo: {evt.targetCategory}
+                                </span>
+                              )}
+                            </div>
+
+                            {evt.description && (
+                              <p className="text-[11px] text-slate-300 line-clamp-2">
+                                {evt.description}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-center">
+                            <button
+                              type="button"
+                              onClick={() => handleEditEvent(evt)}
+                              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                              title="Editar evento"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEvent(evt.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                              title="Excluir evento"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 text-xs text-slate-300">
-                <input
-                  type="checkbox"
-                  id="notifyTimeEmail"
-                  checked={timeNotifyEmail}
-                  onChange={(e) => setTimeNotifyEmail(e.target.checked)}
-                  className="rounded border-[#1e3a5f] text-[#d4af37] focus:ring-[#d4af37]"
-                />
-                <label htmlFor="notifyTimeEmail" className="cursor-pointer">
-                  📧 Enviar e-mail imediato ao responsável comemorando a nova marca
-                </label>
-              </div>
-
-              {timeSuccess && (
-                <p className="text-xs text-emerald-400 flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{timeSuccess}</span>
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={isSavingTime}
-                className="px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isSavingTime ? 'Gravando...' : 'Salvar Novo Tempo (RP)'}
-              </button>
-            </form>
+            </div>
           )}
 
           {/* =========================================================================
               TAB 5: RECADOS AO RESPONSÁVEL
              ========================================================================= */}
           {activeTab === 'recados' && (
-            <form onSubmit={handleAddNote} className="p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4 max-w-xl">
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-[#d4af37]" />
-                Enviar Feedback / Orientação Privada ao Responsável
-              </h4>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Form Send Coach Note */}
+                <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-[#d4af37]" />
+                    Enviar Feedback / Orientação Privada ao Responsável
+                  </h4>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Selecione o Nadador *</label>
-                <select
-                  value={selectedAthleteIdForNote}
-                  onChange={(e) => setSelectedAthleteIdForNote(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
-                >
-                  {athletes.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} (Responsável: {a.guardianName})
-                    </option>
-                  ))}
-                </select>
+                  <form onSubmit={handleAddNote} className="space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Selecione o Nadador *</label>
+                      <select
+                        value={selectedAthleteIdForNote}
+                        onChange={(e) => setSelectedAthleteIdForNote(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      >
+                        {athletes.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name} (Responsável: {a.guardianName})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Título do Recado</label>
+                        <input
+                          type="text"
+                          value={noteTitle}
+                          onChange={(e) => setNoteTitle(e.target.value)}
+                          placeholder="Ex: Excelente evolução na respiração bilateral"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Professor / Treinador Autor</label>
+                        <input
+                          type="text"
+                          value={noteCoachName}
+                          onChange={(e) => setNoteCoachName(e.target.value)}
+                          placeholder="Ex: Prof. Leonardo Ramos"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Mensagem / Orientação do Treinador *</label>
+                      <textarea
+                        required
+                        rows={4}
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        placeholder="Escreva a orientação para os pais sobre o treino aquático, atestados ou comportamento..."
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37] resize-none"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-slate-300">
+                      <input
+                        type="checkbox"
+                        id="notifyNoteEmail"
+                        checked={noteNotifyEmail}
+                        onChange={(e) => setNoteNotifyEmail(e.target.checked)}
+                        className="rounded border-[#1e3a5f] text-[#d4af37] focus:ring-[#d4af37]"
+                      />
+                      <label htmlFor="notifyNoteEmail" className="cursor-pointer">
+                        📧 Gravar no portal e registrar envio de e-mail ao responsável
+                      </label>
+                    </div>
+
+                    {noteSuccess && (
+                      <p className="text-xs text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>{noteSuccess}</span>
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                      <button
+                        type="submit"
+                        disabled={isSavingNote}
+                        className="px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {isSavingNote ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                        <span>{isSavingNote ? 'Enviando...' : 'Gravar Recado no Portal'}</span>
+                      </button>
+
+                      {/* Quick Direct Email Button */}
+                      {(() => {
+                        const target = athletes.find((a) => a.id === (selectedAthleteIdForNote || athletes[0]?.id));
+                        if (!target || !target.guardianEmail) return null;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const sub = noteTitle || `Recado do Treinador - Atleta ${target.name}`;
+                              const body = `Olá ${target.guardianName},\n\nSegue recado do treinador (${noteCoachName}) sobre o atleta ${target.name}:\n\n"${noteText || '...'}"\n\nAtenciosamente,\nComissão Técnica ACEDEP`;
+                              const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(target.guardianEmail)}&su=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
+                              window.open(gmailUrl, '_blank');
+                            }}
+                            className="px-3.5 py-2.5 rounded-xl bg-red-600/20 text-red-300 border border-red-500/30 text-xs font-bold hover:bg-red-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+                            title="Abrir diretamente no Gmail"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                            <span>Abrir no Gmail</span>
+                          </button>
+                        );
+                      })()}
+                    </div>
+                  </form>
+                </div>
+
+                {/* Right: Sent Notes for this athlete */}
+                <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
+                  {(() => {
+                    const currentSelectedAthlete = athletes.find((a) => a.id === (selectedAthleteIdForNote || athletes[0]?.id));
+                    const notes = currentSelectedAthlete?.coachNotes || [];
+                    return (
+                      <>
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                          <div>
+                            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                              <MessageSquare className="w-4 h-4 text-[#d4af37]" />
+                              <span>Recados Enviados: {currentSelectedAthlete?.name || 'Atleta'}</span>
+                            </h4>
+                            <p className="text-[11px] text-slate-400">
+                              {notes.length} orientações gravadas em banco de dados
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
+                          {notes.length === 0 ? (
+                            <div className="p-6 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-slate-400">
+                              Nenhum recado cadastrado ainda para este atleta. Use o formulário ao lado para enviar uma orientação.
+                            </div>
+                          ) : (
+                            notes.map((n) => (
+                              <div
+                                key={n.id}
+                                className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-2 text-xs"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="space-y-0.5">
+                                    <span className="font-bold text-white text-sm">{n.title}</span>
+                                    <p className="text-[10px] text-slate-400">
+                                      Por: {n.coachName || 'Comissão Técnica'} • {n.date}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => currentSelectedAthlete && handleDeleteNote(currentSelectedAthlete.id, n.id)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                                    title="Remover recado"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <p className="text-slate-300 bg-white/5 p-2.5 rounded-lg text-xs leading-relaxed">
+                                  {n.text}
+                                </p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Título do Recado</label>
-                <input
-                  type="text"
-                  value={noteTitle}
-                  onChange={(e) => setNoteTitle(e.target.value)}
-                  placeholder="Ex: Excelente evolução na respiração bilateral"
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Mensagem / Observação do Treinador *</label>
-                <textarea
-                  required
-                  rows={4}
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  placeholder="Escreva a orientação para o pai/mãe sobre o treino aquático, atestados ou comportamento..."
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37] resize-none"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 text-xs text-slate-300">
-                <input
-                  type="checkbox"
-                  id="notifyNoteEmail"
-                  checked={noteNotifyEmail}
-                  onChange={(e) => setNoteNotifyEmail(e.target.checked)}
-                  className="rounded border-[#1e3a5f] text-[#d4af37] focus:ring-[#d4af37]"
-                />
-                <label htmlFor="notifyNoteEmail" className="cursor-pointer">
-                  📧 Enviar cópia deste recado por e-mail diretamente ao responsável
-                </label>
-              </div>
-
-              {noteSuccess && (
-                <p className="text-xs text-emerald-400 flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{noteSuccess}</span>
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={isSavingNote}
-                className="px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isSavingNote ? 'Enviando...' : 'Enviar Recado ao Responsável'}
-              </button>
-            </form>
+            </div>
           )}
 
           {/* =========================================================================
@@ -2701,6 +3300,226 @@ export const AdminCoachPortalModal: React.FC = () => {
                       })}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================================
+              TAB: COMUNICAÇÃO POR E-MAIL AOS PAIS E RESPONSÁVEIS
+             ========================================================================= */}
+          {activeTab === 'emails' && (
+            <div className="space-y-6">
+              {/* Notice Banner */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0a192f] to-[#122847] border border-[#1e3a5f] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-[#d4af37]" />
+                    <h4 className="text-sm font-bold text-white">Central de Informativos & Disparo aos Pais</h4>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Dispare comunicados oficiais para os <strong className="text-[#f3e5ab]">{getAllParentEmails().length} e-mails de responsáveis</strong> cadastrados.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenGmailWeb()}
+                    className="px-3.5 py-2 rounded-xl bg-red-600/20 text-red-300 border border-red-500/40 text-xs font-bold hover:bg-red-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+                    title="Abrir tela de envio no Gmail com todos os pais em Cópia Oculta (BCC)"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Abrir no Gmail Web</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMailClient()}
+                    className="px-3.5 py-2 rounded-xl bg-white/10 text-white border border-white/15 text-xs font-bold hover:bg-white/20 transition-all cursor-pointer flex items-center gap-1.5"
+                    title="Abrir no Outlook, Thunderbird ou aplicativo de e-mail do sistema"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Cliente Padrão (Mailto)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Form Compose Broadcast */}
+                <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Send className="w-4 h-4 text-[#d4af37]" />
+                    Redigir Comunicado Oficial
+                  </h4>
+
+                  <form onSubmit={handleSendBroadcast} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Destinatários *</label>
+                        <select
+                          value={broadcastRecipientMode}
+                          onChange={(e) => setBroadcastRecipientMode(e.target.value as 'all' | 'specific')}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        >
+                          <option value="all">Todos os Pais ({getAllParentEmails().length} cadastrados)</option>
+                          <option value="specific">Responsável Específico</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Tipo de Comunicado</label>
+                        <select
+                          value={broadcastType}
+                          onChange={(e) => setBroadcastType(e.target.value as any)}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        >
+                          <option value="boletim_geral">Boletim Geral / Circular</option>
+                          <option value="convocacao_competicao">Convocação de Competição</option>
+                          <option value="aviso_treino">Aviso de Treino / Piscina</option>
+                          <option value="documentacao_atestado">Documentação & Atestados</option>
+                          <option value="financeiro_mensalidade">Financeiro / Informes</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {broadcastRecipientMode === 'specific' && (
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Selecione o Atleta / Pai *</label>
+                        <select
+                          value={broadcastSpecificAthleteId}
+                          onChange={(e) => setBroadcastSpecificAthleteId(e.target.value)}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        >
+                          {athletes.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name} • Resp: {a.guardianName} ({a.guardianEmail || 'Sem e-mail'})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Assunto do E-mail *</label>
+                        <input
+                          type="text"
+                          required
+                          value={broadcastSubject}
+                          onChange={(e) => setBroadcastSubject(e.target.value)}
+                          placeholder="Ex: Convocação para o Circuito Paulista 2026"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Nome do Remetente</label>
+                        <input
+                          type="text"
+                          value={broadcastSender}
+                          onChange={(e) => setBroadcastSender(e.target.value)}
+                          placeholder="Ex: Coordenação Técnica ACEDEP"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Conteúdo da Mensagem *</label>
+                      <textarea
+                        required
+                        rows={4}
+                        value={broadcastBody}
+                        onChange={(e) => setBroadcastBody(e.target.value)}
+                        placeholder="Escreva as instruções para os pais, horários de saída do ônibus, itens para levar..."
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37] resize-none"
+                      />
+                    </div>
+
+                    {broadcastSuccess && (
+                      <p className="text-xs text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>{broadcastSuccess}</span>
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        type="submit"
+                        disabled={isSendingBroadcast}
+                        className="px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {isSendingBroadcast ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
+                        <span>{isSendingBroadcast ? 'Gravando...' : 'Gravar no Histórico'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenGmailWeb(broadcastSubject, broadcastBody)}
+                        className="px-4 py-2.5 rounded-xl bg-red-600/20 text-red-300 border border-red-500/30 text-xs font-bold hover:bg-red-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>Abrir no Gmail</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Right: History of Sent / Logged Emails */}
+                <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <History className="w-4 h-4 text-[#d4af37]" />
+                        <span>Histórico de E-mails ({emailLogs.length})</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400">Registros gravados no Firestore</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
+                    {emailLogs.length === 0 ? (
+                      <div className="p-8 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-slate-400">
+                        Nenhum comunicado enviado ainda.
+                      </div>
+                    ) : (
+                      emailLogs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-2 text-xs hover:border-white/10 transition-all"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="font-bold text-white text-sm block">{log.title}</span>
+                              <p className="text-[10px] text-slate-400">
+                                Para: {log.recipientSummary} • Por: {log.senderName}
+                              </p>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold shrink-0">
+                              {log.status || 'Registrado'}
+                            </span>
+                          </div>
+
+                          <p className="text-slate-300 text-xs bg-white/5 p-2 rounded-lg leading-relaxed">
+                            {log.contentPreview}
+                          </p>
+
+                          <div className="flex items-center justify-between pt-1 text-[10px] text-slate-400">
+                            <span>{new Date(log.sentAt).toLocaleString('pt-BR')}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenGmailWeb(log.title, log.contentPreview)}
+                              className="text-[#d4af37] hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <Mail className="w-3 h-3" />
+                              <span>Reenviar via Gmail</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

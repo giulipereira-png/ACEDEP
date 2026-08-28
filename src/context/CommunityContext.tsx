@@ -99,7 +99,9 @@ interface CommunityContextType {
   saveAthleteRecord: (athlete: AthleteRecord) => Promise<boolean>;
   deleteAthleteRecord: (athleteId: string) => Promise<boolean>;
   addSwimmingMetric: (athleteId: string, metric: Omit<SwimmingMetric, 'id'>, notifyGuardianEmail?: boolean) => Promise<boolean>;
+  deleteSwimmingMetric: (athleteId: string, metricId: string) => Promise<boolean>;
   addCoachNote: (athleteId: string, note: Omit<CoachNote, 'id'>, notifyGuardianEmail?: boolean) => Promise<boolean>;
+  deleteCoachNote: (athleteId: string, noteId: string) => Promise<boolean>;
   updateMedicalDocumentStatus: (athleteId: string, docId: string, status: MedicalDocument['status'], expiryDate: string) => Promise<boolean>;
   addAttendanceRecord: (athleteId: string, record: TrainingAttendanceDay) => Promise<boolean>;
   setAthleteDayPresence: (athleteId: string, dateStr: string, status: 'presente' | 'falta' | 'falta_justificada' | 'remover') => Promise<boolean>;
@@ -175,6 +177,8 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     let unsubscribeCheers: () => void = () => {};
     let unsubscribeAthletes: () => void = () => {};
     let unsubscribeEmailLogs: () => void = () => {};
+    let unsubscribeAttendance: () => void = () => {};
+    let unsubscribeAnnualEvents: () => void = () => {};
 
     const setupFirestore = async () => {
       // 1. Sync News
@@ -324,7 +328,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
 
       // 5. Sync Attendance Sessions (Treinos e Campeonatos)
-      let unsubscribeAttendance = () => {};
       const attendanceInitDoc = doc(db, 'settings', 'attendance_init');
       getDoc(attendanceInitDoc)
         .then(async (snap) => {
@@ -363,7 +366,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
 
       // 6. Sync Annual Calendar Events (Competições e Atividades Anuais)
-      let unsubscribeAnnualEvents = () => {};
       const annualEventsInitDoc = doc(db, 'settings', 'annual_events_init');
       getDoc(annualEventsInitDoc)
         .then(async (snap) => {
@@ -409,6 +411,8 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       unsubscribeCheers();
       unsubscribeAthletes();
       unsubscribeEmailLogs();
+      unsubscribeAttendance();
+      unsubscribeAnnualEvents();
     };
   }, []);
 
@@ -744,12 +748,24 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return saved;
   };
 
+  const deleteSwimmingMetric = async (athleteId: string, metricId: string): Promise<boolean> => {
+    let target = athletes.find((a) => a.id === athleteId);
+    if (!target) return false;
+
+    const updatedMetrics = (target.swimmingMetrics || []).filter((m) => m.id !== metricId);
+    const updatedAthlete: AthleteRecord = {
+      ...target,
+      swimmingMetrics: updatedMetrics,
+    };
+    return await saveAthleteRecord(updatedAthlete);
+  };
+
   const addCoachNote = async (
     athleteId: string, 
     noteData: Omit<CoachNote, 'id'>,
     notifyGuardianEmail = false
   ): Promise<boolean> => {
-    const target = athletes.find((a) => a.id === athleteId);
+    let target = athletes.find((a) => a.id === athleteId);
     if (!target) return false;
 
     const newNote: CoachNote = {
@@ -776,6 +792,18 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
     }
     return saved;
+  };
+
+  const deleteCoachNote = async (athleteId: string, noteId: string): Promise<boolean> => {
+    let target = athletes.find((a) => a.id === athleteId);
+    if (!target) return false;
+
+    const updatedNotes = (target.coachNotes || []).filter((n) => n.id !== noteId);
+    const updatedAthlete: AthleteRecord = {
+      ...target,
+      coachNotes: updatedNotes,
+    };
+    return await saveAthleteRecord(updatedAthlete);
   };
 
   const sendEmailNotification = async (
@@ -1059,13 +1087,13 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Annual Calendar Events Actions
   const addAnnualEvent = async (
-    eventData: Omit<AnnualCalendarEvent, 'id' | 'createdAt'>
+    eventData: Omit<AnnualCalendarEvent, 'id' | 'createdAt'> & { id?: string; createdAt?: string }
   ): Promise<boolean> => {
-    const newId = `evt-${Date.now()}`;
+    const newId = eventData.id || `evt-${Date.now()}`;
     const newEvent: AnnualCalendarEvent = {
       ...eventData,
       id: newId,
-      createdAt: new Date().toISOString(),
+      createdAt: eventData.createdAt || new Date().toISOString(),
     };
 
     try {
@@ -1137,7 +1165,9 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         saveAthleteRecord,
         deleteAthleteRecord,
         addSwimmingMetric,
+        deleteSwimmingMetric,
         addCoachNote,
+        deleteCoachNote,
         updateMedicalDocumentStatus,
         addAttendanceRecord,
         setAthleteDayPresence,
