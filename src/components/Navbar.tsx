@@ -137,17 +137,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               (11) 99880-9708
             </a>
 
-            {/* Admin shortcut ONLY visible when already authenticated */}
-            {isAdminAuthenticated && (
-              <button
-                onClick={openAdminModal}
-                className="flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40 hover:bg-[#d4af37]/30"
-                title="Painel de Administração Ativo"
-              >
-                <Lock className="w-3 h-3 text-[#d4af37]" />
-                <span className="hidden sm:inline">Admin (Ativo)</span>
-              </button>
-            )}
+            {/* Admin shortcut visible on desktop & mobile top bar */}
+            <button
+              onClick={openAdminModal}
+              id="btn-admin-login-topbar"
+              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                isAdminAuthenticated
+                  ? 'bg-amber-400/20 text-[#f3e5ab] border border-amber-400/50 hover:bg-amber-400/30'
+                  : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10'
+              }`}
+              title={isAdminAuthenticated ? 'Painel de Administração Ativo' : 'Entrar no Painel Administrativo'}
+            >
+              <Lock className={`w-3 h-3 ${isAdminAuthenticated ? 'text-[#d4af37]' : 'text-slate-400'}`} />
+              <span>{isAdminAuthenticated ? 'Admin (Conectado)' : 'Admin'}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -328,6 +331,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Phone className="w-4 h-4" />
                 Fale Conosco / Avaliação
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  openAdminModal();
+                }}
+                className="w-full py-2 bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-[#d4af37] text-xs font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>{isAdminAuthenticated ? 'Painel de Gestão (Admin Conectado)' : 'Acesso de Gestão / Admin (PIN)'}</span>
               </button>
             </div>
           </div>

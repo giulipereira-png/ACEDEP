@@ -289,16 +289,19 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            {isAdminAuthenticated && (
-              <button
-                onClick={openAdminModal}
-                className="px-2.5 py-1 rounded-lg bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40 hover:bg-[#d4af37]/30 transition-colors flex items-center gap-1.5 text-[11px] font-bold cursor-pointer"
-                title="Painel de Administração"
-              >
-                <Lock className="w-3 h-3 text-[#d4af37]" />
-                <span>Admin Ativo</span>
-              </button>
-            )}
+            <button
+              onClick={openAdminModal}
+              id="btn-footer-admin-login"
+              className={`px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1.5 text-[11px] font-bold cursor-pointer ${
+                isAdminAuthenticated
+                  ? 'bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40 hover:bg-[#d4af37]/30'
+                  : 'bg-white/5 text-slate-400 hover:text-white border border-white/10 hover:border-slate-700'
+              }`}
+              title="Painel de Administração"
+            >
+              <Lock className={`w-3 h-3 ${isAdminAuthenticated ? 'text-[#d4af37]' : 'text-slate-400'}`} />
+              <span>{isAdminAuthenticated ? 'Admin Conectado' : 'Acesso Admin'}</span>
+            </button>
 
             <button
               onClick={scrollToTop}

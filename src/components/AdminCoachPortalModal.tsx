@@ -42,7 +42,6 @@ import {
 import { useCommunity } from '../context/CommunityContext';
 import { usePhotos, DEFAULT_PHOTOS, GalleryPhotoItem } from '../context/PhotosContext';
 import { NewsCategory, AthleteRecord, EmailNotificationLog, CommunityCheer } from '../types';
-import { saveAthleteToSupabase } from '../services/athleteService';
 import { AttendanceManagerTab } from './admin/AttendanceManagerTab';
 import { AdminUsersManagerTab } from './admin/AdminUsersManagerTab';
 import { AthleteDocumentsTab } from './AthleteDocumentsTab';
@@ -550,18 +549,6 @@ export const AdminCoachPortalModal: React.FC = () => {
     if (!athleteName.trim() || !athleteGuardian.trim() || !athleteAccessCode.trim()) return;
 
     setIsSavingAthlete(true);
-    try {
-      await saveAthleteToSupabase({
-        name: athleteName.trim(),
-        guardianName: athleteGuardian.trim(),
-        guardianEmail: athleteEmail.trim(),
-        guardianPhone: athletePhone.trim(),
-        accessCode: athleteAccessCode.trim(),
-        birthDate: athleteBirth.trim()
-      });
-    } catch (err) {
-      console.error("Erro ao salvar atleta na nuvem:", err);
-    }
     const newAthleteId = `atleta-${Date.now()}`;
     const newAthlete: AthleteRecord = {
       id: newAthleteId,

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, handleFirestoreError, OperationType } from '../lib/firebase';
 import { AdminUser } from '../types';
 import { INITIAL_ADMIN_USERS } from '../data/initialCommunityData';
+import { optimizeImage } from '../lib/imageOptimizer';
 
 export interface SitePhotoData {
   id: string;
@@ -26,31 +27,31 @@ export const DEFAULT_PHOTOS: Record<string, { title: string; category: string; d
     title: 'Sobre a ACEDEP (Foto Oficial da Equipe 1)',
     category: 'Quem Somos',
     defaultUrl: '/IMG_4378.jpeg',
-    fallbackList: ['/IMG_4378.jpeg', '/IMG_4378.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=85'],
+    fallbackList: ['/IMG_4378.jpeg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=85'],
   },
   about_team_2: {
     title: 'Sobre a ACEDEP (Treinos & Piscinas 2)',
     category: 'Quem Somos',
-    defaultUrl: '/IMG_2382.jpeg',
-    fallbackList: ['/IMG_2382.jpeg', '/IMG_2382.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80'],
+    defaultUrl: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=80', '/IMG_4378.jpeg'],
   },
   about_team_3: {
     title: 'Sobre a ACEDEP (Pódios & Premiações 3)',
     category: 'Quem Somos',
-    defaultUrl: '/IMG_5625.jpeg',
-    fallbackList: ['/IMG_5625.jpeg', '/IMG_5625.jpg', 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80'],
+    defaultUrl: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=80', '/IMG_4378.jpeg'],
   },
   modality_iniciacao: {
     title: 'Iniciação Esportiva (Aperfeiçoamento)',
     category: 'Modalidades & Treinos',
-    defaultUrl: '/IMG_2382.jpeg',
-    fallbackList: ['/IMG_2382.jpeg', '/IMG_2382.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80'],
+    defaultUrl: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80', '/IMG_4378.jpeg'],
   },
   modality_alto_rendimento: {
     title: 'Natação - Alto Rendimento (Competição S14/S21)',
     category: 'Modalidades & Treinos',
-    defaultUrl: '/IMG_5625.jpeg',
-    fallbackList: ['/IMG_5625.jpeg', '/IMG_5625.jpg', 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80'],
+    defaultUrl: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80', '/IMG_4378.jpeg'],
   },
   staff_enio: {
     title: 'Prof. Enio Salvador Sanches (Coordenador Técnico)',
@@ -74,19 +75,19 @@ export const DEFAULT_PHOTOS: Record<string, { title: string; category: string; d
     title: 'Carrossel Foto 1 (Equipe ACEDEP)',
     category: 'Carrossel de Fotos (Rodapé)',
     defaultUrl: '/IMG_4378.jpeg',
-    fallbackList: ['/IMG_4378.jpeg', '/IMG_4378.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80'],
+    fallbackList: ['/IMG_4378.jpeg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80'],
   },
   carousel_2: {
     title: 'Carrossel Foto 2 (Treinos CPB)',
     category: 'Carrossel de Fotos (Rodapé)',
-    defaultUrl: '/IMG_2382.jpeg',
-    fallbackList: ['/IMG_2382.jpeg', '/IMG_2382.jpg', 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80'],
+    defaultUrl: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80', '/IMG_4378.jpeg'],
   },
   carousel_3: {
     title: 'Carrossel Foto 3 (Conquistas & Pódios)',
     category: 'Carrossel de Fotos (Rodapé)',
-    defaultUrl: '/IMG_5625.jpeg',
-    fallbackList: ['/IMG_5625.jpeg', '/IMG_5625.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80'],
+    defaultUrl: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80', '/IMG_4378.jpeg'],
   },
   carousel_4: {
     title: 'Carrossel Foto 4 (Piscina Olímpica 50m)',
@@ -98,7 +99,7 @@ export const DEFAULT_PHOTOS: Record<string, { title: string; category: string; d
     title: 'Carrossel Foto 5 (Superação & Inclusão)',
     category: 'Carrossel de Fotos (Rodapé)',
     defaultUrl: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80',
-    fallbackList: ['https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80', '/IMG_2382.jpeg'],
+    fallbackList: ['https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80', '/IMG_4378.jpeg'],
   },
   carousel_6: {
     title: 'Carrossel Foto 6 (Espírito Esportivo)',
@@ -121,7 +122,7 @@ export const INITIAL_GALLERY_PHOTOS: GalleryPhotoItem[] = [
     id: 'gal-2',
     title: 'Iniciação Esportiva e Aperfeiçoamento',
     category: 'Iniciação Esportiva',
-    url: '/IMG_2382.jpeg',
+    url: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=85',
     date: 'Treinos Técnicos',
     createdAt: '2026-01-02T00:00:00.000Z',
   },
@@ -129,7 +130,7 @@ export const INITIAL_GALLERY_PHOTOS: GalleryPhotoItem[] = [
     id: 'gal-3',
     title: 'Alto Rendimento e Foco na Performance',
     category: 'Alto Rendimento',
-    url: '/IMG_5625.jpeg',
+    url: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=85',
     date: 'Classes S14 & S21',
     createdAt: '2026-01-03T00:00:00.000Z',
   },
@@ -181,7 +182,12 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [photos, setPhotos] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     Object.keys(DEFAULT_PHOTOS).forEach((k) => {
-      initial[k] = DEFAULT_PHOTOS[k].defaultUrl;
+      try {
+        const cached = localStorage.getItem('acedep_photo_' + k);
+        initial[k] = cached || DEFAULT_PHOTOS[k].defaultUrl;
+      } catch {
+        initial[k] = DEFAULT_PHOTOS[k].defaultUrl;
+      }
     });
     return initial;
   });
@@ -190,7 +196,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(INITIAL_ADMIN_USERS);
   const [currentAdminProfile, setCurrentAdminProfile] = useState<AdminUser | null>(() => {
     try {
-      const saved = sessionStorage.getItem('acedep_admin_profile');
+      const saved = localStorage.getItem('acedep_admin_profile') || sessionStorage.getItem('acedep_admin_profile');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -200,51 +206,12 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
     try {
-      return sessionStorage.getItem('acedep_admin_auth') === 'true';
+      return localStorage.getItem('acedep_admin_auth') === 'true' || sessionStorage.getItem('acedep_admin_auth') === 'true';
     } catch {
       return false;
     }
   });
   const [adminModalOpen, setAdminModalOpen] = useState(false);
-
-  // Helper to optimize and compress images to safe Firestore document size (clean JPEG ~1280px max)
-  const optimizeImage = (dataUrl: string): Promise<string> => {
-    return new Promise((resolve) => {
-      if (!dataUrl.startsWith('data:image')) {
-        return resolve(dataUrl);
-      }
-
-      const img = new Image();
-      img.onload = () => {
-        const maxDim = 1280;
-        let width = img.width;
-        let height = img.height;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.85);
-          resolve(compressed);
-        } else {
-          resolve(dataUrl);
-        }
-      };
-      img.onerror = () => resolve(dataUrl);
-      img.src = dataUrl;
-    });
-  };
 
   // Subscribe to real-time updates from Firestore collection `site_photos`
   useEffect(() => {
@@ -261,14 +228,17 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (!initSnap.exists()) {
             try {
               for (const [photoKey, photoInfo] of Object.entries(DEFAULT_PHOTOS)) {
-                await setDoc(doc(db, 'site_photos', photoKey), {
-                  id: photoKey,
-                  title: photoInfo.title,
-                  category: photoInfo.category,
-                  url: photoInfo.defaultUrl,
-                  updatedAt: new Date().toISOString(),
-                  updatedBy: 'Sistema ACEDEP',
-                }, { merge: true });
+                const existingSnap = await getDoc(doc(db, 'site_photos', photoKey));
+                if (!existingSnap.exists()) {
+                  await setDoc(doc(db, 'site_photos', photoKey), {
+                    id: photoKey,
+                    title: photoInfo.title,
+                    category: photoInfo.category,
+                    url: photoInfo.defaultUrl,
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: 'Sistema ACEDEP',
+                  });
+                }
               }
               await setDoc(sitePhotosInitDocRef, { initialized: true, seededAt: new Date().toISOString() });
             } catch (seedErr) {
@@ -288,13 +258,21 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const updated: Record<string, string> = {};
 
           Object.keys(DEFAULT_PHOTOS).forEach((k) => {
-            updated[k] = DEFAULT_PHOTOS[k].defaultUrl;
+            try {
+              const cached = localStorage.getItem('acedep_photo_' + k);
+              updated[k] = cached || DEFAULT_PHOTOS[k].defaultUrl;
+            } catch {
+              updated[k] = DEFAULT_PHOTOS[k].defaultUrl;
+            }
           });
 
           snapshot.forEach((docSnap) => {
             const data = docSnap.data() as SitePhotoData;
             if (data && data.url) {
               updated[docSnap.id] = data.url;
+              try {
+                localStorage.setItem('acedep_photo_' + docSnap.id, data.url);
+              } catch {}
             }
           });
 
@@ -478,6 +456,8 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsAdminAuthenticated(true);
       setCurrentAdminProfile(matchedAdmin);
       try {
+        localStorage.setItem('acedep_admin_auth', 'true');
+        localStorage.setItem('acedep_admin_profile', JSON.stringify(matchedAdmin));
         sessionStorage.setItem('acedep_admin_auth', 'true');
         sessionStorage.setItem('acedep_admin_profile', JSON.stringify(matchedAdmin));
       } catch {}
@@ -506,6 +486,8 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           };
           setCurrentAdminProfile(masterAdmin);
           try {
+            localStorage.setItem('acedep_admin_auth', 'true');
+            localStorage.setItem('acedep_admin_profile', JSON.stringify(masterAdmin));
             sessionStorage.setItem('acedep_admin_auth', 'true');
             sessionStorage.setItem('acedep_admin_profile', JSON.stringify(masterAdmin));
           } catch {}
@@ -531,6 +513,8 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
       setCurrentAdminProfile(fallbackAdmin);
       try {
+        localStorage.setItem('acedep_admin_auth', 'true');
+        localStorage.setItem('acedep_admin_profile', JSON.stringify(fallbackAdmin));
         sessionStorage.setItem('acedep_admin_auth', 'true');
         sessionStorage.setItem('acedep_admin_profile', JSON.stringify(fallbackAdmin));
       } catch {}
@@ -567,6 +551,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const updated = { ...currentAdminProfile, ...updates };
         setCurrentAdminProfile(updated);
         try {
+          localStorage.setItem('acedep_admin_profile', JSON.stringify(updated));
           sessionStorage.setItem('acedep_admin_profile', JSON.stringify(updated));
         } catch {}
       }
@@ -619,6 +604,8 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsAdminAuthenticated(false);
     setCurrentAdminProfile(null);
     try {
+      localStorage.removeItem('acedep_admin_auth');
+      localStorage.removeItem('acedep_admin_profile');
       sessionStorage.removeItem('acedep_admin_auth');
       sessionStorage.removeItem('acedep_admin_profile');
     } catch {}
@@ -630,7 +617,12 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     title?: string
   ): Promise<boolean> => {
     try {
-      const optimizedUrl = await optimizeImage(dataUrl);
+      const optimizedUrl = await optimizeImage(dataUrl, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.72,
+        maxSizeBytes: 450 * 1024,
+      });
       const photoMeta = DEFAULT_PHOTOS[photoId];
 
       const payload: SitePhotoData = {
@@ -639,7 +631,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         category: photoMeta?.category || 'Geral',
         url: optimizedUrl,
         updatedAt: new Date().toISOString(),
-        updatedBy: 'Administrador ACEDEP',
+        updatedBy: currentAdminProfile?.name || 'Administrador ACEDEP',
       };
 
       await setDoc(doc(db, 'site_photos', photoId), payload, { merge: true });
@@ -648,10 +640,14 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ...prev,
         [photoId]: optimizedUrl,
       }));
+      try {
+        localStorage.setItem('acedep_photo_' + photoId, optimizedUrl);
+      } catch {}
 
       return true;
     } catch (err) {
       console.error('Error saving photo to Firestore:', err);
+      handleFirestoreError(err, OperationType.WRITE, `site_photos/${photoId}`);
       return false;
     }
   };
@@ -676,10 +672,14 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ...prev,
         [photoId]: defaultUrl,
       }));
+      try {
+        localStorage.removeItem('acedep_photo_' + photoId);
+      } catch {}
 
       return true;
     } catch (err) {
       console.error('Error resetting photo in Firestore:', err);
+      handleFirestoreError(err, OperationType.WRITE, `site_photos/${photoId}`);
       return false;
     }
   };
@@ -691,7 +691,12 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     date?: string;
   }): Promise<boolean> => {
     try {
-      const optimizedUrl = await optimizeImage(data.url);
+      const optimizedUrl = await optimizeImage(data.url, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.72,
+        maxSizeBytes: 450 * 1024,
+      });
       const photoId = 'photo_' + Date.now();
       const payload: GalleryPhotoItem = {
         id: photoId,
@@ -708,6 +713,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     } catch (err) {
       console.error('Error adding photo to gallery Firestore:', err);
+      handleFirestoreError(err, OperationType.CREATE, 'gallery');
       return false;
     }
   };

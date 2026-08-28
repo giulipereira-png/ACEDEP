@@ -18,19 +18,19 @@ export const MiniAutoPhotoCarousel: React.FC<MiniAutoPhotoCarouselProps> = ({ on
       id: 'carousel_1',
       title: 'Equipe ACEDEP',
       url: photos['carousel_1'] || '/IMG_4378.jpeg',
-      fallbacks: ['/IMG_4378.jpeg', '/IMG_4378.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=600&q=80'],
+      fallbacks: ['/IMG_4378.jpeg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=600&q=80'],
     },
     {
       id: 'carousel_2',
       title: 'Treinos Técnicos CPB',
-      url: photos['carousel_2'] || '/IMG_2382.jpeg',
-      fallbacks: ['/IMG_2382.jpeg', '/IMG_2382.jpg', 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=600&q=80'],
+      url: photos['carousel_2'] || 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=600&q=80',
+      fallbacks: ['https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=600&q=80', '/IMG_4378.jpeg'],
     },
     {
       id: 'carousel_3',
       title: 'Premiações & Pódios',
-      url: photos['carousel_3'] || '/IMG_5625.jpeg',
-      fallbacks: ['/IMG_5625.jpeg', '/IMG_5625.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=600&q=80'],
+      url: photos['carousel_3'] || 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=600&q=80',
+      fallbacks: ['https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=600&q=80', '/IMG_4378.jpeg'],
     },
     {
       id: 'carousel_4',
@@ -42,7 +42,7 @@ export const MiniAutoPhotoCarousel: React.FC<MiniAutoPhotoCarouselProps> = ({ on
       id: 'carousel_5',
       title: 'Superação & Inclusão',
       url: photos['carousel_5'] || 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=600&q=80',
-      fallbacks: ['https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=600&q=80', '/IMG_2382.jpeg'],
+      fallbacks: ['https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=600&q=80', '/IMG_4378.jpeg'],
     },
     {
       id: 'carousel_6',
@@ -55,7 +55,7 @@ export const MiniAutoPhotoCarousel: React.FC<MiniAutoPhotoCarouselProps> = ({ on
       id: g.id,
       title: g.title,
       url: g.url,
-      fallbacks: ['/IMG_4378.jpeg', '/IMG_2382.jpeg', '/IMG_5625.jpeg'],
+      fallbacks: ['/IMG_4378.jpeg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=600&q=80'],
     })) || []),
   ];
 

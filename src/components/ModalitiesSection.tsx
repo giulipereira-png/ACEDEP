@@ -21,24 +21,20 @@ interface ModalitiesSectionProps {
 
 export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnrollModal }) => {
   const { photos } = usePhotos();
-  const defaultFallbackIniciacao = '/IMG_2382.jpeg';
-  const defaultFallbackAltoRendimento = '/IMG_5625.jpeg';
+  const defaultFallbackIniciacao = photos['modality_iniciacao'] || 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80';
+  const defaultFallbackAltoRendimento = photos['modality_alto_rendimento'] || 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80';
   const cpbData = NUCLEOS_DATA[0];
 
   const candidatePaths: Record<string, string[]> = {
     'natacao-iniciacao': [
-      photos['modality_iniciacao'] || '/IMG_2382.jpeg',
-      '/IMG_2382.jpeg',
-      '/IMG_2382.jpg',
-      '/iniciacao_esportiva.jpeg',
+      photos['modality_iniciacao'] || 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80',
+      '/IMG_4378.jpeg',
     ],
     'natacao-alto-rendimento': [
-      photos['modality_alto_rendimento'] || '/IMG_5625.jpeg',
-      '/IMG_5625.jpeg',
-      '/IMG_5625.jpg',
-      '/alto_rendimento.jpeg',
+      photos['modality_alto_rendimento'] || 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80',
+      '/IMG_4378.jpeg',
     ],
   };
 

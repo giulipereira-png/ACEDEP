@@ -44,21 +44,21 @@ export const AboutPage: React.FC<AboutPageProps> = ({
       title: 'Equipe ACEDEP no Centro Paralímpico Brasileiro',
       caption: 'Nossos nadadores e comissão técnica reunidos à beira da piscina olímpica do CPB (Imigrantes - SP).',
       src: photos['about_team'] || '/IMG_4378.jpeg',
-      fallbacks: ['/IMG_4378.jpeg', '/IMG_4378.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=85'],
+      fallbacks: ['/IMG_4378.jpeg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=85'],
     },
     {
       id: 'about_team_2',
       title: 'Treinos Técnicos de Nado & Autonomia',
       caption: 'Aperfeiçoamento dos quatro estilos, viradas e saídas de bloco com foco na disciplina e evolução individual.',
-      src: photos['about_team_2'] || '/IMG_2382.jpeg',
-      fallbacks: ['/IMG_2382.jpeg', '/IMG_2382.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80'],
+      src: photos['about_team_2'] || 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=80',
+      fallbacks: ['https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=80', '/IMG_4378.jpeg'],
     },
     {
       id: 'about_team_3',
       title: 'Presença e Conquistas em Competições',
       caption: 'Representação do paradesporto paulista no Campeonato Brasileiro CBDI, Campeonato Paulista FAP, escolares, universitários e mais.',
-      src: photos['about_team_3'] || '/IMG_5625.jpeg',
-      fallbacks: ['/IMG_5625.jpeg', '/IMG_5625.jpg', 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80'],
+      src: photos['about_team_3'] || 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=80',
+      fallbacks: ['https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=80', '/IMG_4378.jpeg'],
     },
   ];
 

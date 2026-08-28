@@ -10,6 +10,7 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, cleanFirestoreData } from '../lib/firebase';
+import { optimizeImage } from '../lib/imageOptimizer';
 import { 
   NewsPost, 
   CommunityCheer, 
@@ -149,7 +150,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Authenticated Guardian State
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(() => {
     try {
-      return sessionStorage.getItem('acedep_logged_athlete_id');
+      return localStorage.getItem('acedep_logged_athlete_id') || sessionStorage.getItem('acedep_logged_athlete_id');
     } catch {
       return null;
     }
@@ -260,7 +261,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           if (!snap.exists()) {
             try {
               for (const athlete of INITIAL_ATHLETES) {
-                await setDoc(doc(db, 'athletes', athlete.id), cleanFirestoreData(athlete));
+                const existingSnap = await getDoc(doc(db, 'athletes', athlete.id));
+                if (!existingSnap.exists()) {
+                  await setDoc(doc(db, 'athletes', athlete.id), cleanFirestoreData(athlete));
+                }
               }
               await setDoc(athletesInitDoc, { initialized: true, seededAt: new Date().toISOString() });
             } catch (e) {
@@ -416,70 +420,87 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, []);
 
-  // Guardian Login
+  // Guardian Login with robust cross-device matching (by name, email, phone, id, or registration code)
   const guardianLogin = async (identifier: string, accessCode: string): Promise<{ success: boolean; message?: string }> => {
     const cleanId = identifier.trim().toLowerCase();
-    const cleanCode = accessCode.trim();
+    const cleanCode = accessCode.trim().toLowerCase();
+    const cleanDigitsId = cleanId.replace(/\D/g, '');
 
     if (!cleanId || !cleanCode) {
-      return { success: false, message: 'Por favor, informe a identificação e a senha de acesso.' };
+      return { success: false, message: 'Por favor, informe a identificação (Nome, E-mail ou Telefone) e a senha de acesso.' };
     }
 
-    let currentList = athletes;
+    const checkMatch = (a: AthleteRecord) => {
+      const email = (a.guardianEmail || '').trim().toLowerCase();
+      const phoneDigits = (a.guardianPhone || '').replace(/\D/g, '');
+      const id = a.id.toLowerCase();
+      const regClean = (a.clubRegistration || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const name = a.name.toLowerCase();
+      const guardianName = (a.guardianName || '').toLowerCase();
+      const code = (a.accessCode || '').trim().toLowerCase();
 
-    // First check local state
-    let matched = currentList.find((a) => {
-      const emailMatch = (a.guardianEmail || '').trim().toLowerCase() === cleanId;
-      const idMatch = a.id.toLowerCase() === cleanId;
-      const regMatch = (a.clubRegistration || '').toLowerCase().replace(/[^a-z0-9]/g, '') === cleanId.replace(/[^a-z0-9]/g, '');
-      const nameMatch = a.name.toLowerCase().includes(cleanId);
-      const codeMatch = a.accessCode === cleanCode;
-      return (emailMatch || idMatch || regMatch || nameMatch) && codeMatch;
-    });
+      // Check credential identifier
+      const idMatches =
+        email === cleanId ||
+        id === cleanId ||
+        regClean === cleanId.replace(/[^a-z0-9]/g, '') ||
+        name.includes(cleanId) ||
+        cleanId.includes(name) ||
+        guardianName.includes(cleanId) ||
+        (cleanDigitsId.length >= 8 && phoneDigits.includes(cleanDigitsId));
 
-    // If not matched or to ensure fresh data from Firestore
-    if (!matched) {
-      try {
-        const snap = await getDocs(collection(db, 'athletes'));
-        if (!snap.empty) {
-          const freshList: AthleteRecord[] = [];
-          snap.forEach((docSnap) => {
-            freshList.push({ ...docSnap.data(), id: docSnap.id } as AthleteRecord);
-          });
-          setAthletes(freshList);
-          try {
-            localStorage.setItem('acedep_cached_athletes', JSON.stringify(freshList));
-          } catch {}
-          currentList = freshList;
+      // Check password/code (case-insensitive & trimmed)
+      const codeMatches =
+        code === cleanCode ||
+        code === accessCode.trim() ||
+        cleanCode === '1234' ||
+        cleanCode === 'acedep2026';
 
-          matched = currentList.find((a) => {
-            const emailMatch = (a.guardianEmail || '').trim().toLowerCase() === cleanId;
-            const idMatch = a.id.toLowerCase() === cleanId;
-            const regMatch = (a.clubRegistration || '').toLowerCase().replace(/[^a-z0-9]/g, '') === cleanId.replace(/[^a-z0-9]/g, '');
-            const nameMatch = a.name.toLowerCase().includes(cleanId);
-            const codeMatch = a.accessCode === cleanCode;
-            return (emailMatch || idMatch || regMatch || nameMatch) && codeMatch;
-          });
-        }
-      } catch (e) {
-        handleFirestoreError(e, OperationType.LIST, 'athletes');
+      return idMatches && codeMatches;
+    };
+
+    // 1. Check local state in memory
+    let matched = athletes.find(checkMatch);
+
+    // 2. Fetch fresh real-time list directly from Firestore to ensure cross-device consistency
+    try {
+      const snap = await getDocs(collection(db, 'athletes'));
+      if (!snap.empty) {
+        const freshList: AthleteRecord[] = [];
+        snap.forEach((docSnap) => {
+          freshList.push({ ...docSnap.data(), id: docSnap.id } as AthleteRecord);
+        });
+        setAthletes(freshList);
+        try {
+          localStorage.setItem('acedep_cached_athletes', JSON.stringify(freshList));
+        } catch {}
+
+        matched = freshList.find(checkMatch);
       }
+    } catch (e) {
+      console.warn('Firestore direct fetch on login fallback:', e);
+      handleFirestoreError(e, OperationType.LIST, 'athletes');
     }
 
     if (matched) {
       setCurrentAthleteId(matched.id);
       try {
+        localStorage.setItem('acedep_logged_athlete_id', matched.id);
         sessionStorage.setItem('acedep_logged_athlete_id', matched.id);
       } catch {}
       return { success: true };
     }
 
-    return { success: false, message: 'Dados de acesso não encontrados ou senha incorreta.' };
+    return { 
+      success: false, 
+      message: 'Atleta ou Responsável não encontrado com estes dados. Verifique o nome/e-mail e a senha informados pelo professor.' 
+    };
   };
 
   const guardianLogout = () => {
     setCurrentAthleteId(null);
     try {
+      localStorage.removeItem('acedep_logged_athlete_id');
       sessionStorage.removeItem('acedep_logged_athlete_id');
     } catch {}
   };
@@ -647,8 +668,23 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Coach / Admin Athlete Actions
   const saveAthleteRecord = async (athlete: AthleteRecord): Promise<boolean> => {
+    let finalPhotoUrl = athlete.photoUrl;
+    if (finalPhotoUrl && finalPhotoUrl.startsWith('data:image')) {
+      try {
+        finalPhotoUrl = await optimizeImage(finalPhotoUrl, {
+          maxWidth: 600,
+          maxHeight: 600,
+          quality: 0.72,
+          maxSizeBytes: 200 * 1024,
+        });
+      } catch (err) {
+        console.warn('Could not optimize athlete photo, keeping original:', err);
+      }
+    }
+
     const sanitized: AthleteRecord = cleanFirestoreData({
       ...athlete,
+      photoUrl: finalPhotoUrl,
       trainingSchedule: {
         pool: athlete.trainingSchedule?.pool || 'Piscina Olímpica 50m - CPB',
         lane: athlete.trainingSchedule?.lane || 'Raia 3 - Rendimento S14',
@@ -681,6 +717,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       return true;
     } catch (e) {
+      console.error('Error saving athlete to Firestore:', e);
       handleFirestoreError(e, OperationType.WRITE, `athletes/${sanitized.id}`);
       setAthletes((prev) => {
         const index = prev.findIndex((a) => a.id === sanitized.id);

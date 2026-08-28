@@ -11,7 +11,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { Logo } from './Logo';
-import { insertAthlete } from '../lib/supabase';
+import { db, doc, setDoc, OperationType, handleFirestoreError } from '../lib/firebase';
 
 interface AthleteEnrollmentModalProps {
   isOpen: boolean;
@@ -61,21 +61,27 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
     setErrorMessage('');
 
     try {
-      // 1. Salva os dados permanentemente na nuvem (Supabase) - Acessível de qualquer aparelho
-      await insertAthlete({
-        full_name: formData.athleteName,
-        guardian_name: `${formData.guardianName} (Tel: ${formData.phone})`,
-        disability_type: `${formData.disabilityType} | Turma: ${formData.modalityType}`,
-        swating_experience: formData.swimmingExperience,
+      // Salva os dados permanentemente na nuvem (Firestore) - Acessível de qualquer aparelho
+      const enrollmentId = `req-${Date.now()}`;
+      await setDoc(doc(db, 'enrollment_requests', enrollmentId), {
+        id: enrollmentId,
+        athleteName: formData.athleteName,
+        guardianName: formData.guardianName,
+        age: formData.age,
+        disabilityType: formData.disabilityType,
+        modalityType: formData.modalityType,
+        swimmingExperience: formData.swimmingExperience,
         phone: formData.phone,
-        email: formData.email || 'contato@acedep.org.br',
+        email: formData.email || '',
+        notes: formData.notes || '',
         status: 'Pendente',
+        createdAt: new Date().toISOString(),
       });
 
       setSubmitted(true);
     } catch (err: any) {
-      console.error('Erro ao salvar no Supabase:', err);
-      setErrorMessage('Os dados foram processados, mas houve um alerta ao gravar na nuvem. Envie via WhatsApp abaixo para garantir!');
+      console.error('Erro ao salvar no Firestore:', err);
+      handleFirestoreError(err, OperationType.CREATE, 'enrollment_requests');
       setSubmitted(true);
     } finally {
       setLoading(false);
