@@ -15,7 +15,7 @@ import { usePhotos } from '../context/PhotosContext';
 
 export const AboutSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'missao' | 'visao' | 'valores'>('missao');
-  const { photos, openEditModal, isAdminAuthenticated } = usePhotos();
+  const { photos, openAdminModal, isAdminAuthenticated } = usePhotos();
   
   // Carousel State
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -154,12 +154,12 @@ export const AboutSection: React.FC = () => {
                 {/* Admin Quick Upload / Edit Button */}
                 {isAdminAuthenticated && (
                   <button
-                    onClick={() => openEditModal(activePhoto.id)}
+                    onClick={() => openAdminModal()}
                     className="absolute top-4 right-4 z-20 px-2.5 py-1.5 rounded-lg bg-[#d4af37] hover:bg-[#b8952b] text-[#060e1c] text-[11px] font-bold shadow-lg flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
-                    title="Alterar esta foto"
+                    title="Alterar esta foto no Painel Administrativo"
                   >
                     <Camera className="w-3.5 h-3.5" />
-                    <span>Upload Foto</span>
+                    <span>Gerenciar Fotos</span>
                   </button>
                 )}
 

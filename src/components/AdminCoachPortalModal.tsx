@@ -15,7 +15,8 @@ import {
   Mail, 
   Camera, 
   Upload, 
-  ImageIcon, 
+  Image as ImageIcon, 
+  Images,
   Copy, 
   ExternalLink, 
   Send, 
@@ -26,11 +27,21 @@ import {
   Check, 
   Smartphone,
   Heart,
-  FileText
+  FileText,
+  Calendar,
+  Eye,
+  Lock,
+  LogOut,
+  ShieldCheck,
+  RotateCcw,
+  Database,
+  Users
 } from 'lucide-react';
 import { useCommunity } from '../context/CommunityContext';
-import { usePhotos } from '../context/PhotosContext';
+import { usePhotos, DEFAULT_PHOTOS, GalleryPhotoItem } from '../context/PhotosContext';
+import { NewsCategory, AthleteRecord, EmailNotificationLog, CommunityCheer } from '../types';
 import { saveAthleteToSupabase } from '../services/athleteService';
+import { AttendanceManagerTab } from './admin/AttendanceManagerTab';
 import { AdminUsersManagerTab } from './admin/AdminUsersManagerTab';
 import { AthleteDocumentsTab } from './AthleteDocumentsTab';
 
@@ -709,12 +720,22 @@ export const AdminCoachPortalModal: React.FC = () => {
     setTimeout(() => setBroadcastSuccess(''), 6000);
   };
 
-  // Open default mail client with all parent emails in BCC
+  // Open default mail client with parent emails
   const handleOpenMailClient = (subject?: string, body?: string) => {
-    const parentEmails = getAllParentEmails().join(',');
-    const encodedSubject = encodeURIComponent(subject || 'Informativo ACEDEP Natação Paralímpica');
-    const encodedBody = encodeURIComponent(body || 'Prezados pais e responsáveis,\n\nSegue atualização importante sobre as atividades e treinos da ACEDEP:\n\nAtenciosamente,\nCoordenação ACEDEP');
-    window.location.href = `mailto:contato@acedep.org.br?bcc=${parentEmails}&subject=${encodedSubject}&body=${encodedBody}`;
+    let mailUrl = '';
+    const encodedSubject = encodeURIComponent(subject || broadcastSubject || 'Informativo ACEDEP Natação Paralímpica');
+    const encodedBody = encodeURIComponent(body || broadcastBody || 'Prezados pais e responsáveis,\n\nSegue atualização importante sobre as atividades e treinos da ACEDEP:\n\nAtenciosamente,\nCoordenação ACEDEP');
+
+    if (broadcastRecipientMode === 'specific') {
+      const target = athletes.find((a) => a.id === broadcastSpecificAthleteId);
+      const toEmail = target?.guardianEmail || 'contato@acedep.org.br';
+      mailUrl = `mailto:${toEmail}?subject=${encodedSubject}&body=${encodedBody}`;
+    } else {
+      const parentEmails = getAllParentEmails().join(',');
+      mailUrl = `mailto:contato@acedep.org.br?bcc=${parentEmails}&subject=${encodedSubject}&body=${encodedBody}`;
+    }
+
+    window.open(mailUrl, '_blank');
   };
 
   // Filtered athletes list
@@ -1195,19 +1216,93 @@ export const AdminCoachPortalModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 3. Training presets (CPB) */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-black/30 border border-white/5 text-xs">
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Polo & Piscina</span>
-                    <span className="text-slate-200 font-medium">{athletePool}</span>
+                {/* 3. Training presets (Customizable Days, Hours, Coach, Pool, Lane) */}
+                <div className="p-4 rounded-xl bg-black/40 border border-[#1e3a5f] space-y-3">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span className="text-xs font-bold text-[#f3e5ab] flex items-center gap-1.5">
+                      <Waves className="w-3.5 h-3.5 text-[#d4af37]" />
+                      Configuração de Treino & Comissão Técnica
+                    </span>
+                    <span className="text-[10px] text-slate-400">Personalize os dias, horários e professor</span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Horário de Treino</span>
-                    <span className="text-slate-200 font-medium">{athleteDays} ({athleteTime})</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Treinador Responsável</span>
-                    <span className="text-[#f3e5ab] font-medium">{athleteCoach}</span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-slate-300 block mb-1 text-[11px] font-semibold">Polo & Piscina</label>
+                      <input
+                        type="text"
+                        value={athletePool}
+                        onChange={(e) => setAthletePool(e.target.value)}
+                        placeholder="Ex: Piscina Olímpica 50m - CPB"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-300 block mb-1 text-[11px] font-semibold">Dias de Treino</label>
+                      <input
+                        type="text"
+                        value={athleteDays}
+                        onChange={(e) => setAthleteDays(e.target.value)}
+                        placeholder="Ex: Segunda, Quarta e Sexta"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-300 block mb-1 text-[11px] font-semibold">Horário do Treino</label>
+                      <input
+                        type="text"
+                        value={athleteTime}
+                        onChange={(e) => setAthleteTime(e.target.value)}
+                        placeholder="Ex: 14:00 às 15:30"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-300 block mb-1 text-[11px] font-semibold">Professor(a) / Treinador(a)</label>
+                      <input
+                        type="text"
+                        value={athleteCoach}
+                        onChange={(e) => setAthleteCoach(e.target.value)}
+                        placeholder="Ex: Prof. Leonardo Ramos"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-300 block mb-1 text-[11px] font-semibold">Raia / Categoria</label>
+                      <input
+                        type="text"
+                        value={athleteLane}
+                        onChange={(e) => setAthleteLane(e.target.value)}
+                        placeholder="Ex: Raia 3 - Rendimento S14"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-300 block mb-1 text-[11px] font-semibold">Opções Rápidas de Horário</label>
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const [d, t] = e.target.value.split('|');
+                            if (d) setAthleteDays(d);
+                            if (t) setAthleteTime(t);
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-slate-300 focus:outline-none focus:border-[#d4af37]"
+                      >
+                        <option value="">Selecionar modelo rápido...</option>
+                        <option value="Segunda, Quarta e Sexta|14:00 às 15:30">Seg/Qua/Sex (14:00 - 15:30)</option>
+                        <option value="Segunda, Quarta e Sexta|15:30 às 17:00">Seg/Qua/Sex (15:30 - 17:00)</option>
+                        <option value="Terça e Quinta|08:00 às 09:30">Ter/Qui (08:00 - 09:30)</option>
+                        <option value="Terça e Quinta|14:00 às 15:30">Ter/Qui (14:00 - 15:30)</option>
+                        <option value="Segunda a Sexta|14:00 às 16:30">Seg a Sex - Alto Rendimento (14:00 - 16:30)</option>
+                        <option value="Sábados|09:00 às 11:00">Sábado (09:00 - 11:00)</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -1504,6 +1599,17 @@ export const AdminCoachPortalModal: React.FC = () => {
                   </div>
                 )}
 
+                {/* Delivery Explanation Note */}
+                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-slate-300 text-[11px] space-y-1">
+                  <span className="font-bold text-blue-300 block flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5" />
+                    Entrega Garantida na Caixa de Entrada dos Pais:
+                  </span>
+                  <p>
+                    O botão <strong>Disparar Notificação</strong> registra o comunicado instantaneamente no portal e no histórico do responsável. Para que a mensagem caia diretamente no Gmail ou Outlook pessoal do responsável sem risco de filtro anti-spam, utilize também o botão <strong>Abrir no Gmail / Programa de E-mail</strong>.
+                  </p>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="submit"
@@ -1511,17 +1617,35 @@ export const AdminCoachPortalModal: React.FC = () => {
                     className="px-6 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow"
                   >
                     <Send className="w-4 h-4" />
-                    <span>{isSendingBroadcast ? 'Disparando...' : 'Disparar Notificação por E-mail'}</span>
+                    <span>{isSendingBroadcast ? 'Disparando...' : 'Gravar & Notificar no Portal'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleOpenMailClient(broadcastSubject, broadcastBody)}
                     className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition-all cursor-pointer border border-white/10 flex items-center gap-1.5"
+                    title="Abre o Gmail/Outlook com destinatários e mensagem preenchidos"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    <span>Enviar via Meu Programa de E-mail</span>
+                    <span>Abrir no Gmail / Outlook dos Pais</span>
                   </button>
+
+                  {broadcastRecipientMode === 'specific' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = athletes.find((a) => a.id === broadcastSpecificAthleteId);
+                        const phone = (target?.guardianPhone || '').replace(/\D/g, '');
+                        const msg = `*ACEDEP Natação Paralímpica - Comunicado Oficial*\n\n*Assunto:* ${broadcastSubject || 'Informativo'}\n\n${broadcastBody || 'Acesse o portal da ACEDEP para conferir as atualizações.'}\n\n_Atenciosamente, Comissão Técnica ACEDEP_`;
+                        const targetPhone = phone.length >= 10 ? (phone.startsWith('55') ? phone : `55${phone}`) : '5511998809708';
+                        window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 font-semibold text-xs transition-all cursor-pointer border border-emerald-500/30 flex items-center gap-1.5"
+                    >
+                      <Smartphone className="w-3.5 h-3.5" />
+                      <span>Enviar via WhatsApp do Responsável</span>
+                    </button>
+                  )}
                 </div>
               </form>
 
@@ -2666,9 +2790,12 @@ export const AdminCoachPortalModal: React.FC = () => {
         {/* Modal for Editing Athlete */}
         {editingAthlete && (
           <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-[#0c1f38] border border-[#d4af37]/60 rounded-2xl p-6 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between">
-                <h5 className="font-bold text-white text-sm font-serif">Editar Perfil de {editingAthlete.name}</h5>
+            <div className="w-full max-w-lg bg-[#0c1f38] border border-[#d4af37]/60 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-[#1e3a5f] pb-3">
+                <h5 className="font-bold text-white text-sm font-serif flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-[#d4af37]" />
+                  <span>Editar Atleta • {editingAthlete.name}</span>
+                </h5>
                 <button 
                   onClick={() => setEditingAthlete(null)}
                   className="p-1 rounded-full text-slate-400 hover:text-white cursor-pointer"
@@ -2677,16 +2804,29 @@ export const AdminCoachPortalModal: React.FC = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveEditedAthlete} className="space-y-3 text-xs">
-                <div>
-                  <label className="text-slate-300 block mb-1 font-semibold">Nome Completo</label>
-                  <input
-                    type="text"
-                    required
-                    value={editingAthlete.name}
-                    onChange={(e) => setEditingAthlete({ ...editingAthlete, name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
-                  />
+              <form onSubmit={handleSaveEditedAthlete} className="space-y-3.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-300 block mb-1 font-semibold">Nome Completo do Atleta *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingAthlete.name}
+                      onChange={(e) => setEditingAthlete({ ...editingAthlete, name: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-slate-300 block mb-1 font-semibold">Data de Nascimento</label>
+                    <input
+                      type="text"
+                      value={editingAthlete.birthDate || ''}
+                      onChange={(e) => setEditingAthlete({ ...editingAthlete, birthDate: e.target.value })}
+                      placeholder="DD/MM/AAAA"
+                      className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -2700,40 +2840,157 @@ export const AdminCoachPortalModal: React.FC = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="text-slate-300 block mb-1 font-semibold">Responsável</label>
-                  <input
-                    type="text"
-                    required
-                    value={editingAthlete.guardianName}
-                    onChange={(e) => setEditingAthlete({ ...editingAthlete, guardianName: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-300 block mb-1 font-semibold">Nome do Responsável *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingAthlete.guardianName}
+                      onChange={(e) => setEditingAthlete({ ...editingAthlete, guardianName: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-slate-300 block mb-1 font-semibold">WhatsApp / Telefone</label>
+                    <input
+                      type="text"
+                      value={editingAthlete.guardianPhone || ''}
+                      onChange={(e) => setEditingAthlete({ ...editingAthlete, guardianPhone: e.target.value })}
+                      placeholder="(11) 99999-9999"
+                      className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-slate-300 block mb-1 font-semibold">E-mail do Responsável</label>
-                  <input
-                    type="email"
-                    required
-                    value={editingAthlete.guardianEmail}
-                    onChange={(e) => setEditingAthlete({ ...editingAthlete, guardianEmail: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-300 block mb-1 font-semibold">E-mail do Responsável *</label>
+                    <input
+                      type="email"
+                      required
+                      value={editingAthlete.guardianEmail || ''}
+                      onChange={(e) => setEditingAthlete({ ...editingAthlete, guardianEmail: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[#d4af37] block mb-1 font-bold">Senha de Acesso (PIN) *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingAthlete.accessCode}
+                      onChange={(e) => setEditingAthlete({ ...editingAthlete, accessCode: e.target.value })}
+                      className="w-full px-3 py-2 font-mono font-bold rounded-lg bg-black/50 border border-[#d4af37]/60 text-[#f3e5ab] focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-[#d4af37] block mb-1 font-bold">Senha de Acesso (PIN)</label>
-                  <input
-                    type="text"
-                    required
-                    value={editingAthlete.accessCode}
-                    onChange={(e) => setEditingAthlete({ ...editingAthlete, accessCode: e.target.value })}
-                    className="w-full px-3 py-2 font-mono font-bold rounded-lg bg-black/50 border border-[#d4af37]/60 text-[#f3e5ab] focus:outline-none focus:border-[#d4af37]"
-                  />
+                {/* Training Details for Athlete Edit */}
+                <div className="p-3 rounded-xl bg-black/40 border border-[#1e3a5f] space-y-3">
+                  <span className="text-[11px] font-bold text-[#f3e5ab] block border-b border-white/5 pb-1">
+                    🏊 Treinos, Horários & Professor Responsável
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-slate-300 block mb-1 text-[10px] font-semibold">Dias de Treino</label>
+                      <input
+                        type="text"
+                        value={Array.isArray(editingAthlete.trainingSchedule?.days) ? editingAthlete.trainingSchedule.days.join(', ') : (editingAthlete.trainingSchedule?.days || '')}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditingAthlete({
+                            ...editingAthlete,
+                            trainingSchedule: {
+                              ...editingAthlete.trainingSchedule,
+                              days: val.split(',').map((s) => s.trim()),
+                              pool: editingAthlete.trainingSchedule?.pool || 'Piscina Olímpica 50m - CPB',
+                              time: editingAthlete.trainingSchedule?.time || '14:00 às 15:30',
+                              coachName: editingAthlete.trainingSchedule?.coachName || 'Prof. Leonardo Ramos',
+                              lane: editingAthlete.trainingSchedule?.lane || 'Raia 3 - Rendimento S14',
+                            }
+                          });
+                        }}
+                        placeholder="Ex: Segunda, Quarta, Sexta"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-300 block mb-1 text-[10px] font-semibold">Horário do Treino</label>
+                      <input
+                        type="text"
+                        value={editingAthlete.trainingSchedule?.time || ''}
+                        onChange={(e) => {
+                          setEditingAthlete({
+                            ...editingAthlete,
+                            trainingSchedule: {
+                              ...editingAthlete.trainingSchedule,
+                              days: editingAthlete.trainingSchedule?.days || ['Segunda', 'Quarta', 'Sexta'],
+                              pool: editingAthlete.trainingSchedule?.pool || 'Piscina Olímpica 50m - CPB',
+                              time: e.target.value,
+                              coachName: editingAthlete.trainingSchedule?.coachName || 'Prof. Leonardo Ramos',
+                              lane: editingAthlete.trainingSchedule?.lane || 'Raia 3 - Rendimento S14',
+                            }
+                          });
+                        }}
+                        placeholder="Ex: 14:00 às 15:30"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-300 block mb-1 text-[10px] font-semibold">Professor(a) Responsável</label>
+                      <input
+                        type="text"
+                        value={editingAthlete.trainingSchedule?.coachName || ''}
+                        onChange={(e) => {
+                          setEditingAthlete({
+                            ...editingAthlete,
+                            trainingSchedule: {
+                              ...editingAthlete.trainingSchedule,
+                              days: editingAthlete.trainingSchedule?.days || ['Segunda', 'Quarta', 'Sexta'],
+                              pool: editingAthlete.trainingSchedule?.pool || 'Piscina Olímpica 50m - CPB',
+                              time: editingAthlete.trainingSchedule?.time || '14:00 às 15:30',
+                              coachName: e.target.value,
+                              lane: editingAthlete.trainingSchedule?.lane || 'Raia 3 - Rendimento S14',
+                            }
+                          });
+                        }}
+                        placeholder="Ex: Prof. Leonardo Ramos"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-300 block mb-1 text-[10px] font-semibold">Raia & Nível</label>
+                      <input
+                        type="text"
+                        value={editingAthlete.trainingSchedule?.lane || ''}
+                        onChange={(e) => {
+                          setEditingAthlete({
+                            ...editingAthlete,
+                            trainingSchedule: {
+                              ...editingAthlete.trainingSchedule,
+                              days: editingAthlete.trainingSchedule?.days || ['Segunda', 'Quarta', 'Sexta'],
+                              pool: editingAthlete.trainingSchedule?.pool || 'Piscina Olímpica 50m - CPB',
+                              time: editingAthlete.trainingSchedule?.time || '14:00 às 15:30',
+                              coachName: editingAthlete.trainingSchedule?.coachName || 'Prof. Leonardo Ramos',
+                              lane: e.target.value,
+                            }
+                          });
+                        }}
+                        placeholder="Ex: Raia 3 - Rendimento S14"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2">
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
                   <button
                     type="button"
                     onClick={() => setEditingAthlete(null)}

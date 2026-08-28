@@ -2,8 +2,11 @@ import { supabase } from '../lib/supabase';
 
 // Função para buscar todos os atletas salvos na nuvem
 export async function fetchAthletesFromSupabase() {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY || import.meta.env.SUPABASE_PUBLISHABLE_KEY;
+  const env = (import.meta as any).env || {};
+  const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL || '';
+  const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || env.SUPABASE_PUBLISHABLE_KEY || '';
+
+  if (!supabaseUrl || !supabaseAnonKey) return [];
 
   try {
     const response = await fetch(`${supabaseUrl}/rest/v1/athletes?select=*`, {
@@ -29,8 +32,11 @@ export async function saveAthleteToSupabase(athleteData: {
   accessCode: string;
   birthDate: string;
 }) {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY || import.meta.env.SUPABASE_PUBLISHABLE_KEY;
+  const env = (import.meta as any).env || {};
+  const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL || '';
+  const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || env.SUPABASE_PUBLISHABLE_KEY || '';
+
+  if (!supabaseUrl || !supabaseAnonKey) return false;
 
   const payload = {
     full_name: athleteData.name,
