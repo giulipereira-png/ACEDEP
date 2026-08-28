@@ -389,20 +389,27 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
-  // Secret triggers: Keyboard shortcut (Ctrl+Shift+A) and URL Hash (#admin or ?admin=true)
+  // Secret triggers: URL pathname (/admin, /painel), URL Hash (#admin), query params (?admin=true), and keyboard shortcut (Ctrl+Shift+A)
   useEffect(() => {
-    // 1. Check URL on mount and hash changes
+    // 1. Check URL on mount and popstate/hash changes
     const checkUrlTrigger = () => {
       if (typeof window === 'undefined') return;
+      const pathname = (window.location.pathname || '').toLowerCase();
       const hash = (window.location.hash || '').toLowerCase();
       const params = new URLSearchParams(window.location.search);
-      if (hash === '#admin' || hash === '#gestao' || params.get('admin') === 'true' || params.get('admin') === '1') {
+      
+      const isAdminPath = pathname === '/admin' || pathname === '/painel' || pathname === '/gestao' || pathname.startsWith('/admin/');
+      const isAdminHash = hash === '#admin' || hash === '#gestao' || hash === '#painel';
+      const isAdminQuery = params.get('admin') === 'true' || params.get('admin') === '1' || params.get('painel') === 'true';
+
+      if (isAdminPath || isAdminHash || isAdminQuery) {
         setAdminModalOpen(true);
       }
     };
 
     checkUrlTrigger();
     window.addEventListener('hashchange', checkUrlTrigger);
+    window.addEventListener('popstate', checkUrlTrigger);
 
     // 2. Keyboard shortcut: Ctrl + Shift + A (or Cmd + Shift + A)
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -416,6 +423,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     return () => {
       window.removeEventListener('hashchange', checkUrlTrigger);
+      window.removeEventListener('popstate', checkUrlTrigger);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);

@@ -20,6 +20,7 @@ import { CalendarPage } from './pages/CalendarPage';
 import { GalleryPage } from './pages/GalleryPage';
 import { FaqPage } from './pages/FaqPage';
 import { CommunityPage } from './pages/CommunityPage';
+import { AdminPage } from './pages/AdminPage';
 
 // Action & Portal Modals
 import { SupportModal } from './components/SupportModal';
@@ -32,10 +33,23 @@ import { CommunityNewsModal } from './components/CommunityNewsModal';
 import { PhotosProvider } from './context/PhotosContext';
 import { CommunityProvider } from './context/CommunityContext';
 
-export type AppPage = 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade';
+export type AppPage = 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade' | 'admin';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<AppPage>('home');
+  const [currentPage, setCurrentPage] = useState<AppPage>(() => {
+    if (typeof window === 'undefined') return 'home';
+    const path = window.location.pathname.toLowerCase().replace(/^\//, '').replace(/\/$/, '');
+    const hash = window.location.hash.toLowerCase().replace(/^#/, '');
+    if (path === 'admin' || path === 'painel' || path === 'gestao' || hash === 'admin' || hash === 'painel') {
+      return 'admin';
+    }
+    if (path === 'equipe' || hash === 'equipe') return 'equipe';
+    if (path === 'calendario' || hash === 'calendario') return 'calendario';
+    if (path === 'galeria' || hash === 'galeria') return 'galeria';
+    if (path === 'faq' || hash === 'faq') return 'faq';
+    if (path === 'comunidade' || hash === 'comunidade') return 'comunidade';
+    return 'home';
+  });
 
   // Action Modals
   const [supportModalOpen, setSupportModalOpen] = useState(false);
@@ -141,6 +155,12 @@ export default function App() {
                 onBackToHome={() => handleNavigateToPage('home')}
                 onOpenSupportModal={() => setSupportModalOpen(true)}
                 onNavigateToPage={handleNavigateToPage}
+              />
+            )}
+
+            {currentPage === 'admin' && (
+              <AdminPage
+                onBackToHome={() => handleNavigateToPage('home')}
               />
             )}
           </main>
