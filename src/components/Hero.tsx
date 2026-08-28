@@ -2,7 +2,6 @@ import React from 'react';
 import { 
   Trophy, 
   ChevronRight, 
-  ArrowDown, 
   Waves, 
   ShieldCheck, 
   MapPin,
@@ -106,9 +105,9 @@ export const Hero: React.FC<HeroProps> = ({
               <button
                 onClick={onOpenEnrollModal}
                 id="btn-hero-peneira"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-md text-xs sm:text-sm font-semibold text-[#f3e5ab] hover:text-white underline-offset-4 hover:underline transition-all cursor-pointer"
+                className="group inline-flex items-center justify-center gap-2.5 px-6 sm:px-7 py-3.5 rounded-md bg-[#0e2547] hover:bg-[#153460] text-[#f3e5ab] hover:text-white font-bold text-sm sm:text-base border-2 border-[#d4af37] shadow-lg shadow-black/40 hover:shadow-[#d4af37]/25 transition-all duration-200 active:scale-95 cursor-pointer"
               >
-                <Waves className="w-4 h-4 text-[#d4af37]" />
+                <Waves className="w-5 h-5 text-[#d4af37] group-hover:scale-110 transition-transform" />
                 <span>Avaliação de Novos Atletas</span>
               </button>
             </div>
@@ -151,10 +150,6 @@ export const Hero: React.FC<HeroProps> = ({
           {/* Right Column: Prestigious Card with Official Emblem */}
           <div className="lg:col-span-4 hidden lg:block">
             <div className="relative rounded-2xl bg-gradient-to-b from-[#132f52]/90 to-[#0a192f]/95 border border-[#d4af37]/30 p-6 shadow-2xl backdrop-blur-xl">
-              
-              <div className="absolute -top-3 right-6 px-3 py-1 bg-[#d4af37] text-[#060e1c] text-[10px] font-extrabold uppercase tracking-wider rounded shadow-md">
-                Polo de Treinamento
-              </div>
 
               <div className="text-center pb-5 border-b border-white/10">
                 <Logo variant="emblem" className="h-24 mx-auto drop-shadow-md mb-2" />
@@ -198,15 +193,6 @@ export const Hero: React.FC<HeroProps> = ({
 
         </div>
       </div>
-
-      <a 
-        href="#impacto" 
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-slate-400 hover:text-[#d4af37] transition-colors text-xs z-10"
-        aria-label="Rolar para seção de impacto"
-      >
-        <span className="text-[10px] uppercase tracking-widest font-semibold">Saiba Mais</span>
-        <ArrowDown className="w-4 h-4 animate-bounce text-[#d4af37]" />
-      </a>
     </section>
   );
 };
