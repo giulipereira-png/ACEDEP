@@ -12,14 +12,14 @@ import {
   ExternalLink,
   ShieldCheck
 } from 'lucide-react';
-import { MODALITIES_DATA, NUCLEOS_DATA } from '../data/mockData';
-import { usePhotos } from '../context/PhotosContext';
+import { MODALITIES_DATA, NUCLEOS_DATA } from '../../data/mockData';
+import { usePhotos } from '../../context/PhotosContext';
 
 interface ModalitiesSectionProps {
   onOpenEnrollModal: () => void;
 }
 
-export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnrollModal }) => {
+export const ModalitiesSectionBackup: React.FC<ModalitiesSectionProps> = ({ onOpenEnrollModal }) => {
   const { photos } = usePhotos();
   const defaultFallbackIniciacao = '/IMG_2382.jpeg';
   const defaultFallbackAltoRendimento = '/IMG_5625.jpeg';
@@ -108,14 +108,12 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
                         const candidates = candidatePaths[modality.id] || [];
                         const currentSrc = target.getAttribute('src') || '';
                         
-                        // Find current index in candidates
                         const currentIndex = candidates.findIndex((c) => currentSrc.endsWith(c));
                         if (currentIndex !== -1 && currentIndex + 1 < candidates.length) {
                           target.src = candidates[currentIndex + 1];
                           return;
                         }
 
-                        // Fallback in case none of the local candidates were found
                         if (modality.id === 'natacao-alto-rendimento') {
                           target.src = defaultFallbackAltoRendimento;
                         } else if (modality.id === 'natacao-iniciacao') {
@@ -126,7 +124,6 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0f2744] via-black/30 to-transparent pointer-events-none" />
 
-                    {/* Category Pill */}
                     <div className="absolute top-3 left-3 px-3 py-1 rounded bg-[#060e1c]/85 border border-[#d4af37]/50 backdrop-blur-md z-10 pointer-events-none">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-[#d4af37]">
                         {modality.category}
@@ -141,19 +138,16 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
                     </div>
                   </div>
 
-                  {/* Card Body */}
                   <div className="p-6 space-y-4">
                     <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
                       {modality.description}
                     </p>
 
-                    {/* Target Audience tag */}
                     <div className="p-3.5 rounded-lg bg-black/40 border border-white/5 text-xs text-slate-300">
                       <strong className="text-white block mb-0.5 font-semibold">Público-Alvo:</strong>
                       {modality.targetAudience}
                     </div>
 
-                    {/* Benefits List */}
                     <div className="space-y-2 pt-1">
                       <span className="text-[11px] font-bold text-[#d4af37] uppercase tracking-wider block">
                         Diferenciais do Treinamento:
@@ -168,7 +162,6 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
                   </div>
                 </div>
 
-                {/* Bottom CTA */}
                 <div className="p-6 pt-0">
                   <button
                     onClick={onOpenEnrollModal}
@@ -184,19 +177,17 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
           })}
         </div>
 
-        {/* COMPACT & DISCREET VISUAL TIMETABLE, EVALUATION PROCESS & CHAMPIONSHIPS */}
-        <div className="mt-10 max-w-5xl mx-auto rounded-2xl bg-[#08172c]/90 border border-[#1e3a5f] p-5 shadow-lg backdrop-blur-sm space-y-4">
-          
-          {/* Header Row: Location & CPB */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+        {/* COMPACT & DISCREET VISUAL TIMETABLE & LOCATION BAR */}
+        <div className="mt-10 max-w-4xl mx-auto rounded-2xl bg-[#08172c]/90 border border-[#1e3a5f] p-4 sm:p-5 shadow-lg backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3 mb-3.5">
             <div className="flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-[#d4af37]/20 text-[#d4af37]">
                 <MapPin className="w-4 h-4" />
               </span>
               <div>
-                <h4 className="text-sm font-bold text-white flex flex-wrap items-center gap-2">
-                  <span>Polo de Treinamento</span>
-                  <span className="text-slate-500">•</span>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Local & Horários de Treino</span>
+                  <span className="hidden sm:inline text-slate-500">•</span>
                   <span className="text-xs font-semibold text-[#f3e5ab]">Centro Paralímpico Brasileiro (CPB)</span>
                 </h4>
               </div>
@@ -213,68 +204,51 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
             </a>
           </div>
 
-          {/* 2 Concrete Info Columns: Horários / Como Funciona a Avaliação */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-            
-            {/* 1. Horários Semanais */}
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                <Clock className="w-4 h-4 text-[#d4af37]" />
-                <span>Horários & Frequência</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+              <div className="p-2 rounded-lg bg-[#d4af37]/15 text-[#d4af37] shrink-0">
+                <Clock className="w-4 h-4" />
               </div>
-              <div className="space-y-2 text-[11px] text-slate-300">
-                <div className="border-b border-white/5 pb-1.5">
-                  <div className="flex justify-between items-center mb-0.5">
-                    <span className="font-semibold text-white">Seg, Qua e Sex</span>
-                    <span className="text-[#f3e5ab] font-medium">18:00 - 19:30</span>
-                  </div>
-                  <div className="text-[10px] text-slate-400">Piscina Olímpica 50m • Rendimento & Iniciação</div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white">Seg, Qua e Sex</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#d4af37]/20 text-[#f3e5ab]">
+                    18:00 às 19:30
+                  </span>
                 </div>
-
-                <div className="pt-0.5">
-                  <div className="flex justify-between items-center mb-0.5">
-                    <span className="font-semibold text-white">Ter e Qui</span>
-                    <span className="text-cyan-300 font-medium">15:00 - 16:30</span>
-                  </div>
-                  <div className="text-[10px] text-slate-400">Piscina Olímpica 50m • Rendimento</div>
-                </div>
+                <p className="text-[11px] text-slate-400 truncate">
+                  Rendimento & Base • Piscina Olímpica (50m)
+                </p>
               </div>
             </div>
 
-            {/* 2. Como Funciona a Avaliação Técnica */}
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                <Waves className="w-4 h-4 text-[#d4af37]" />
-                <span>Como Funciona o Teste</span>
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+              <div className="p-2 rounded-lg bg-cyan-500/15 text-cyan-300 shrink-0">
+                <Clock className="w-4 h-4" />
               </div>
-              <ul className="space-y-1.5 text-[11px] text-slate-300">
-                <li className="flex items-start gap-1.5">
-                  <span className="text-[#d4af37] font-bold">1.</span>
-                  <span>Agendamento prévio com envio de laudo médico.</span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-[#d4af37] font-bold">2.</span>
-                  <span>Teste prático de 25m na piscina com comissão técnica.</span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-[#d4af37] font-bold">3.</span>
-                  <span>Verificação de autonomia e direcionamento de turma.</span>
-                </li>
-              </ul>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white">Ter e Qui</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
+                    15:00 às 16:30
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 truncate">
+                  Iniciação & Aperfeiçoamento • Piscina Semiolímpica (25m)
+                </p>
+              </div>
             </div>
-
           </div>
 
-          {/* Bottom Micro Notice & Action */}
-          <div className="pt-3 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
+          <div className="mt-3.5 pt-3 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
             <span className="flex items-center gap-1.5 text-[11px]">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              Atletas das classes funcionais S14 (DI) e S21 (Síndrome de Down) com federação oficial.
+              Presença e frequência acompanhadas em tempo real pela comissão técnica.
             </span>
 
             <button
               onClick={onOpenEnrollModal}
-              className="text-[11px] font-bold text-[#d4af37] hover:underline cursor-pointer flex items-center gap-1.5"
+              className="text-[11px] font-bold text-[#d4af37] hover:underline cursor-pointer flex items-center gap-1"
             >
               <CalendarCheck className="w-3.5 h-3.5" />
               <span>Agendar Avaliação Aquática</span>
@@ -286,4 +260,3 @@ export const ModalitiesSection: React.FC<ModalitiesSectionProps> = ({ onOpenEnro
     </section>
   );
 };
-

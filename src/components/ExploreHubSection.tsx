@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 interface ExploreHubSectionProps {
-  onNavigateToPage: (page: 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade') => void;
+  onNavigateToPage: (page: 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade') => void;
   onOpenSupportModal: () => void;
 }
 

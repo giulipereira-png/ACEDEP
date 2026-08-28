@@ -70,6 +70,42 @@ export const DEFAULT_PHOTOS: Record<string, { title: string; category: string; d
     defaultUrl: 'https://images.unsplash.com/photo-1580894732488-874ff095f9c4?auto=format&fit=crop&w=600&q=80',
     fallbackList: ['https://images.unsplash.com/photo-1580894732488-874ff095f9c4?auto=format&fit=crop&w=600&q=80'],
   },
+  carousel_1: {
+    title: 'Carrossel Foto 1 (Equipe ACEDEP)',
+    category: 'Carrossel de Fotos (Rodapé)',
+    defaultUrl: '/IMG_4378.jpeg',
+    fallbackList: ['/IMG_4378.jpeg', '/IMG_4378.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80'],
+  },
+  carousel_2: {
+    title: 'Carrossel Foto 2 (Treinos CPB)',
+    category: 'Carrossel de Fotos (Rodapé)',
+    defaultUrl: '/IMG_2382.jpeg',
+    fallbackList: ['/IMG_2382.jpeg', '/IMG_2382.jpg', 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80'],
+  },
+  carousel_3: {
+    title: 'Carrossel Foto 3 (Conquistas & Pódios)',
+    category: 'Carrossel de Fotos (Rodapé)',
+    defaultUrl: '/IMG_5625.jpeg',
+    fallbackList: ['/IMG_5625.jpeg', '/IMG_5625.jpg', 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80'],
+  },
+  carousel_4: {
+    title: 'Carrossel Foto 4 (Piscina Olímpica 50m)',
+    category: 'Carrossel de Fotos (Rodapé)',
+    defaultUrl: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80', '/IMG_4378.jpeg'],
+  },
+  carousel_5: {
+    title: 'Carrossel Foto 5 (Superação & Inclusão)',
+    category: 'Carrossel de Fotos (Rodapé)',
+    defaultUrl: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80',
+    fallbackList: ['https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=800&q=80', '/IMG_2382.jpeg'],
+  },
+  carousel_6: {
+    title: 'Carrossel Foto 6 (Espírito Esportivo)',
+    category: 'Carrossel de Fotos (Rodapé)',
+    defaultUrl: '/IMG_4378.jpeg',
+    fallbackList: ['/IMG_4378.jpeg', 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80'],
+  },
 };
 
 export const INITIAL_GALLERY_PHOTOS: GalleryPhotoItem[] = [

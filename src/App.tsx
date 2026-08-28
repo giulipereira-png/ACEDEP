@@ -6,15 +6,15 @@
 import React, { useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
-import { AboutSection } from './components/AboutSection';
+import { TeamPhotoBanner } from './components/TeamPhotoBanner';
 import { ModalitiesSection } from './components/ModalitiesSection';
-import { NewsAndCheersLanding } from './components/NewsAndCheersLanding';
-import { CompactPhotoGallery } from './components/CompactPhotoGallery';
 import { ExploreHubSection } from './components/ExploreHubSection';
+import { MiniAutoPhotoCarousel } from './components/MiniAutoPhotoCarousel';
 import { CtaSection } from './components/CtaSection';
 import { Footer } from './components/Footer';
 
 // Full Dedicated Pages
+import { AboutPage } from './pages/AboutPage';
 import { TeamPage } from './pages/TeamPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { GalleryPage } from './pages/GalleryPage';
@@ -33,7 +33,7 @@ import { CommunityNewsModal } from './components/CommunityNewsModal';
 import { PhotosProvider } from './context/PhotosContext';
 import { CommunityProvider } from './context/CommunityContext';
 
-export type AppPage = 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade' | 'admin';
+export type AppPage = 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade' | 'admin';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>(() => {
@@ -43,6 +43,7 @@ export default function App() {
     if (path === 'admin' || path === 'painel' || path === 'gestao' || hash === 'admin' || hash === 'painel') {
       return 'admin';
     }
+    if (path === 'sobre' || path === 'sobre-nos' || hash === 'sobre' || hash === 'sobre-nos') return 'sobre';
     if (path === 'equipe' || hash === 'equipe') return 'equipe';
     if (path === 'calendario' || hash === 'calendario') return 'calendario';
     if (path === 'galeria' || hash === 'galeria') return 'galeria';
@@ -86,34 +87,40 @@ export default function App() {
                   onOpenEnrollModal={() => setEnrollModalOpen(true)}
                 />
 
-                {/* 2. About Section (Nossa História / Quem Somos) */}
-                <AboutSection />
+                {/* 2. Team Photo Banner (Foto Oficial da Equipe na Home) */}
+                <TeamPhotoBanner
+                  onNavigateToAbout={() => handleNavigateToPage('sobre')}
+                />
 
                 {/* 3. Modalities & Training Programs (Natação S14 & Grade Horária) */}
                 <ModalitiesSection onOpenEnrollModal={() => setEnrollModalOpen(true)} />
 
-                {/* 4. Notícias Recentes & Mural de Recados da Torcida */}
-                <NewsAndCheersLanding 
-                  onOpenCommunityModal={() => handleNavigateToPage('comunidade')}
-                />
-
-                {/* 5. Galeria de Fotos Compacta */}
-                <CompactPhotoGallery
-                  onOpenFullGallery={() => handleNavigateToPage('galeria')}
-                />
-
-                {/* 6. Explore Hub Section */}
+                {/* 4. Explore Hub Section (Links rápidos para equipe, calendário, galeria e faq) */}
                 <ExploreHubSection
                   onNavigateToPage={handleNavigateToPage}
                   onOpenSupportModal={() => setSupportModalOpen(true)}
                 />
 
-                {/* 7. Call To Action */}
+                {/* 5. Mini Carrossel de Fotos Automático */}
+                <MiniAutoPhotoCarousel
+                  onOpenFullGallery={() => handleNavigateToPage('galeria')}
+                />
+
+                {/* 6. Call To Action */}
                 <CtaSection
                   onOpenSupportModal={() => setSupportModalOpen(true)}
                   onOpenEnrollModal={() => setEnrollModalOpen(true)}
                 />
               </>
+            )}
+
+            {currentPage === 'sobre' && (
+              <AboutPage
+                onBackToHome={() => handleNavigateToPage('home')}
+                onOpenEnrollModal={() => setEnrollModalOpen(true)}
+                onOpenSupportModal={() => setSupportModalOpen(true)}
+                onNavigateToPage={handleNavigateToPage}
+              />
             )}
 
             {currentPage === 'equipe' && (

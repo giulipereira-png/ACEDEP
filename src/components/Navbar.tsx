@@ -18,7 +18,7 @@ import { useCommunity } from '../context/CommunityContext';
 
 interface NavbarProps {
   currentPage?: string;
-  onNavigateToPage: (page: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade') => void;
+  onNavigateToPage: (page: 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade') => void;
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
   onOpenMemberPortal: () => void;
@@ -51,7 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       }
 
       if (currentPage === 'home') {
-        const sections = ['home', 'sobre', 'modalidades', 'galeria-preview', 'explorar', 'contato'];
+        const sections = ['home', 'modalidades', 'galeria-preview', 'explorar', 'contato'];
         const scrollPosition = window.scrollY + 200;
 
         for (const section of sections) {
@@ -72,7 +72,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [currentPage]);
 
-  const handleNavClick = (pageId: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => {
+  const handleNavClick = (pageId: 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => {
     setMobileMenuOpen(false);
     onNavigateToPage(pageId);
     if (pageId === 'home' && hash) {
@@ -85,20 +85,20 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
-  // Streamlined 6 primary navigation items for optimal spacing and clean desktop layout
-  const navLinks: Array<{ name: string; page: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade'; hash?: string }> = [
+  // Primary navigation items for clean layout
+  const navLinks: Array<{ name: string; page: 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade'; hash?: string }> = [
     { name: 'Início', page: 'home', hash: '#home' },
+    { name: 'Sobre Nós', page: 'sobre' },
     { name: 'Nossa Equipe', page: 'equipe' },
     { name: 'Calendário 2026', page: 'calendario' },
     { name: 'Galeria', page: 'galeria' },
-    { name: 'Comunidade & Notícias', page: 'comunidade' },
+    { name: 'Comunidade', page: 'comunidade' },
     { name: 'FAQ', page: 'faq' },
   ];
 
   // Quick jump sub-sections on Home
   const homeQuickSections = [
-    { label: 'Nossa História', hash: '#sobre' },
-    { label: 'Modalidades S14', hash: '#modalidades' },
+    { label: 'Modalidades & Horários', hash: '#modalidades' },
     { label: 'Contato & Local', hash: '#contato' },
   ];
 

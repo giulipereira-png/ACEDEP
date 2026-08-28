@@ -18,7 +18,7 @@ interface FooterProps {
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
   onOpenMemberPortal?: () => void;
-  onNavigateToPage?: (page: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => void;
+  onNavigateToPage?: (page: 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => void;
   onOpenCalendarModal?: () => void;
   onOpenTeamModal?: () => void;
   onOpenGalleryModal?: () => void;
@@ -43,7 +43,7 @@ export const Footer: React.FC<FooterProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleLinkClick = (page: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => {
+  const handleLinkClick = (page: 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => {
     if (onNavigateToPage) {
       onNavigateToPage(page, hash);
       if (page === 'home' && hash) {
@@ -115,10 +115,10 @@ export const Footer: React.FC<FooterProps> = ({
               </li>
               <li>
                 <button 
-                  onClick={() => handleLinkClick('home', '#sobre')} 
+                  onClick={() => handleLinkClick('sobre')} 
                   className="text-slate-300 hover:text-[#d4af37] transition-colors block py-0.5 cursor-pointer text-left"
                 >
-                  Nossa História
+                  Sobre Nós (História)
                 </button>
               </li>
               <li>
