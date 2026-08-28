@@ -11,7 +11,7 @@ import {
   ShieldCheck, 
   Lock, 
   UserCheck,
-  UserPlus
+  Compass
 } from 'lucide-react';
 import { usePhotos } from '../context/PhotosContext';
 import { useCommunity } from '../context/CommunityContext';
@@ -37,7 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMemberPortal,
 }) => {
   const { openAdminModal, isAdminAuthenticated } = usePhotos();
-  const { isGuardianAuthenticated, currentAthlete, setCoachManagerModalOpen } = useCommunity();
+  const { isGuardianAuthenticated, currentAthlete } = useCommunity();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
@@ -85,16 +85,21 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
+  // Streamlined 6 primary navigation items for optimal spacing and clean desktop layout
   const navLinks: Array<{ name: string; page: 'home' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade'; hash?: string }> = [
-    { name: 'Home', page: 'home', hash: '#home' },
-    { name: 'Nossa História', page: 'home', hash: '#sobre' },
-    { name: 'Modalidades', page: 'home', hash: '#modalidades' },
+    { name: 'Início', page: 'home', hash: '#home' },
     { name: 'Nossa Equipe', page: 'equipe' },
     { name: 'Calendário 2026', page: 'calendario' },
-    { name: 'Galeria de Fotos', page: 'galeria' },
+    { name: 'Galeria', page: 'galeria' },
     { name: 'Comunidade & Notícias', page: 'comunidade' },
     { name: 'FAQ', page: 'faq' },
-    { name: 'Contato', page: 'home', hash: '#contato' },
+  ];
+
+  // Quick jump sub-sections on Home
+  const homeQuickSections = [
+    { label: 'Nossa História', hash: '#sobre' },
+    { label: 'Modalidades S14', hash: '#modalidades' },
+    { label: 'Contato & Local', hash: '#contato' },
   ];
 
   return (
@@ -156,19 +161,18 @@ export const Navbar: React.FC<NavbarProps> = ({
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          {/* Logo */}
           {/* Brand / Logo Link */}
           <button
             type="button"
             onClick={() => handleNavClick('home', '#home')}
             id="nav-logo-link"
-            className="flex items-center gap-2 group transition-transform duration-200 hover:scale-[1.02] cursor-pointer text-left"
+            className="flex items-center gap-2 group transition-transform duration-200 hover:scale-[1.02] cursor-pointer text-left shrink-0"
             title="ACEDEP Paradesporto"
           >
-            <Logo variant="horizontal" className="h-12 md:h-14" />
+            <Logo variant="horizontal" className="h-11 md:h-13" />
           </button>
 
-          {/* Desktop Nav Items */}
+          {/* Desktop Nav Items (Streamlined 6 items) */}
           <div className="hidden lg:flex items-center space-x-1 xl:space-x-2">
             {navLinks.map((link) => {
               const isCurrent = (currentPage === link.page && (!link.hash || activeSection === link.hash.replace('#', '')));
@@ -179,9 +183,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   type="button"
                   onClick={() => handleNavClick(link.page, link.hash)}
                   id={`nav-link-${link.name.toLowerCase().replace(/\s+/g, '-')}`}
-                  className={`px-3 py-2 text-xs xl:text-sm font-semibold tracking-wide rounded-md transition-all duration-200 cursor-pointer ${
+                  className={`px-3 py-2 text-xs xl:text-sm font-semibold tracking-wide rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap ${
                     isCurrent
-                      ? 'text-[#d4af37] bg-white/10 shadow-inner'
+                      ? 'text-[#d4af37] bg-white/10 shadow-inner font-bold'
                       : 'text-slate-200 hover:text-white hover:bg-white/5'
                   }`}
                 >
@@ -197,7 +201,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-portal-responsavel-nav"
               onClick={onOpenMemberPortal}
-              className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold border transition-all duration-200 flex items-center gap-2 cursor-pointer ${
+              className={`px-3 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all duration-200 flex items-center gap-2 cursor-pointer ${
                 isGuardianAuthenticated
                   ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 shadow-md'
                   : 'bg-[#0f284a] hover:bg-[#163866] text-[#f3e5ab] border-[#1e3a5f] hover:border-[#d4af37]'
@@ -213,21 +217,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </button>
 
+            {/* Seja um Apoiador Button */}
             <button
               id="btn-seja-apoiador-nav"
               onClick={onOpenSupportModal}
-              className="relative group overflow-hidden rounded-xl bg-gradient-to-r from-[#d4af37] via-[#e5c058] to-[#c49e29] px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-[#060e1c] shadow-lg shadow-[#d4af37]/20 hover:shadow-[#d4af37]/40 transition-all duration-200 active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="relative group overflow-hidden rounded-xl bg-gradient-to-r from-[#d4af37] via-[#e5c058] to-[#c49e29] px-3.5 sm:px-4.5 py-2 text-xs sm:text-sm font-bold text-[#060e1c] shadow-lg shadow-[#d4af37]/20 hover:shadow-[#d4af37]/40 transition-all duration-200 active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               <HeartHandshake className="w-4 h-4 text-[#060e1c] group-hover:scale-110 transition-transform duration-200" />
               <span className="hidden sm:inline">Seja um Apoiador</span>
               <span className="sm:hidden">Apoiar</span>
             </button>
 
-            {/* Mobile menu button */}
+            {/* Mobile menu toggle */}
             <button
               id="btn-mobile-menu-toggle"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-md text-slate-300 hover:text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[#d4af37] cursor-pointer"
+              className="lg:hidden p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[#d4af37] cursor-pointer"
               aria-label="Abrir menu principal"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -240,10 +245,14 @@ export const Navbar: React.FC<NavbarProps> = ({
       {mobileMenuOpen && (
         <div 
           id="mobile-drawer-menu"
-          className="lg:hidden bg-[#060e1c]/98 border-b border-[#1e3a5f] backdrop-blur-xl px-4 pt-3 pb-6 shadow-2xl transition-all animate-fadeIn"
+          className="lg:hidden bg-[#060e1c]/98 border-b border-[#1e3a5f] backdrop-blur-xl px-4 pt-3 pb-6 shadow-2xl transition-all animate-fadeIn max-h-[85vh] overflow-y-auto"
         >
-          <div className="space-y-1 divide-y divide-white/5">
-            <div className="py-2 space-y-1">
+          <div className="space-y-3">
+            {/* Primary Navigation Links */}
+            <div className="py-1 space-y-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 px-3 pb-1 block">
+                Navegação Principal
+              </span>
               {navLinks.map((link) => {
                 const isCurrent = (currentPage === link.page && (!link.hash || activeSection === link.hash.replace('#', '')));
 
@@ -252,9 +261,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     key={link.name}
                     type="button"
                     onClick={() => handleNavClick(link.page, link.hash)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer text-left ${
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer text-left ${
                       isCurrent
-                        ? 'text-[#d4af37] bg-white/10'
+                        ? 'text-[#d4af37] bg-white/10 font-bold'
                         : 'text-slate-200 hover:text-[#d4af37] hover:bg-white/5'
                     }`}
                   >
@@ -265,7 +274,29 @@ export const Navbar: React.FC<NavbarProps> = ({
               })}
             </div>
 
-            <div className="pt-4 space-y-3">
+            {/* Home Sections Quick Access */}
+            <div className="pt-2 border-t border-white/5">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[#d4af37] px-3 pb-1.5 flex items-center gap-1.5">
+                <Compass className="w-3.5 h-3.5" />
+                <span>Seções da Home</span>
+              </span>
+              <div className="grid grid-cols-1 gap-1 px-1">
+                {homeQuickSections.map((sec) => (
+                  <button
+                    key={sec.label}
+                    type="button"
+                    onClick={() => handleNavClick('home', sec.hash)}
+                    className="w-full text-left px-3 py-2 rounded-lg text-xs text-slate-300 hover:text-[#f3e5ab] hover:bg-white/5 flex items-center justify-between"
+                  >
+                    <span>{sec.label}</span>
+                    <span className="text-[10px] text-slate-400">Ir para seção ↓</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 border-t border-white/10 space-y-2.5">
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
@@ -305,4 +336,3 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
-

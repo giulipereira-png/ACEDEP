@@ -202,6 +202,7 @@ export interface AthleteRecord {
   swimmingMetrics: SwimmingMetric[];
   medicalDocuments: MedicalDocument[];
   documents?: AthleteDocumentItem[]; // Documentação completa com upload e download
+  documentStatus?: 'completo' | 'pendente' | 'em_analise' | 'atencao';
   coachNotes: CoachNote[];
   createdAt: string;
 }
