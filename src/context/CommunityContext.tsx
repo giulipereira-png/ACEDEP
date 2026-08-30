@@ -756,12 +756,28 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     metricData: Omit<SwimmingMetric, 'id'>,
     notifyGuardianEmail = false
   ): Promise<boolean> => {
-    const target = athletes.find((a) => a.id === athleteId);
+    let target = athletes.find((a) => a.id === athleteId);
+    if (!target) {
+      try {
+        const snap = await getDoc(doc(db, 'athletes', athleteId));
+        if (snap.exists()) {
+          target = { ...snap.data(), id: snap.id } as AthleteRecord;
+        }
+      } catch (err) {
+        console.error('Error fetching athlete for metric:', err);
+      }
+    }
     if (!target) return false;
 
     const newMetric: SwimmingMetric = {
-      ...metricData,
-      id: `metric-${Date.now()}`,
+      id: `metric-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      event: metricData.event || '50m Livre',
+      bestTime: metricData.bestTime || '00:30.00',
+      evolution: metricData.evolution || 'Oficial',
+      dateRecorded: metricData.dateRecorded || new Date().toLocaleDateString('pt-BR'),
+      stageName: metricData.stageName || 'Centro Paralímpico Brasileiro',
+      laneType: metricData.laneType || '50m',
+      ...(metricData.previousTime ? { previousTime: metricData.previousTime } : {})
     };
 
     const updatedMetrics = [newMetric, ...(target.swimmingMetrics || [])];
@@ -787,6 +803,16 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteSwimmingMetric = async (athleteId: string, metricId: string): Promise<boolean> => {
     let target = athletes.find((a) => a.id === athleteId);
+    if (!target) {
+      try {
+        const snap = await getDoc(doc(db, 'athletes', athleteId));
+        if (snap.exists()) {
+          target = { ...snap.data(), id: snap.id } as AthleteRecord;
+        }
+      } catch (err) {
+        console.error('Error fetching athlete for metric delete:', err);
+      }
+    }
     if (!target) return false;
 
     const updatedMetrics = (target.swimmingMetrics || []).filter((m) => m.id !== metricId);
@@ -803,11 +829,25 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     notifyGuardianEmail = false
   ): Promise<boolean> => {
     let target = athletes.find((a) => a.id === athleteId);
+    if (!target) {
+      try {
+        const snap = await getDoc(doc(db, 'athletes', athleteId));
+        if (snap.exists()) {
+          target = { ...snap.data(), id: snap.id } as AthleteRecord;
+        }
+      } catch (err) {
+        console.error('Error fetching athlete for note:', err);
+      }
+    }
     if (!target) return false;
 
     const newNote: CoachNote = {
-      ...noteData,
-      id: `note-${Date.now()}`,
+      id: `note-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: noteData.title || 'Orientação Técnica da Piscina',
+      text: noteData.text || '',
+      coachName: noteData.coachName || 'Prof. Leonardo Ramos',
+      date: noteData.date || new Date().toLocaleDateString('pt-BR'),
+      importance: noteData.importance || 'destaque',
     };
 
     const updatedNotes = [newNote, ...(target.coachNotes || [])];
@@ -833,6 +873,16 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteCoachNote = async (athleteId: string, noteId: string): Promise<boolean> => {
     let target = athletes.find((a) => a.id === athleteId);
+    if (!target) {
+      try {
+        const snap = await getDoc(doc(db, 'athletes', athleteId));
+        if (snap.exists()) {
+          target = { ...snap.data(), id: snap.id } as AthleteRecord;
+        }
+      } catch (err) {
+        console.error('Error fetching athlete for note delete:', err);
+      }
+    }
     if (!target) return false;
 
     const updatedNotes = (target.coachNotes || []).filter((n) => n.id !== noteId);

@@ -37,7 +37,8 @@ import {
   Database,
   Users,
   MapPin,
-  History
+  History,
+  Phone
 } from 'lucide-react';
 import { useCommunity } from '../context/CommunityContext';
 import { usePhotos, DEFAULT_PHOTOS, GalleryPhotoItem } from '../context/PhotosContext';
@@ -142,6 +143,7 @@ export const AdminCoachPortalModal: React.FC = () => {
   const [isSavingAthlete, setIsSavingAthlete] = useState(false);
   const [isSavingEditAthlete, setIsSavingEditAthlete] = useState(false);
   const [athleteSuccess, setAthleteSuccess] = useState('');
+  const [formError, setFormError] = useState('');
   const [copiedAccessCard, setCopiedAccessCard] = useState<string | null>(null);
   const [selectedAthleteForDocs, setSelectedAthleteForDocs] = useState<AthleteRecord | null>(null);
 
@@ -157,6 +159,8 @@ export const AdminCoachPortalModal: React.FC = () => {
   const [timeNotifyEmail, setTimeNotifyEmail] = useState(true);
   const [isSavingTime, setIsSavingTime] = useState(false);
   const [timeSuccess, setTimeSuccess] = useState('');
+  const [timeError, setTimeError] = useState('');
+  const [deletingTimeId, setDeletingTimeId] = useState<string | null>(null);
 
   // Form Coach Note State
   const [selectedAthleteIdForNote, setSelectedAthleteIdForNote] = useState(athletes[0]?.id || '');
@@ -166,6 +170,9 @@ export const AdminCoachPortalModal: React.FC = () => {
   const [noteNotifyEmail, setNoteNotifyEmail] = useState(true);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteSuccess, setNoteSuccess] = useState('');
+  const [noteError, setNoteError] = useState('');
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+  const [deletingAthleteId, setDeletingAthleteId] = useState<string | null>(null);
 
   // Form Annual Event (Agenda 2026) State
   const [eventTitle, setEventTitle] = useState('');
@@ -190,6 +197,8 @@ export const AdminCoachPortalModal: React.FC = () => {
   const [broadcastSpecificAthleteId, setBroadcastSpecificAthleteId] = useState(athletes[0]?.id || '');
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [broadcastSuccess, setBroadcastSuccess] = useState('');
+  const [confirmDeleteAthleteId, setConfirmDeleteAthleteId] = useState<string | null>(null);
+  const [isDeletingAthleteId, setIsDeletingAthleteId] = useState<string | null>(null);
 
   // Photo & Gallery Manager States
   const [selectedPhotoId, setSelectedPhotoId] = useState<string>('about_team');
@@ -483,7 +492,7 @@ export const AdminCoachPortalModal: React.FC = () => {
 
     // Check size limit (under 3MB)
     if (file.size > 3 * 1024 * 1024) {
-      alert('Por favor, escolha uma imagem com tamanho menor que 3MB.');
+      setFormError('Por favor, escolha uma imagem com tamanho menor que 3MB.');
       return;
     }
 
@@ -644,77 +653,117 @@ export const AdminCoachPortalModal: React.FC = () => {
   // Handle Add Swimming Metric
   const handleAddTime = async (e: React.FormEvent) => {
     e.preventDefault();
+    setTimeError('');
+    setTimeSuccess('');
+
     const targetAthleteId = selectedAthleteIdForTime || athletes[0]?.id;
-    if (!targetAthleteId || !metricTime.trim()) {
-      alert('Por favor, selecione um atleta e informe o tempo cronometrado.');
+    if (!targetAthleteId) {
+      setTimeError('Nenhum atleta cadastrado. Cadastre um atleta primeiro.');
+      return;
+    }
+
+    if (!metricTime.trim()) {
+      setTimeError('Por favor, informe o tempo cronometrado (Ex: 00:29.50).');
       return;
     }
 
     setIsSavingTime(true);
     const targetAthlete = athletes.find((a) => a.id === targetAthleteId);
-    const success = await addSwimmingMetric(
-      targetAthleteId, 
-      {
-        event: metricEvent,
-        bestTime: metricTime.trim(),
-        evolution: metricEvolution.trim() || 'Oficial',
-        dateRecorded: new Date().toLocaleDateString('pt-BR'),
-        stageName: metricStage.trim() || 'Centro Paralímpico Brasileiro',
-        laneType: metricLaneType,
-      },
-      timeNotifyEmail
-    );
-    setIsSavingTime(false);
+    try {
+      const success = await addSwimmingMetric(
+        targetAthleteId, 
+        {
+          event: metricEvent,
+          bestTime: metricTime.trim(),
+          evolution: metricEvolution.trim() || 'Oficial',
+          dateRecorded: new Date().toLocaleDateString('pt-BR'),
+          stageName: metricStage.trim() || 'Centro Paralímpico Brasileiro',
+          laneType: metricLaneType,
+        },
+        timeNotifyEmail
+      );
+      setIsSavingTime(false);
 
-    if (success) {
-      setTimeSuccess(`Tempo lançado com sucesso na ficha de ${targetAthlete?.name || 'atleta'}! ${timeNotifyEmail ? '📧 Notificação enviada por e-mail.' : ''}`);
-      setMetricTime('');
-      setMetricEvolution('');
-      setTimeout(() => setTimeSuccess(''), 5000);
+      if (success) {
+        setTimeSuccess(`Tempo lançado com sucesso na ficha de ${targetAthlete?.name || 'atleta'}! ${timeNotifyEmail ? '📧 Notificação enviada por e-mail.' : ''}`);
+        setMetricTime('');
+        setMetricEvolution('');
+        setTimeout(() => setTimeSuccess(''), 5000);
+      } else {
+        setTimeError('Erro ao gravar tempo. Verifique a conexão com o banco.');
+      }
+    } catch (err: any) {
+      setIsSavingTime(false);
+      setTimeError(err?.message || 'Erro inesperado ao salvar tempo.');
     }
   };
 
   const handleDeleteTime = async (athleteId: string, metricId: string) => {
-    if (window.confirm('Deseja realmente remover esta cronometragem?')) {
+    setDeletingTimeId(metricId);
+    try {
       await deleteSwimmingMetric(athleteId, metricId);
+      setTimeSuccess('Cronometragem removida com sucesso!');
+      setTimeout(() => setTimeSuccess(''), 4000);
+    } finally {
+      setDeletingTimeId(null);
     }
   };
 
   // Handle Add Coach Note
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNoteError('');
+    setNoteSuccess('');
+
     const targetAthleteId = selectedAthleteIdForNote || athletes[0]?.id;
-    if (!targetAthleteId || !noteText.trim()) {
-      alert('Por favor, selecione um atleta e escreva o recado.');
+    if (!targetAthleteId) {
+      setNoteError('Nenhum atleta cadastrado. Cadastre um atleta primeiro.');
+      return;
+    }
+
+    if (!noteText.trim()) {
+      setNoteError('Por favor, escreva o recado/orientação técnica para o responsável.');
       return;
     }
 
     setIsSavingNote(true);
     const targetAthlete = athletes.find((a) => a.id === targetAthleteId);
-    const success = await addCoachNote(
-      targetAthleteId, 
-      {
-        title: noteTitle.trim() || 'Orientação Técnica da Piscina',
-        text: noteText.trim(),
-        coachName: noteCoachName.trim() || 'Prof. Leonardo Ramos',
-        date: new Date().toLocaleDateString('pt-BR'),
-        importance: 'destaque',
-      },
-      noteNotifyEmail
-    );
-    setIsSavingNote(false);
+    try {
+      const success = await addCoachNote(
+        targetAthleteId, 
+        {
+          title: noteTitle.trim() || 'Orientação Técnica da Piscina',
+          text: noteText.trim(),
+          coachName: noteCoachName.trim() || 'Prof. Leonardo Ramos',
+          date: new Date().toLocaleDateString('pt-BR'),
+          importance: 'destaque',
+        },
+        noteNotifyEmail
+      );
+      setIsSavingNote(false);
 
-    if (success) {
-      setNoteSuccess(`Recado enviado ao responsável de ${targetAthlete?.name || 'atleta'}! ${noteNotifyEmail ? '📧 Notificação gravada e enviada por e-mail.' : ''}`);
-      setNoteTitle('');
-      setNoteText('');
-      setTimeout(() => setNoteSuccess(''), 5000);
+      if (success) {
+        setNoteSuccess(`Recado enviado ao responsável de ${targetAthlete?.name || 'atleta'}! ${noteNotifyEmail ? '📧 Notificação gravada e enviada por e-mail.' : ''}`);
+        setNoteTitle('');
+        setNoteText('');
+        setTimeout(() => setNoteSuccess(''), 5000);
+      } else {
+        setNoteError('Erro ao gravar recado no banco de dados. Tente novamente.');
+      }
+    } catch (err: any) {
+      setIsSavingNote(false);
+      setNoteError(err?.message || 'Erro inesperado ao enviar recado.');
     }
   };
 
   const handleDeleteNote = async (athleteId: string, noteId: string) => {
-    if (window.confirm('Deseja realmente remover este recado?')) {
+    setDeletingNoteId(noteId);
+    try {
       await deleteCoachNote(athleteId, noteId);
+      setNoteSuccess('Recado removido com sucesso!');
+      setTimeout(() => setNoteSuccess(''), 4000);
+    } finally {
+      setDeletingNoteId(null);
     }
   };
 
@@ -722,7 +771,7 @@ export const AdminCoachPortalModal: React.FC = () => {
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventTitle.trim() || !eventDate.trim()) {
-      alert('Por favor, informe o título e a data do evento da agenda.');
+      setEventSuccess('');
       return;
     }
 
@@ -791,9 +840,7 @@ export const AdminCoachPortalModal: React.FC = () => {
   };
 
   const handleDeleteEvent = async (id: string) => {
-    if (window.confirm('Deseja realmente remover este evento da Agenda 2026?')) {
-      await deleteAnnualEvent(id);
-    }
+    await deleteAnnualEvent(id);
   };
 
   // Handle Manual Email Broadcast Dispatch
@@ -1469,6 +1516,13 @@ export const AdminCoachPortalModal: React.FC = () => {
                   </div>
                 )}
 
+                {formError && (
+                  <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-xs text-red-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   disabled={isSavingAthlete}
@@ -1526,23 +1580,47 @@ export const AdminCoachPortalModal: React.FC = () => {
                               <h6 className="font-bold text-white text-sm truncate">{athlete.name}</h6>
                               <div className="flex items-center gap-1">
                                 <button
+                                  type="button"
                                   onClick={() => setEditingAthlete(athlete)}
-                                  className="p-1 text-slate-400 hover:text-[#d4af37] transition-colors cursor-pointer"
+                                  className="p-1.5 text-slate-400 hover:text-[#d4af37] transition-colors cursor-pointer rounded-lg hover:bg-white/5"
                                   title="Editar atleta e foto"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
-                                <button
-                                  onClick={() => {
-                                    if (confirm(`Tem certeza que deseja excluir o cadastro de ${athlete.name}?`)) {
-                                      deleteAthleteRecord(athlete.id);
-                                    }
-                                  }}
-                                  className="p-1 text-red-400 hover:text-red-300 transition-colors cursor-pointer"
-                                  title="Remover atleta"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                {confirmDeleteAthleteId === athlete.id ? (
+                                  <div className="flex items-center gap-1 bg-red-950/80 border border-red-500/50 px-1.5 py-0.5 rounded-lg">
+                                    <span className="text-[10px] text-red-300 font-bold">Excluir?</span>
+                                    <button
+                                      type="button"
+                                      disabled={isDeletingAthleteId === athlete.id}
+                                      onClick={async () => {
+                                        setIsDeletingAthleteId(athlete.id);
+                                        await deleteAthleteRecord(athlete.id);
+                                        setIsDeletingAthleteId(null);
+                                        setConfirmDeleteAthleteId(null);
+                                      }}
+                                      className="text-[10px] bg-red-600 hover:bg-red-500 text-white font-bold px-1.5 py-0.5 rounded cursor-pointer disabled:opacity-50"
+                                    >
+                                      {isDeletingAthleteId === athlete.id ? '...' : 'Sim'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteAthleteId(null)}
+                                      className="text-[10px] text-slate-400 hover:text-white px-1 cursor-pointer"
+                                    >
+                                      Não
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteAthleteId(athlete.id)}
+                                    className="p-1.5 text-slate-400 hover:text-red-400 transition-colors cursor-pointer rounded-lg hover:bg-red-500/10"
+                                    title="Remover atleta"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </div>
                             <p className="text-[11px] text-slate-300 truncate">
@@ -1964,18 +2042,23 @@ export const AdminCoachPortalModal: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Form to Add New RP Metric */}
                 <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
-                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Timer className="w-4 h-4 text-[#d4af37]" />
-                    Lançar Nova Marca / Cronometragem de Natação
-                  </h4>
+                  <div className="border-b border-white/10 pb-3">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Timer className="w-4 h-4 text-[#d4af37]" />
+                      Lançar Nova Marca / Cronometragem de Natação
+                    </h4>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Grave tempos oficiais e treinos que sincronizam no portal do atleta e disparam e-mail aos pais.
+                    </p>
+                  </div>
 
                   <form onSubmit={handleAddTime} className="space-y-4">
                     <div>
                       <label className="text-xs font-semibold text-slate-300 block mb-1">Selecione o Nadador *</label>
                       <select
-                        value={selectedAthleteIdForTime}
+                        value={selectedAthleteIdForTime || (athletes[0]?.id || '')}
                         onChange={(e) => setSelectedAthleteIdForTime(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
                       >
                         {athletes.map((a) => (
                           <option key={a.id} value={a.id}>{a.name} (Classe S14)</option>
@@ -1983,28 +2066,46 @@ export const AdminCoachPortalModal: React.FC = () => {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-300 block mb-1">Prova Aquática *</label>
-                        <select
-                          value={metricEvent}
-                          onChange={(e) => setMetricEvent(e.target.value)}
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
-                        >
-                          <option value="50m Livre">50m Livre</option>
-                          <option value="100m Livre">100m Livre</option>
-                          <option value="200m Livre">200m Livre</option>
-                          <option value="400m Livre">400m Livre</option>
-                          <option value="50m Costas">50m Costas</option>
-                          <option value="100m Costas">100m Costas</option>
-                          <option value="50m Peito">50m Peito</option>
-                          <option value="100m Peito">100m Peito</option>
-                          <option value="50m Borboleta">50m Borboleta</option>
-                          <option value="100m Borboleta">100m Borboleta</option>
-                          <option value="200m Medley">200m Medley</option>
-                        </select>
-                      </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Prova Aquática *</label>
+                      <select
+                        value={metricEvent}
+                        onChange={(e) => setMetricEvent(e.target.value)}
+                        className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                      >
+                        <option value="50m Livre">50m Livre</option>
+                        <option value="100m Livre">100m Livre</option>
+                        <option value="200m Livre">200m Livre</option>
+                        <option value="400m Livre">400m Livre</option>
+                        <option value="50m Costas">50m Costas</option>
+                        <option value="100m Costas">100m Costas</option>
+                        <option value="50m Peito">50m Peito</option>
+                        <option value="100m Peito">100m Peito</option>
+                        <option value="50m Borboleta">50m Borboleta</option>
+                        <option value="100m Borboleta">100m Borboleta</option>
+                        <option value="200m Medley">200m Medley</option>
+                      </select>
 
+                      {/* Quick Chips for Common Events */}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {['50m Livre', '100m Livre', '50m Costas', '50m Peito', '50m Borboleta', '200m Medley'].map((evt) => (
+                          <button
+                            key={evt}
+                            type="button"
+                            onClick={() => setMetricEvent(evt)}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+                              metricEvent === evt
+                                ? 'bg-[#d4af37] text-black font-bold'
+                                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                            }`}
+                          >
+                            {evt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs font-semibold text-slate-300 block mb-1">Tempo Cronometrado *</label>
                         <input
@@ -2013,12 +2114,10 @@ export const AdminCoachPortalModal: React.FC = () => {
                           value={metricTime}
                           onChange={(e) => setMetricTime(e.target.value)}
                           placeholder="Ex: 00:29.40"
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                          className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
                         />
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="text-xs font-semibold text-slate-300 block mb-1">Evolução / Marca</label>
                         <input
@@ -2026,10 +2125,12 @@ export const AdminCoachPortalModal: React.FC = () => {
                           value={metricEvolution}
                           onChange={(e) => setMetricEvolution(e.target.value)}
                           placeholder="Ex: -0.40s (Novo RP)"
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                          className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
                         />
                       </div>
+                    </div>
 
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs font-semibold text-slate-300 block mb-1">Competição / Etapa</label>
                         <input
@@ -2037,7 +2138,7 @@ export const AdminCoachPortalModal: React.FC = () => {
                           value={metricStage}
                           onChange={(e) => setMetricStage(e.target.value)}
                           placeholder="Ex: Circuito Paralímpico SP"
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                          className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
                         />
                       </div>
 
@@ -2046,15 +2147,15 @@ export const AdminCoachPortalModal: React.FC = () => {
                         <select
                           value={metricLaneType}
                           onChange={(e) => setMetricLaneType(e.target.value as '25m' | '50m')}
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                          className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
                         >
-                          <option value="50m">50m (Longa)</option>
-                          <option value="25m">25m (Curta)</option>
+                          <option value="50m">50m (Olímpica / Longa)</option>
+                          <option value="25m">25m (Semi-Olímpica / Curta)</option>
                         </select>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-slate-300">
+                    <div className="flex items-center gap-2 text-xs text-slate-300 pt-1">
                       <input
                         type="checkbox"
                         id="notifyTimeEmail"
@@ -2067,21 +2168,30 @@ export const AdminCoachPortalModal: React.FC = () => {
                       </label>
                     </div>
 
-                    {timeSuccess && (
-                      <p className="text-xs text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        <span>{timeSuccess}</span>
-                      </p>
+                    {timeError && (
+                      <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-xs text-red-300 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{timeError}</span>
+                      </div>
                     )}
 
-                    <button
-                      type="submit"
-                      disabled={isSavingTime}
-                      className="px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {isSavingTime ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Timer className="w-3.5 h-3.5" />}
-                      <span>{isSavingTime ? 'Gravando no Banco...' : 'Salvar Novo Tempo (RP)'}</span>
-                    </button>
+                    {timeSuccess && (
+                      <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-xs text-emerald-300 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>{timeSuccess}</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        disabled={isSavingTime}
+                        className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#d4af37] text-[#060e1c] font-black text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-[#d4af37]/10"
+                      >
+                        {isSavingTime ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Timer className="w-4 h-4" />}
+                        <span>{isSavingTime ? 'Gravando no Banco de Dados...' : 'Salvar Novo Tempo (RP)'}</span>
+                      </button>
+                    </div>
                   </form>
                 </div>
 
@@ -2106,17 +2216,19 @@ export const AdminCoachPortalModal: React.FC = () => {
 
                         <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
                           {metrics.length === 0 ? (
-                            <div className="p-6 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-slate-400">
-                              Nenhum tempo RP lançado ainda para este atleta. Use o formulário ao lado para cadastrar.
+                            <div className="p-8 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-slate-400 space-y-2">
+                              <Timer className="w-8 h-8 mx-auto text-slate-600" />
+                              <p>Nenhum tempo RP lançado ainda para este atleta.</p>
+                              <p className="text-[11px] text-slate-500">Use o formulário ao lado para cadastrar a primeira marca oficial.</p>
                             </div>
                           ) : (
                             metrics.map((m) => (
                               <div
                                 key={m.id}
-                                className="p-3 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between gap-3 text-xs hover:border-white/10 transition-all"
+                                className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between gap-3 text-xs hover:border-white/10 transition-all"
                               >
                                 <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-bold text-white">{m.event}</span>
                                     <span className="font-mono font-black text-[#d4af37] text-sm">{m.bestTime}</span>
                                     {m.evolution && (
@@ -2125,7 +2237,7 @@ export const AdminCoachPortalModal: React.FC = () => {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                  <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap">
                                     <span>{m.stageName || 'Centro Paralímpico'}</span>
                                     <span>•</span>
                                     <span>Piscina {m.laneType || '50m'}</span>
@@ -2136,11 +2248,16 @@ export const AdminCoachPortalModal: React.FC = () => {
 
                                 <button
                                   type="button"
+                                  disabled={deletingTimeId === m.id}
                                   onClick={() => currentSelectedAthlete && handleDeleteTime(currentSelectedAthlete.id, m.id)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                                  className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
                                   title="Remover tempo"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  {deletingTimeId === m.id ? (
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-red-400" />
+                                  ) : (
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  )}
                                 </button>
                               </div>
                             ))
@@ -2425,18 +2542,23 @@ export const AdminCoachPortalModal: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Form Send Coach Note */}
                 <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
-                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-[#d4af37]" />
-                    Enviar Feedback / Orientação Privada ao Responsável
-                  </h4>
+                  <div className="border-b border-white/10 pb-3">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-[#d4af37]" />
+                      Enviar Feedback / Orientação Privada ao Responsável
+                    </h4>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Comunique-se diretamente com os pais e responsáveis sobre atestados, evolução técnica e recomendações.
+                    </p>
+                  </div>
 
                   <form onSubmit={handleAddNote} className="space-y-4">
                     <div>
                       <label className="text-xs font-semibold text-slate-300 block mb-1">Selecione o Nadador *</label>
                       <select
-                        value={selectedAthleteIdForNote}
+                        value={selectedAthleteIdForNote || (athletes[0]?.id || '')}
                         onChange={(e) => setSelectedAthleteIdForNote(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
                       >
                         {athletes.map((a) => (
                           <option key={a.id} value={a.id}>
@@ -2444,6 +2566,43 @@ export const AdminCoachPortalModal: React.FC = () => {
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    {/* Quick message template suggestions */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-400 block mb-1.5">Modelos Rápidos de Mensagem:</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {[
+                          {
+                            title: 'Evolução Técnica no Treino',
+                            text: 'Parabéns pela dedicação e excelente evolução técnica na braçada e respiração bilateral nos treinos desta semana no CPB!',
+                          },
+                          {
+                            title: 'Lembrete de Atestado Médico',
+                            text: 'Solicitamos aos responsáveis o envio do atestado médico/cardiológico atualizado para validação na federação e controle de saúde.',
+                          },
+                          {
+                            title: 'Convocação para Competição',
+                            text: 'O atleta está convocado para representar a ACEDEP na próxima etapa oficial. Favor verificar horário de aquecimento e documentação.',
+                          },
+                          {
+                            title: 'Orientações de Hidratação e Descanso',
+                            text: 'Recomendamos manter hidratação constante antes do treino e alimentação balanceada rica em carboidratos complexos.',
+                          },
+                        ].map((tpl, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => {
+                              setNoteTitle(tpl.title);
+                              setNoteText(tpl.text);
+                            }}
+                            className="p-2 rounded-xl bg-white/5 border border-white/5 hover:border-[#d4af37]/40 hover:bg-[#d4af37]/5 text-left text-[11px] text-slate-300 hover:text-white transition-all cursor-pointer truncate"
+                          >
+                            <span className="font-bold text-[#d4af37] block truncate">⚡ {tpl.title}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2454,7 +2613,7 @@ export const AdminCoachPortalModal: React.FC = () => {
                           value={noteTitle}
                           onChange={(e) => setNoteTitle(e.target.value)}
                           placeholder="Ex: Excelente evolução na respiração bilateral"
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                          className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
                         />
                       </div>
 
@@ -2465,7 +2624,7 @@ export const AdminCoachPortalModal: React.FC = () => {
                           value={noteCoachName}
                           onChange={(e) => setNoteCoachName(e.target.value)}
                           placeholder="Ex: Prof. Leonardo Ramos"
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                          className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
                         />
                       </div>
                     </div>
@@ -2478,11 +2637,11 @@ export const AdminCoachPortalModal: React.FC = () => {
                         value={noteText}
                         onChange={(e) => setNoteText(e.target.value)}
                         placeholder="Escreva a orientação para os pais sobre o treino aquático, atestados ou comportamento..."
-                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37] resize-none"
+                        className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37] resize-none leading-relaxed"
                       />
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-slate-300">
+                    <div className="flex items-center gap-2 text-xs text-slate-300 pt-1">
                       <input
                         type="checkbox"
                         id="notifyNoteEmail"
@@ -2495,42 +2654,70 @@ export const AdminCoachPortalModal: React.FC = () => {
                       </label>
                     </div>
 
-                    {noteSuccess && (
-                      <p className="text-xs text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        <span>{noteSuccess}</span>
-                      </p>
+                    {noteError && (
+                      <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-xs text-red-300 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{noteError}</span>
+                      </div>
                     )}
 
-                    <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                    {noteSuccess && (
+                      <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-xs text-emerald-300 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>{noteSuccess}</span>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2.5 pt-2">
                       <button
                         type="submit"
                         disabled={isSavingNote}
-                        className="px-5 py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-bold text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                        className="px-6 py-3 rounded-xl bg-[#d4af37] text-[#060e1c] font-black text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-[#d4af37]/10"
                       >
-                        {isSavingNote ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                        <span>{isSavingNote ? 'Enviando...' : 'Gravar Recado no Portal'}</span>
+                        {isSavingNote ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        <span>{isSavingNote ? 'Enviando ao Banco...' : 'Gravar Recado no Portal'}</span>
                       </button>
 
-                      {/* Quick Direct Email Button */}
+                      {/* Direct WhatsApp and Gmail Buttons */}
                       {(() => {
                         const target = athletes.find((a) => a.id === (selectedAthleteIdForNote || athletes[0]?.id));
-                        if (!target || !target.guardianEmail) return null;
+                        if (!target) return null;
+                        const sub = noteTitle || `Recado do Treinador ACEDEP - Atleta ${target.name}`;
+                        const body = `Olá ${target.guardianName}!\n\nSegue recado da comissão técnica da ACEDEP sobre ${target.name}:\n\n"${noteText || '...'}"\n\nAtenciosamente,\n${noteCoachName}`;
+
                         return (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const sub = noteTitle || `Recado do Treinador - Atleta ${target.name}`;
-                              const body = `Olá ${target.guardianName},\n\nSegue recado do treinador (${noteCoachName}) sobre o atleta ${target.name}:\n\n"${noteText || '...'}"\n\nAtenciosamente,\nComissão Técnica ACEDEP`;
-                              const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(target.guardianEmail)}&su=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
-                              window.open(gmailUrl, '_blank');
-                            }}
-                            className="px-3.5 py-2.5 rounded-xl bg-red-600/20 text-red-300 border border-red-500/30 text-xs font-bold hover:bg-red-600/30 transition-all cursor-pointer flex items-center gap-1.5"
-                            title="Abrir diretamente no Gmail"
-                          >
-                            <Mail className="w-3.5 h-3.5" />
-                            <span>Abrir no Gmail</span>
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {target.guardianPhone && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const cleanPhone = target.guardianPhone.replace(/\D/g, '');
+                                  const waUrl = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(body)}`;
+                                  window.open(waUrl, '_blank');
+                                }}
+                                className="px-3.5 py-3 rounded-xl bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+                                title="Enviar via WhatsApp"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                                <span>WhatsApp</span>
+                              </button>
+                            )}
+
+                            {target.guardianEmail && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(target.guardianEmail)}&su=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
+                                  window.open(gmailUrl, '_blank');
+                                }}
+                                className="px-3.5 py-3 rounded-xl bg-red-600/20 text-red-300 border border-red-500/30 text-xs font-bold hover:bg-red-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+                                title="Abrir diretamente no Gmail"
+                              >
+                                <Mail className="w-3.5 h-3.5" />
+                                <span>Abrir no Gmail</span>
+                              </button>
+                            )}
+                          </div>
                         );
                       })()}
                     </div>
@@ -2558,8 +2745,10 @@ export const AdminCoachPortalModal: React.FC = () => {
 
                         <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
                           {notes.length === 0 ? (
-                            <div className="p-6 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-slate-400">
-                              Nenhum recado cadastrado ainda para este atleta. Use o formulário ao lado para enviar uma orientação.
+                            <div className="p-8 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-slate-400 space-y-2">
+                              <MessageSquare className="w-8 h-8 mx-auto text-slate-600" />
+                              <p>Nenhum recado cadastrado ainda para este atleta.</p>
+                              <p className="text-[11px] text-slate-500">Use o formulário ao lado para enviar uma orientação técnica ou aviso aos pais.</p>
                             </div>
                           ) : (
                             notes.map((n) => (
@@ -2576,14 +2765,19 @@ export const AdminCoachPortalModal: React.FC = () => {
                                   </div>
                                   <button
                                     type="button"
+                                    disabled={deletingNoteId === n.id}
                                     onClick={() => currentSelectedAthlete && handleDeleteNote(currentSelectedAthlete.id, n.id)}
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
                                     title="Remover recado"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    {deletingNoteId === n.id ? (
+                                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-red-400" />
+                                    ) : (
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    )}
                                   </button>
                                 </div>
-                                <p className="text-slate-300 bg-white/5 p-2.5 rounded-lg text-xs leading-relaxed">
+                                <p className="text-slate-300 bg-white/5 p-3 rounded-lg text-xs leading-relaxed border border-white/5">
                                   {n.text}
                                 </p>
                               </div>
