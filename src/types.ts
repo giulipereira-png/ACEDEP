@@ -112,15 +112,24 @@ export interface CommunityCheer {
   createdAt: string;
 }
 
+export type SwimmingStroke = 'Livre' | 'Costas' | 'Peito' | 'Borboleta' | 'Medley';
+
+export type DisabilityCategory = 'Deficiente Intelectual' | 'Autista' | 'Síndrome de Down';
+
 export interface SwimmingMetric {
   id: string;
   event: string; // ex: "50m Livre", "100m Livre", "50m Costas", "100m Peito", "50m Borboleta", "200m Medley"
+  stroke?: SwimmingStroke;
   bestTime: string; // ex: "00:31.40"
   previousTime?: string; // ex: "00:32.15"
   evolution?: string; // ex: "-0.75s"
   dateRecorded: string;
   stageName: string;
+  year?: string; // ex: "2026"
   laneType: '25m' | '50m';
+  isPersonalBest?: boolean;
+  comparedToChampionship?: string;
+  timeDiffSeconds?: number;
 }
 
 export type DocumentCategory = 
@@ -184,6 +193,7 @@ export interface AthleteRecord {
   photoUrl: string;
   birthDate: string;
   paralympicClass: string; // ex: "S14 / SB14 / SM14 - Deficiência Intelectual"
+  disabilityCategory?: 'Deficiente Intelectual' | 'Autista' | 'Síndrome de Down' | string;
   clubRegistration: string;
   cbdiRegistration?: string;
   guardianName: string;

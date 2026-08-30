@@ -284,7 +284,7 @@ export const Footer: React.FC<FooterProps> = ({
               1990 - 2026 ACEDEP - Associação Cultural Especial Paradesportiva Paulista. Todos os direitos reservados.
             </p>
             <p className="text-[11px] text-slate-400">
-              CNPJ: 62.984.321/0001-90 • Organização da Sociedade Civil sem Fins Lucrativos • São Paulo / SP
+              CNPJ: 12.579.030/0001-83 • Organização da Sociedade Civil sem Fins Lucrativos • São Paulo / SP
             </p>
           </div>
 

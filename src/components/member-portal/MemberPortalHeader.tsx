@@ -41,6 +41,12 @@ export const MemberPortalHeader: React.FC<MemberPortalHeaderProps> = ({
             <Award className="w-3.5 h-3.5 text-[#d4af37]" />
             {athlete.paralympicClass}
           </span>
+          {athlete.disabilityCategory && (
+            <span className="px-2.5 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-1">
+              <span>{athlete.disabilityCategory === 'Autista' ? '🧩' : athlete.disabilityCategory === 'Síndrome de Down' ? '💛' : '🧠'}</span>
+              <span>{athlete.disabilityCategory}</span>
+            </span>
+          )}
           <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
             Atleta Ativo • ACEDEP
           </span>

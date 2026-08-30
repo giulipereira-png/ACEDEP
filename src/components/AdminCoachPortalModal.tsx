@@ -38,14 +38,31 @@ import {
   Users,
   MapPin,
   History,
-  Phone
+  Phone,
+  Trophy,
+  Award
 } from 'lucide-react';
 import { useCommunity } from '../context/CommunityContext';
 import { usePhotos, DEFAULT_PHOTOS, GalleryPhotoItem } from '../context/PhotosContext';
-import { NewsCategory, AthleteRecord, EmailNotificationLog, CommunityCheer } from '../types';
+import { NewsCategory, AthleteRecord, EmailNotificationLog, CommunityCheer, DisabilityCategory, SwimmingStroke } from '../types';
 import { AttendanceManagerTab } from './admin/AttendanceManagerTab';
 import { AdminUsersManagerTab } from './admin/AdminUsersManagerTab';
 import { AthleteDocumentsTab } from './AthleteDocumentsTab';
+import { 
+  groupAndRankMetrics, 
+  STROKE_OPTIONS, 
+  EVENT_PRESETS, 
+  getStrokeFromEvent, 
+  calculateTimeDifference 
+} from '../utils/swimmingMetricsHelper';
+
+const STROKE_DETAILS: { value: SwimmingStroke; label: string; icon: string }[] = [
+  { value: 'Livre', label: 'Livre', icon: '🏊' },
+  { value: 'Costas', label: 'Costas', icon: '🌊' },
+  { value: 'Peito', label: 'Peito', icon: '🏊‍♂️' },
+  { value: 'Borboleta', label: 'Borboleta', icon: '🦋' },
+  { value: 'Medley', label: 'Medley', icon: '🏅' },
+];
 
 // Curated high quality avatars for paralympic swimming athletes
 const AVATAR_PRESETS = [
@@ -130,6 +147,8 @@ export const AdminCoachPortalModal: React.FC = () => {
   const [athleteName, setAthleteName] = useState('');
   const [athletePhoto, setAthletePhoto] = useState(AVATAR_PRESETS[0].url);
   const [athleteBirth, setAthleteBirth] = useState('');
+  const [athleteDisabilityCategory, setAthleteDisabilityCategory] = useState<DisabilityCategory>('Deficiente Intelectual');
+  const [athleteCbdi, setAthleteCbdi] = useState('');
   const [athleteGuardian, setAthleteGuardian] = useState('');
   const [athleteEmail, setAthleteEmail] = useState('');
   const [athletePhone, setAthletePhone] = useState('');
@@ -152,10 +171,15 @@ export const AdminCoachPortalModal: React.FC = () => {
   // Form Swimming Metric State
   const [selectedAthleteIdForTime, setSelectedAthleteIdForTime] = useState(athletes[0]?.id || '');
   const [metricEvent, setMetricEvent] = useState('50m Livre');
+  const [metricStroke, setMetricStroke] = useState<SwimmingStroke>('Livre');
   const [metricTime, setMetricTime] = useState('00:29.50');
+  const [metricPreviousTime, setMetricPreviousTime] = useState('');
   const [metricEvolution, setMetricEvolution] = useState('-0.50s (Novo RP)');
-  const [metricStage, setMetricStage] = useState('Circuito Nacional Paralímpico');
+  const [metricStage, setMetricStage] = useState('Circuito Nacional Paralímpico - 1ª Etapa');
+  const [metricYear, setMetricYear] = useState<string>('2026');
+  const [metricComparedChampionship, setMetricComparedChampionship] = useState('');
   const [metricLaneType, setMetricLaneType] = useState<'25m' | '50m'>('50m');
+  const [selectedStrokeFilterAdmin, setSelectedStrokeFilterAdmin] = useState<string>('all');
   const [timeNotifyEmail, setTimeNotifyEmail] = useState(true);
   const [isSavingTime, setIsSavingTime] = useState(false);
   const [timeSuccess, setTimeSuccess] = useState('');
@@ -559,14 +583,21 @@ export const AdminCoachPortalModal: React.FC = () => {
 
     setIsSavingAthlete(true);
     const newAthleteId = `atleta-${Date.now()}`;
+    const dynamicClass = athleteDisabilityCategory === 'Síndrome de Down' 
+      ? 'S14 / S21 - Síndrome de Down' 
+      : athleteDisabilityCategory === 'Autista' 
+      ? 'S14 - Autismo / TEA' 
+      : 'S14 / SB14 / SM14 - Deficiência Intelectual';
+
     const newAthlete: AthleteRecord = {
       id: newAthleteId,
       name: athleteName.trim(),
       photoUrl: athletePhoto.trim() || AVATAR_PRESETS[0].url,
       birthDate: athleteBirth.trim() || '15/05/2009',
-      paralympicClass: 'S14 / SB14 / SM14 - Deficiência Intelectual',
+      paralympicClass: dynamicClass,
+      disabilityCategory: athleteDisabilityCategory,
       clubRegistration: `ACEDEP-2026-${Math.floor(100 + Math.random() * 900)}`,
-      cbdiRegistration: 'CBDI-SP-Homologado',
+      cbdiRegistration: athleteCbdi.trim() || 'CBDI-SP-Homologado',
       guardianName: athleteGuardian.trim(),
       guardianEmail: athleteEmail.trim(),
       guardianPhone: athletePhone.trim(),
@@ -615,7 +646,7 @@ export const AdminCoachPortalModal: React.FC = () => {
         recipientSummary: `${newAthlete.guardianName} (${newAthlete.guardianEmail})`,
         recipientEmails: [newAthlete.guardianEmail],
         senderName: 'Coordenação ACEDEP',
-        contentPreview: `Login: ${newAthlete.guardianEmail} | Senha de Acesso: ${newAthlete.accessCode} | Atleta: ${newAthlete.name}`,
+        contentPreview: `Login: ${newAthlete.guardianEmail} | Senha de Acesso: ${newAthlete.accessCode} | Categoria: ${newAthlete.disabilityCategory || 'Classe S14'} | Atleta: ${newAthlete.name}`,
         status: 'enviado',
       });
     }
@@ -623,13 +654,14 @@ export const AdminCoachPortalModal: React.FC = () => {
     setIsSavingAthlete(false);
 
     if (success) {
-      setAthleteSuccess(`Atleta ${athleteName} cadastrado com sucesso com login "${athleteAccessCode}"!`);
+      setAthleteSuccess(`Atleta ${athleteName} (${athleteDisabilityCategory}) cadastrado com sucesso com login "${athleteAccessCode}"!`);
       setAthleteName('');
       setAthleteGuardian('');
       setAthleteEmail('');
       setAthletePhone('');
       setAthleteAccessCode('');
       setAthleteBirth('');
+      setAthleteCbdi('');
       setTimeout(() => setAthleteSuccess(''), 6000);
     }
   };
@@ -670,15 +702,21 @@ export const AdminCoachPortalModal: React.FC = () => {
     setIsSavingTime(true);
     const targetAthlete = athletes.find((a) => a.id === targetAthleteId);
     try {
+      const derivedStroke = metricStroke || getStrokeFromEvent(metricEvent);
       const success = await addSwimmingMetric(
         targetAthleteId, 
         {
           event: metricEvent,
+          stroke: derivedStroke,
           bestTime: metricTime.trim(),
-          evolution: metricEvolution.trim() || 'Oficial',
+          previousTime: metricPreviousTime.trim() || undefined,
+          evolution: metricEvolution.trim() || 'Marca Oficial',
           dateRecorded: new Date().toLocaleDateString('pt-BR'),
           stageName: metricStage.trim() || 'Centro Paralímpico Brasileiro',
+          year: metricYear.trim() || new Date().getFullYear().toString(),
           laneType: metricLaneType,
+          comparedToChampionship: metricComparedChampionship.trim() || undefined,
+          isPersonalBest: true,
         },
         timeNotifyEmail
       );
@@ -687,7 +725,9 @@ export const AdminCoachPortalModal: React.FC = () => {
       if (success) {
         setTimeSuccess(`Tempo lançado com sucesso na ficha de ${targetAthlete?.name || 'atleta'}! ${timeNotifyEmail ? '📧 Notificação enviada por e-mail.' : ''}`);
         setMetricTime('');
+        setMetricPreviousTime('');
         setMetricEvolution('');
+        setMetricComparedChampionship('');
         setTimeout(() => setTimeSuccess(''), 5000);
       } else {
         setTimeError('Erro ao gravar tempo. Verifique a conexão com o banco.');
@@ -1342,6 +1382,76 @@ export const AdminCoachPortalModal: React.FC = () => {
                   </div>
 
                   <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">
+                      Nº de Cadastro / Registro CBDI
+                    </label>
+                    <input
+                      type="text"
+                      value={athleteCbdi}
+                      onChange={(e) => setAthleteCbdi(e.target.value)}
+                      placeholder="Ex: CBDI-SP-4491"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+
+                  {/* Disability Category Selector */}
+                  <div className="sm:col-span-2 p-3.5 rounded-xl bg-black/40 border border-[#1e3a5f] space-y-2">
+                    <label className="text-xs font-bold text-[#f3e5ab] flex items-center justify-between">
+                      <span>Categoria / Condição do Atleta *</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Selecione para enquadramento na classe paralímpica</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAthleteDisabilityCategory('Deficiente Intelectual')}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                          athleteDisabilityCategory === 'Deficiente Intelectual'
+                            ? 'bg-[#d4af37]/20 border-[#d4af37] text-white shadow-md'
+                            : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span className="text-lg">🧠</span>
+                        <div>
+                          <span className="text-xs font-bold block leading-tight">Deficiente Intelectual</span>
+                          <span className="text-[10px] text-slate-400 block">Classe S14 / CBDI</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setAthleteDisabilityCategory('Autista')}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                          athleteDisabilityCategory === 'Autista'
+                            ? 'bg-cyan-500/20 border-cyan-400 text-white shadow-md'
+                            : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span className="text-lg">🧩</span>
+                        <div>
+                          <span className="text-xs font-bold block leading-tight">Autista (TEA)</span>
+                          <span className="text-[10px] text-slate-400 block">Classe S14</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setAthleteDisabilityCategory('Síndrome de Down')}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                          athleteDisabilityCategory === 'Síndrome de Down'
+                            ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-md'
+                            : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span className="text-lg">💛</span>
+                        <div>
+                          <span className="text-xs font-bold block leading-tight">Síndrome de Down</span>
+                          <span className="text-[10px] text-slate-400 block">Classe S14 / S21 (T21)</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
                     <label className="text-xs font-semibold text-slate-300 block mb-1">Nome do Pai / Mãe / Responsável *</label>
                     <input
                       type="text"
@@ -1622,6 +1732,22 @@ export const AdminCoachPortalModal: React.FC = () => {
                                   </button>
                                 )}
                               </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 my-1 flex-wrap">
+                              {athlete.disabilityCategory && (
+                                <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1">
+                                  <span>{athlete.disabilityCategory === 'Autista' ? '🧩' : athlete.disabilityCategory === 'Síndrome de Down' ? '💛' : '🧠'}</span>
+                                  <span>{athlete.disabilityCategory}</span>
+                                </span>
+                              )}
+                              <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300 text-[10px]">
+                                {athlete.paralympicClass || 'Classe S14'}
+                              </span>
+                              {athlete.cbdiRegistration && (
+                                <span className="px-2 py-0.5 rounded-md bg-[#d4af37]/15 border border-[#d4af37]/30 text-[#f3e5ab] font-mono text-[10px] font-semibold">
+                                  {athlete.cbdiRegistration}
+                                </span>
+                              )}
                             </div>
                             <p className="text-[11px] text-slate-300 truncate">
                               Resp: <span className="text-white font-medium">{athlete.guardianName}</span>
@@ -2041,14 +2167,14 @@ export const AdminCoachPortalModal: React.FC = () => {
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Form to Add New RP Metric */}
-                <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
+                <div className="lg:col-span-5 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
                   <div className="border-b border-white/10 pb-3">
                     <h4 className="text-sm font-bold text-white flex items-center gap-2">
                       <Timer className="w-4 h-4 text-[#d4af37]" />
-                      Lançar Nova Marca / Cronometragem de Natação
+                      <span>Lançar Nova Marca / Tempo de Natação</span>
                     </h4>
                     <p className="text-[11px] text-slate-400 mt-1">
-                      Grave tempos oficiais e treinos que sincronizam no portal do atleta e disparam e-mail aos pais.
+                      Cadastre os tempos por prova e estilo. O sistema gera automaticamente o ranking dos melhores tempos (RP) e compara diferenças entre campeonatos.
                     </p>
                   </div>
 
@@ -2057,88 +2183,115 @@ export const AdminCoachPortalModal: React.FC = () => {
                       <label className="text-xs font-semibold text-slate-300 block mb-1">Selecione o Nadador *</label>
                       <select
                         value={selectedAthleteIdForTime || (athletes[0]?.id || '')}
-                        onChange={(e) => setSelectedAthleteIdForTime(e.target.value)}
-                        className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                        onChange={(e) => {
+                          setSelectedAthleteIdForTime(e.target.value);
+                          setMetricPreviousTime('');
+                          setMetricComparedChampionship('');
+                        }}
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
                       >
                         {athletes.map((a) => (
-                          <option key={a.id} value={a.id}>{a.name} (Classe S14)</option>
+                          <option key={a.id} value={a.id}>
+                            {a.name} ({a.disabilityCategory || 'S14'})
+                          </option>
                         ))}
                       </select>
                     </div>
 
-                    <div>
-                      <label className="text-xs font-semibold text-slate-300 block mb-1">Prova Aquática *</label>
-                      <select
-                        value={metricEvent}
-                        onChange={(e) => setMetricEvent(e.target.value)}
-                        className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
-                      >
-                        <option value="50m Livre">50m Livre</option>
-                        <option value="100m Livre">100m Livre</option>
-                        <option value="200m Livre">200m Livre</option>
-                        <option value="400m Livre">400m Livre</option>
-                        <option value="50m Costas">50m Costas</option>
-                        <option value="100m Costas">100m Costas</option>
-                        <option value="50m Peito">50m Peito</option>
-                        <option value="100m Peito">100m Peito</option>
-                        <option value="50m Borboleta">50m Borboleta</option>
-                        <option value="100m Borboleta">100m Borboleta</option>
-                        <option value="200m Medley">200m Medley</option>
-                      </select>
-
-                      {/* Quick Chips for Common Events */}
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {['50m Livre', '100m Livre', '50m Costas', '50m Peito', '50m Borboleta', '200m Medley'].map((evt) => (
+                    {/* Estilo e Prova */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-slate-300 block">Estilo da Prova *</label>
+                      <div className="grid grid-cols-5 gap-1">
+                        {STROKE_DETAILS.map((st) => (
                           <button
-                            key={evt}
+                            key={st.value}
                             type="button"
-                            onClick={() => setMetricEvent(evt)}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
-                              metricEvent === evt
-                                ? 'bg-[#d4af37] text-black font-bold'
+                            onClick={() => {
+                              setMetricStroke(st.value);
+                              // Auto set first preset event for this stroke if current doesn't match
+                              const presets = EVENT_PRESETS.filter((p) => p.stroke === st.value).map((p) => p.event);
+                              if (presets.length > 0 && !presets.includes(metricEvent)) {
+                                setMetricEvent(presets[0]);
+                              }
+                            }}
+                            className={`py-1.5 px-1 text-center rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                              metricStroke === st.value
+                                ? 'bg-[#d4af37] text-[#060e1c] shadow'
                                 : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
                             }`}
                           >
-                            {evt}
+                            <span className="block text-xs">{st.icon}</span>
+                            <span className="truncate block text-[10px]">{st.label}</span>
                           </button>
                         ))}
                       </div>
+
+                      <div className="pt-1">
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Distância / Prova *</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {EVENT_PRESETS.filter((p) => p.stroke === metricStroke).map((preset) => (
+                            <button
+                              key={preset.event}
+                              type="button"
+                              onClick={() => setMetricEvent(preset.event)}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${
+                                metricEvent === preset.event
+                                  ? 'bg-[#d4af37] text-black font-bold ring-1 ring-[#d4af37]'
+                                  : 'bg-black/50 border border-[#1e3a5f] text-slate-300 hover:bg-white/10'
+                              }`}
+                            >
+                              {preset.event}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Tempos e Diferenças */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                       <div>
-                        <label className="text-xs font-semibold text-slate-300 block mb-1">Tempo Cronometrado *</label>
+                        <label className="text-xs font-semibold text-[#d4af37] block mb-1">Tempo Cronometrado *</label>
                         <input
                           type="text"
                           required
                           value={metricTime}
-                          onChange={(e) => setMetricTime(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setMetricTime(val);
+                            if (metricPreviousTime && val) {
+                              const diff = calculateTimeDifference(val, metricPreviousTime);
+                              if (diff.diffText) {
+                                setMetricEvolution(diff.diffText);
+                              }
+                            }
+                          }}
                           placeholder="Ex: 00:29.40"
-                          className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                          className="w-full px-3 py-2 font-mono font-bold text-xs rounded-xl bg-black/50 border border-[#d4af37]/60 text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
                         />
                       </div>
 
                       <div>
-                        <label className="text-xs font-semibold text-slate-300 block mb-1">Evolução / Marca</label>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Ano da Prova</label>
                         <input
                           type="text"
-                          value={metricEvolution}
-                          onChange={(e) => setMetricEvolution(e.target.value)}
-                          placeholder="Ex: -0.40s (Novo RP)"
-                          className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                          value={metricYear}
+                          onChange={(e) => setMetricYear(e.target.value)}
+                          placeholder="Ex: 2026"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs font-semibold text-slate-300 block mb-1">Competição / Etapa</label>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Campeonato / Etapa *</label>
                         <input
                           type="text"
+                          required
                           value={metricStage}
                           onChange={(e) => setMetricStage(e.target.value)}
                           placeholder="Ex: Circuito Paralímpico SP"
-                          className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
                         />
                       </div>
 
@@ -2147,15 +2300,45 @@ export const AdminCoachPortalModal: React.FC = () => {
                         <select
                           value={metricLaneType}
                           onChange={(e) => setMetricLaneType(e.target.value as '25m' | '50m')}
-                          className="w-full px-3 py-2.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
                         >
-                          <option value="50m">50m (Olímpica / Longa)</option>
-                          <option value="25m">25m (Semi-Olímpica / Curta)</option>
+                          <option value="50m">Piscina 50m (Olímpica)</option>
+                          <option value="25m">Piscina 25m (Semi-Olímpica)</option>
                         </select>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-slate-300 pt-1">
+                    {/* Comparação sutil entre campeonatos */}
+                    <div className="p-3 rounded-xl bg-black/40 border border-[#1e3a5f] space-y-2">
+                      <label className="text-[11px] font-bold text-cyan-300 block">
+                        Comparar Diferença com Outro Campeonato / Tempo Anterior (Opcional)
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <input
+                            type="text"
+                            value={metricComparedChampionship}
+                            onChange={(e) => setMetricComparedChampionship(e.target.value)}
+                            placeholder="Ex: vs Etapa Regional 2025"
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            value={metricEvolution}
+                            onChange={(e) => setMetricEvolution(e.target.value)}
+                            placeholder="Ex: -0.45s (Novo RP)"
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        💡 Mostra no portal do atleta a evolução comparativa de segundos entre os campeonatos.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-slate-300">
                       <input
                         type="checkbox"
                         id="notifyTimeEmail"
@@ -2163,7 +2346,7 @@ export const AdminCoachPortalModal: React.FC = () => {
                         onChange={(e) => setTimeNotifyEmail(e.target.checked)}
                         className="rounded border-[#1e3a5f] text-[#d4af37] focus:ring-[#d4af37]"
                       />
-                      <label htmlFor="notifyTimeEmail" className="cursor-pointer">
+                      <label htmlFor="notifyTimeEmail" className="cursor-pointer text-[11px]">
                         📧 Notificar responsável do atleta por e-mail comemorando a nova marca
                       </label>
                     </div>
@@ -2182,83 +2365,206 @@ export const AdminCoachPortalModal: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="pt-2">
+                    <div className="pt-1">
                       <button
                         type="submit"
                         disabled={isSavingTime}
-                        className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#d4af37] text-[#060e1c] font-black text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-[#d4af37]/10"
+                        className="w-full py-2.5 rounded-xl bg-[#d4af37] text-[#060e1c] font-black text-xs hover:bg-[#b8952b] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-[#d4af37]/10"
                       >
                         {isSavingTime ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Timer className="w-4 h-4" />}
-                        <span>{isSavingTime ? 'Gravando no Banco de Dados...' : 'Salvar Novo Tempo (RP)'}</span>
+                        <span>{isSavingTime ? 'Gravando no Banco de Dados...' : 'Salvar Novo Tempo & Atualizar Ranking'}</span>
                       </button>
                     </div>
                   </form>
                 </div>
 
-                {/* Right: Live List of Records for Selected Athlete */}
-                <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
+                {/* Right: Live List of Records & Ranking for Selected Athlete */}
+                <div className="lg:col-span-7 p-6 rounded-2xl bg-[#0a192f] border border-[#1e3a5f] space-y-4">
                   {(() => {
                     const currentSelectedAthlete = athletes.find((a) => a.id === (selectedAthleteIdForTime || athletes[0]?.id));
-                    const metrics = currentSelectedAthlete?.swimmingMetrics || [];
+                    const rawMetrics = currentSelectedAthlete?.swimmingMetrics || [];
+                    const grouped = groupAndRankMetrics(rawMetrics);
+
+                    // Filter grouped by selected stroke filter
+                    const filteredGrouped = selectedStrokeFilterAdmin === 'all'
+                      ? grouped.allEventGroups
+                      : (grouped.byStroke[selectedStrokeFilterAdmin as SwimmingStroke] || []);
+
                     return (
                       <>
-                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
                           <div>
                             <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                              <Waves className="w-4 h-4 text-cyan-400" />
-                              <span>Tempos Salvos: {currentSelectedAthlete?.name || 'Nadador'}</span>
+                              <Trophy className="w-4 h-4 text-[#d4af37]" />
+                              <span>Ranking & Tempos: {currentSelectedAthlete?.name || 'Nadador'}</span>
                             </h4>
                             <p className="text-[11px] text-slate-400">
-                              {metrics.length} marcas registradas em banco de dados
+                              {rawMetrics.length} cronometragens registradas • Separadas por estilo e prova
                             </p>
+                          </div>
+
+                          {/* Stroke Filter Tabs */}
+                          <div className="flex flex-wrap gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedStrokeFilterAdmin('all')}
+                              className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                selectedStrokeFilterAdmin === 'all'
+                                  ? 'bg-[#d4af37] text-[#060e1c]'
+                                  : 'bg-white/5 text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              Todos
+                            </button>
+                            {STROKE_DETAILS.map((st) => (
+                              <button
+                                key={st.value}
+                                type="button"
+                                onClick={() => setSelectedStrokeFilterAdmin(st.value)}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                  selectedStrokeFilterAdmin === st.value
+                                    ? 'bg-[#d4af37] text-[#060e1c]'
+                                    : 'bg-white/5 text-slate-400 hover:text-white'
+                                }`}
+                              >
+                                {st.icon} {st.label}
+                              </button>
+                            ))}
                           </div>
                         </div>
 
-                        <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                          {metrics.length === 0 ? (
+                        <div className="space-y-4 max-h-[520px] overflow-y-auto pr-1">
+                          {rawMetrics.length === 0 ? (
                             <div className="p-8 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-slate-400 space-y-2">
                               <Timer className="w-8 h-8 mx-auto text-slate-600" />
                               <p>Nenhum tempo RP lançado ainda para este atleta.</p>
-                              <p className="text-[11px] text-slate-500">Use o formulário ao lado para cadastrar a primeira marca oficial.</p>
+                              <p className="text-[11px] text-slate-500">Use o formulário ao lado para cadastrar marcas e campeonatos.</p>
+                            </div>
+                          ) : filteredGrouped.length === 0 ? (
+                            <div className="p-6 rounded-xl bg-black/30 text-center text-xs text-slate-400">
+                              Nenhuma marca cadastrada para este estilo.
                             </div>
                           ) : (
-                            metrics.map((m) => (
+                            filteredGrouped.map((group) => (
                               <div
-                                key={m.id}
-                                className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between gap-3 text-xs hover:border-white/10 transition-all"
+                                key={`${group.stroke}-${group.event}`}
+                                className="rounded-xl bg-black/40 border border-[#1e3a5f] p-3.5 space-y-2.5"
                               >
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-bold text-white">{m.event}</span>
-                                    <span className="font-mono font-black text-[#d4af37] text-sm">{m.bestTime}</span>
-                                    {m.evolution && (
-                                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
-                                        {m.evolution}
-                                      </span>
-                                    )}
+                                {/* Group Header */}
+                                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-white flex items-center gap-1.5">
+                                      <span>{group.event}</span>
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] font-medium">
+                                      Estilo {group.stroke}
+                                    </span>
                                   </div>
-                                  <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap">
-                                    <span>{m.stageName || 'Centro Paralímpico'}</span>
-                                    <span>•</span>
-                                    <span>Piscina {m.laneType || '50m'}</span>
-                                    <span>•</span>
-                                    <span>{m.dateRecorded}</span>
-                                  </div>
+                                  <span className="text-[10px] text-slate-400">
+                                    {group.allMetrics.length} {group.allMetrics.length === 1 ? 'registro' : 'registros'}
+                                  </span>
                                 </div>
 
-                                <button
-                                  type="button"
-                                  disabled={deletingTimeId === m.id}
-                                  onClick={() => currentSelectedAthlete && handleDeleteTime(currentSelectedAthlete.id, m.id)}
-                                  className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
-                                  title="Remover tempo"
-                                >
-                                  {deletingTimeId === m.id ? (
-                                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-red-400" />
-                                  ) : (
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
+                                {/* Ranked Records inside this event */}
+                                <div className="space-y-1.5">
+                                  {group.allMetrics.map((record) => {
+                                    const isRP = record.rank === 1;
+                                    return (
+                                      <div
+                                        key={record.id}
+                                        className={`p-2.5 rounded-lg border flex items-center justify-between gap-3 text-xs transition-all ${
+                                          isRP
+                                            ? 'bg-[#d4af37]/10 border-[#d4af37]/40 text-white'
+                                            : 'bg-white/5 border-white/5 text-slate-300'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          {/* Rank badge */}
+                                          <div className="shrink-0">
+                                            {record.rank === 1 ? (
+                                              <span className="px-1.5 py-0.5 rounded bg-[#d4af37] text-black font-black text-[10px] flex items-center gap-0.5 shadow">
+                                                🥇 RP
+                                              </span>
+                                            ) : record.rank === 2 ? (
+                                              <span className="px-1.5 py-0.5 rounded bg-slate-300 text-black font-bold text-[10px]">
+                                                🥈 #2
+                                              </span>
+                                            ) : record.rank === 3 ? (
+                                              <span className="px-1.5 py-0.5 rounded bg-amber-700 text-white font-bold text-[10px]">
+                                                🥉 #3
+                                              </span>
+                                            ) : (
+                                              <span className="px-1.5 py-0.5 rounded bg-black/40 text-slate-400 text-[10px]">
+                                                #{record.rank}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          <div className="min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span className="font-mono font-black text-sm text-[#f3e5ab]">
+                                                {record.bestTime}
+                                              </span>
+                                              <span className="text-slate-300 font-medium truncate text-xs">
+                                                {record.stageName}
+                                              </span>
+                                              <span className="px-1.5 py-0.2 rounded bg-white/10 text-slate-300 text-[10px] font-bold">
+                                                {record.year || '2026'}
+                                              </span>
+                                            </div>
+
+                                            {/* Evolution and subtle delta comparison */}
+                                            <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 flex-wrap">
+                                              <span>Piscina {record.laneType || '50m'}</span>
+                                              {record.comparedToChampionship && (
+                                                <>
+                                                  <span>•</span>
+                                                  <span className="text-cyan-300">
+                                                    {record.comparedToChampionship}
+                                                  </span>
+                                                </>
+                                              )}
+                                              {record.differenceFromBest && (
+                                                <span className="px-1.5 py-0.2 rounded font-mono font-bold bg-amber-500/20 text-amber-300">
+                                                  {record.differenceFromBest}
+                                                </span>
+                                              )}
+                                              {record.differenceFromPrevious && !record.differenceFromBest && (
+                                                <span className={`px-1.5 py-0.2 rounded font-mono font-bold ${
+                                                  record.differenceFromPrevious.startsWith('-')
+                                                    ? 'bg-emerald-500/20 text-emerald-300'
+                                                    : 'bg-amber-500/20 text-amber-300'
+                                                }`}>
+                                                  {record.differenceFromPrevious}
+                                                </span>
+                                              )}
+                                              {record.evolution && !record.differenceFromPrevious && !record.differenceFromBest && (
+                                                <span className="text-emerald-400 font-medium">
+                                                  ({record.evolution})
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Action buttons */}
+                                        <button
+                                          type="button"
+                                          disabled={deletingTimeId === record.id}
+                                          onClick={() => currentSelectedAthlete && handleDeleteTime(currentSelectedAthlete.id, record.id)}
+                                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                                          title="Excluir marca"
+                                        >
+                                          {deletingTimeId === record.id ? (
+                                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-red-400" />
+                                          ) : (
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             ))
                           )}
@@ -3832,6 +4138,45 @@ export const AdminCoachPortalModal: React.FC = () => {
                       value={editingAthlete.birthDate || ''}
                       onChange={(e) => setEditingAthlete({ ...editingAthlete, birthDate: e.target.value })}
                       placeholder="DD/MM/AAAA"
+                      className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-300 block mb-1 font-semibold">Categoria / Condição do Atleta</label>
+                    <select
+                      value={editingAthlete.disabilityCategory || 'Deficiente Intelectual'}
+                      onChange={(e) => {
+                        const cat = e.target.value as DisabilityCategory;
+                        const dynamicClass = cat === 'Síndrome de Down' 
+                          ? 'S14 / S21 - Síndrome de Down' 
+                          : cat === 'Autista' 
+                          ? 'S14 - Autismo / TEA' 
+                          : 'S14 / SB14 / SM14 - Deficiência Intelectual';
+
+                        setEditingAthlete({ 
+                          ...editingAthlete, 
+                          disabilityCategory: cat,
+                          paralympicClass: dynamicClass 
+                        });
+                      }}
+                      className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
+                    >
+                      <option value="Deficiente Intelectual">🧠 Deficiente Intelectual (Classe S14)</option>
+                      <option value="Autista">🧩 Autista / TEA (Classe S14)</option>
+                      <option value="Síndrome de Down">💛 Síndrome de Down (Classe S14 / S21 - T21)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-slate-300 block mb-1 font-semibold">Nº de Registro CBDI / CPB</label>
+                    <input
+                      type="text"
+                      value={editingAthlete.cbdiRegistration || ''}
+                      onChange={(e) => setEditingAthlete({ ...editingAthlete, cbdiRegistration: e.target.value })}
+                      placeholder="Ex: CBDI-SP-4491"
                       className="w-full px-3 py-2 rounded-lg bg-black/50 border border-[#1e3a5f] text-white focus:outline-none focus:border-[#d4af37]"
                     />
                   </div>
