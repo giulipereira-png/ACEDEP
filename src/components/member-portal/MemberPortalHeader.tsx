@@ -1,16 +1,18 @@
 import React from 'react';
-import { Award, Camera } from 'lucide-react';
+import { Award, Camera, FileDown } from 'lucide-react';
 import { AthleteRecord } from '../../types';
 
 interface MemberPortalHeaderProps {
   athlete: AthleteRecord;
   onOpenPhotoModal: () => void;
+  onOpenExportModal?: () => void;
   defaultAvatarUrl: string;
 }
 
 export const MemberPortalHeader: React.FC<MemberPortalHeaderProps> = ({
   athlete,
   onOpenPhotoModal,
+  onOpenExportModal,
   defaultAvatarUrl,
 }) => {
   return (
@@ -50,6 +52,18 @@ export const MemberPortalHeader: React.FC<MemberPortalHeaderProps> = ({
           <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
             Atleta Ativo • ACEDEP
           </span>
+
+          {onOpenExportModal && (
+            <button
+              type="button"
+              onClick={onOpenExportModal}
+              className="ml-auto px-3 py-1 rounded-xl bg-[#d4af37]/20 hover:bg-[#d4af37]/35 border border-[#d4af37]/40 text-[#f3e5ab] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              title="Baixar Ficha e Relatórios em PDF ou Word"
+            >
+              <FileDown className="w-3.5 h-3.5 text-[#d4af37]" />
+              <span>Baixar Relatório (PDF / Word)</span>
+            </button>
+          )}
         </div>
 
         <h3 className="text-2xl font-bold text-white font-serif">

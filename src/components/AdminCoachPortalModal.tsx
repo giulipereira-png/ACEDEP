@@ -40,7 +40,8 @@ import {
   History,
   Phone,
   Trophy,
-  Award
+  Award,
+  FileDown
 } from 'lucide-react';
 import { useCommunity } from '../context/CommunityContext';
 import { usePhotos, DEFAULT_PHOTOS, GalleryPhotoItem } from '../context/PhotosContext';
@@ -48,6 +49,7 @@ import { NewsCategory, AthleteRecord, EmailNotificationLog, CommunityCheer, Disa
 import { AttendanceManagerTab } from './admin/AttendanceManagerTab';
 import { AdminUsersManagerTab } from './admin/AdminUsersManagerTab';
 import { AthleteDocumentsTab } from './AthleteDocumentsTab';
+import { ExportReportModal, ReportType } from './ExportReportModal';
 import { 
   groupAndRankMetrics, 
   STROKE_OPTIONS, 
@@ -99,6 +101,7 @@ export const AdminCoachPortalModal: React.FC = () => {
     addAnnualEvent,
     updateAnnualEvent,
     deleteAnnualEvent,
+    attendanceSessions,
   } = useCommunity();
 
   const {
@@ -122,6 +125,11 @@ export const AdminCoachPortalModal: React.FC = () => {
   const isProfessor = currentAdminProfile?.role === 'Professor' || currentAdminProfile?.role === 'Treinador' || currentAdminProfile?.role === 'Técnico de Natação' || (currentAdminProfile && !isSuperAdmin);
 
   const [activeTab, setActiveTab] = useState<'atletas' | 'presenca' | 'tempos' | 'agenda' | 'recados' | 'mural_familia' | 'emails' | 'administradores' | 'fotos' | 'galeria' | 'noticias' | 'seguranca'>('atletas');
+
+  // Export report modal state
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportModalInitialType, setExportModalInitialType] = useState<ReportType>('athletes_general');
+  const [exportModalAthleteId, setExportModalAthleteId] = useState<string | undefined>(undefined);
 
   // PIN Login Form State
   const [pinInput, setPinInput] = useState('');
@@ -1000,14 +1008,33 @@ export const AdminCoachPortalModal: React.FC = () => {
 
           <div className="flex items-center gap-2">
             {isAdminAuthenticated && (
-              <button
-                onClick={logoutAdmin}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold transition-colors cursor-pointer"
-                title="Encerrar sessão de administrador"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Sair</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExportModalInitialType(
+                      activeTab === 'presenca' ? 'attendance_monthly' :
+                      activeTab === 'tempos' ? 'swimming_times_ranking' : 'athletes_general'
+                    );
+                    setExportModalAthleteId(undefined);
+                    setExportModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#d4af37]/20 hover:bg-[#d4af37]/35 text-[#f3e5ab] border border-[#d4af37]/40 text-xs font-semibold transition-colors cursor-pointer shadow-sm"
+                  title="Exportar dados e relatórios em PDF ou Word"
+                >
+                  <FileDown className="w-3.5 h-3.5 text-[#d4af37]" />
+                  <span className="hidden sm:inline">Exportar Relatórios</span>
+                </button>
+
+                <button
+                  onClick={logoutAdmin}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold transition-colors cursor-pointer"
+                  title="Encerrar sessão de administrador"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Sair</span>
+                </button>
+              </>
             )}
             <button
               onClick={handleCloseModal}
@@ -1655,15 +1682,31 @@ export const AdminCoachPortalModal: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                    <input
-                      type="text"
-                      value={athleteSearchTerm}
-                      onChange={(e) => setAthleteSearchTerm(e.target.value)}
-                      placeholder="Buscar por atleta ou responsável..."
-                      className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
-                    />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExportModalInitialType('athletes_general');
+                        setExportModalAthleteId(undefined);
+                        setExportModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-[#d4af37]/20 hover:bg-[#d4af37] text-[#f3e5ab] hover:text-[#060e1c] border border-[#d4af37]/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      title="Exportar Lista Geral de Atletas em PDF ou Word"
+                    >
+                      <FileDown className="w-3.5 h-3.5" />
+                      <span>Exportar Quadro de Atletas</span>
+                    </button>
+
+                    <div className="relative w-full sm:w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        value={athleteSearchTerm}
+                        onChange={(e) => setAthleteSearchTerm(e.target.value)}
+                        placeholder="Buscar por atleta ou responsável..."
+                        className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-black/50 border border-[#1e3a5f] text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37]"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1786,15 +1829,30 @@ export const AdminCoachPortalModal: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Documentos & Laudos Button */}
-                        <div className="pt-1">
+                        {/* Action Buttons: Documentos & Export Relatório */}
+                        <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <button
                             type="button"
                             onClick={() => setSelectedAthleteForDocs(athlete)}
-                            className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-[#d4af37]/20 border border-white/10 hover:border-[#d4af37]/50 text-slate-200 hover:text-[#f3e5ab] text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                            className="py-2 px-2.5 rounded-xl bg-white/5 hover:bg-[#d4af37]/20 border border-white/10 hover:border-[#d4af37]/50 text-slate-200 hover:text-[#f3e5ab] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm truncate"
+                            title="Visualizar laudos e certidões"
                           >
-                            <FileText className="w-3.5 h-3.5 text-[#d4af37]" />
-                            <span>Documentos & Laudos Médicos</span>
+                            <FileText className="w-3.5 h-3.5 text-[#d4af37] shrink-0" />
+                            <span className="truncate">Laudos & Docs</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExportModalInitialType('athlete_individual');
+                              setExportModalAthleteId(athlete.id);
+                              setExportModalOpen(true);
+                            }}
+                            className="py-2 px-2.5 rounded-xl bg-[#d4af37]/15 hover:bg-[#d4af37] border border-[#d4af37]/30 hover:border-[#d4af37] text-[#f3e5ab] hover:text-[#060e1c] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm truncate"
+                            title="Exportar ficha cadastral e tempos deste atleta"
+                          >
+                            <FileDown className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Exportar Ficha</span>
                           </button>
                         </div>
 
@@ -2392,15 +2450,33 @@ export const AdminCoachPortalModal: React.FC = () => {
 
                     return (
                       <>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
-                          <div>
-                            <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                              <Trophy className="w-4 h-4 text-[#d4af37]" />
-                              <span>Ranking & Tempos: {currentSelectedAthlete?.name || 'Nadador'}</span>
-                            </h4>
-                            <p className="text-[11px] text-slate-400">
-                              {rawMetrics.length} cronometragens registradas • Separadas por estilo e prova
-                            </p>
+                        <div className="border-b border-white/10 pb-3 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                                <Trophy className="w-4 h-4 text-[#d4af37]" />
+                                <span>Ranking & Tempos: {currentSelectedAthlete?.name || 'Nadador'}</span>
+                              </h4>
+                              <p className="text-[11px] text-slate-400">
+                                {rawMetrics.length} cronometragens registradas • Separadas por estilo e prova
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExportModalInitialType('swimming_times_ranking');
+                                  setExportModalAthleteId(currentSelectedAthlete?.id);
+                                  setExportModalOpen(true);
+                                }}
+                                className="px-3 py-1 rounded-xl bg-[#d4af37]/20 hover:bg-[#d4af37] text-[#f3e5ab] hover:text-[#060e1c] border border-[#d4af37]/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                                title="Exportar tempos e ranking em PDF ou Word"
+                              >
+                                <FileDown className="w-3.5 h-3.5" />
+                                <span>Exportar Ranking</span>
+                              </button>
+                            </div>
                           </div>
 
                           {/* Stroke Filter Tabs */}
@@ -4529,6 +4605,16 @@ export const AdminCoachPortalModal: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Global Export Report Modal */}
+        <ExportReportModal
+          isOpen={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          athletes={athletes}
+          attendanceSessions={attendanceSessions}
+          initialReportType={exportModalInitialType}
+          initialAthleteId={exportModalAthleteId}
+        />
 
       </div>
     </div>

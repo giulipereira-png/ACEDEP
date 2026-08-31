@@ -11,10 +11,12 @@ import {
   Flame,
   ArrowDownRight,
   ArrowUpRight,
-  CheckCircle2
+  CheckCircle2,
+  FileDown
 } from 'lucide-react';
 import { AthleteRecord, SwimmingStroke } from '../../types';
 import { groupAndRankMetrics, STROKE_OPTIONS, RankedMetric } from '../../utils/swimmingMetricsHelper';
+import { exportReport } from '../../utils/exportReportsHelper';
 
 interface MemberMetricsTabProps {
   athlete: AthleteRecord;
@@ -58,7 +60,7 @@ export const MemberMetricsTab: React.FC<MemberMetricsTabProps> = ({ athlete }) =
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <div className="px-3.5 py-2 rounded-2xl bg-black/40 border border-white/10 text-center">
               <span className="text-[10px] text-slate-400 block uppercase font-bold">Provas com RP</span>
               <span className="text-base font-bold text-[#f3e5ab] font-mono">{personalRecordsCount}</span>
@@ -66,6 +68,42 @@ export const MemberMetricsTab: React.FC<MemberMetricsTabProps> = ({ athlete }) =
             <div className="px-3.5 py-2 rounded-2xl bg-black/40 border border-white/10 text-center">
               <span className="text-[10px] text-slate-400 block uppercase font-bold">Total de Marcas</span>
               <span className="text-base font-bold text-cyan-400 font-mono">{totalRecordsCount}</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 ml-1">
+              <button
+                type="button"
+                onClick={() => {
+                  exportReport({
+                    reportType: 'athlete_individual',
+                    format: 'pdf',
+                    athletes: [athlete],
+                    selectedAthleteId: athlete.id,
+                  });
+                }}
+                className="px-3 py-2 rounded-xl bg-[#d4af37]/20 hover:bg-[#d4af37] text-[#f3e5ab] hover:text-[#060e1c] border border-[#d4af37]/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Baixar Relatório Completo de Tempos & RP em PDF"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  exportReport({
+                    reportType: 'athlete_individual',
+                    format: 'word',
+                    athletes: [athlete],
+                    selectedAthleteId: athlete.id,
+                  });
+                }}
+                className="px-3 py-2 rounded-xl bg-blue-500/20 hover:bg-blue-500 text-blue-300 hover:text-white border border-blue-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Baixar Relatório de Tempos & RP em Word (.doc)"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>Word</span>
+              </button>
             </div>
           </div>
         </div>

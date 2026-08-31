@@ -29,10 +29,13 @@ import {
   Grid,
   ListFilter,
   Save,
-  HelpCircle
+  HelpCircle,
+  FileDown,
+  Printer
 } from 'lucide-react';
 import { useCommunity } from '../../context/CommunityContext';
 import { AttendanceSession, AttendanceStatus, AttendanceRecordItem, AthleteRecord } from '../../types';
+import { ExportReportModal, ReportType } from '../ExportReportModal';
 
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -61,6 +64,10 @@ export const AttendanceManagerTab: React.FC = () => {
   // Month & Year state
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth()); // 0-11
   const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+
+  // Export report modal state
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportInitialType, setExportInitialType] = useState<ReportType>('attendance_monthly');
 
   // Selected Athlete for individual calendar view
   const [selectedAthleteId, setSelectedAthleteId] = useState<string>(() => athletes[0]?.id || '');
@@ -425,8 +432,8 @@ export const AttendanceManagerTab: React.FC = () => {
           </button>
         </div>
 
-        {/* Live Auto-save feedback badge */}
-        <div className="flex items-center gap-2">
+        {/* Live Auto-save feedback badge & Export Actions */}
+        <div className="flex flex-wrap items-center gap-2">
           {autoSaveFeedback.visible ? (
             <div className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 animate-in fade-in duration-200">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 animate-pulse" />
@@ -434,11 +441,41 @@ export const AttendanceManagerTab: React.FC = () => {
               <span className="text-[10px] text-slate-400 font-mono">({autoSaveFeedback.time})</span>
             </div>
           ) : (
-            <div className="text-xs text-slate-400 flex items-center gap-1">
+            <div className="text-xs text-slate-400 flex items-center gap-1 hidden sm:flex">
               <Save className="w-3.5 h-3.5 text-slate-500" />
-              <span>Salva automaticamente a cada clique</span>
+              <span>Auto-save ativo</span>
             </div>
           )}
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setExportInitialType(
+                  viewMode === 'championships_matrix' ? 'attendance_championships' : 'attendance_monthly'
+                );
+                setExportModalOpen(true);
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8952b] text-[#060e1c] font-bold text-xs shadow-md hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Exportar Lista de Chamada e Frequência em PDF ou Word"
+            >
+              <FileDown className="w-3.5 h-3.5" />
+              <span>Exportar Chamada (PDF / Word)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setExportInitialType('attendance_blank_sheet');
+                setExportModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/15 transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Gerar Folha em Branco para Borda de Piscina"
+            >
+              <Printer className="w-3.5 h-3.5 text-[#d4af37]" />
+              <span className="hidden md:inline">Folha em Branco</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1632,6 +1669,18 @@ export const AttendanceManagerTab: React.FC = () => {
 
         </div>
       )}
+
+      {/* Export Report Modal */}
+      <ExportReportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        athletes={athletes}
+        attendanceSessions={attendanceSessions}
+        initialReportType={exportInitialType}
+        initialMonth={selectedMonth}
+        initialYear={selectedYear}
+        initialAthleteId={selectedAthleteId}
+      />
 
     </div>
   );

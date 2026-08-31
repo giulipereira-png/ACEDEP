@@ -8,10 +8,12 @@ import {
   LogOut, 
   Waves, 
   KeyRound,
-  Mail
+  Mail,
+  FileDown
 } from 'lucide-react';
 import { useCommunity } from '../context/CommunityContext';
 import { AthleteDocumentsTab } from './AthleteDocumentsTab';
+import { ExportReportModal } from './ExportReportModal';
 
 // Subcomponents extracted for modularity and maintainability
 import { MemberPortalLogin } from './member-portal/MemberPortalLogin';
@@ -35,6 +37,7 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
     guardianLogout,
     saveAthleteRecord,
     emailLogs,
+    attendanceSessions,
   } = useCommunity();
 
   // Active Dashboard Tab
@@ -42,6 +45,9 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
 
   // Photo modal state
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
+
+  // Export report modal state
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -83,7 +89,19 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {isGuardianAuthenticated && currentAthlete && (
+              <button
+                type="button"
+                onClick={() => setExportModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#d4af37]/20 hover:bg-[#d4af37]/35 text-[#f3e5ab] border border-[#d4af37]/40 text-xs font-semibold transition-colors cursor-pointer"
+                title="Baixar Relatório em PDF ou Word"
+              >
+                <FileDown className="w-3.5 h-3.5 text-[#d4af37]" />
+                <span className="hidden sm:inline">Baixar Relatório</span>
+              </button>
+            )}
+
             {isGuardianAuthenticated && (
               <button
                 id="btn-guardian-logout"
@@ -121,6 +139,7 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
               <MemberPortalHeader
                 athlete={currentAthlete}
                 onOpenPhotoModal={() => setPhotoModalOpen(true)}
+                onOpenExportModal={() => setExportModalOpen(true)}
                 defaultAvatarUrl={AVATAR_PRESETS[0].url}
               />
 
@@ -254,6 +273,18 @@ export const MemberPortalModal: React.FC<MemberPortalModalProps> = ({ isOpen, on
             onClose={() => setPhotoModalOpen(false)}
             athlete={currentAthlete}
             onSavePhoto={handleSavePhoto}
+          />
+        )}
+
+        {/* Export Report Submodal */}
+        {currentAthlete && (
+          <ExportReportModal
+            isOpen={exportModalOpen}
+            onClose={() => setExportModalOpen(false)}
+            athletes={[currentAthlete]}
+            attendanceSessions={attendanceSessions}
+            fixedAthlete={currentAthlete}
+            isMemberPortal={true}
           />
         )}
 
