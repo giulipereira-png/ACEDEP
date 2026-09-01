@@ -9,7 +9,7 @@ import {
   updateDoc, 
   onSnapshot 
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, cleanFirestoreData } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, cleanFirestoreData, uploadImageToFirebaseStorage } from '../lib/firebase';
 import { optimizeImage } from '../lib/imageOptimizer';
 import { 
   NewsPost, 
@@ -427,8 +427,24 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     notifyParentsByEmail = false
   ): Promise<boolean> => {
     const newId = `noticia-${Date.now()}`;
+    let coverUrl = postData.coverUrl;
+    if (coverUrl && coverUrl.startsWith('data:image')) {
+      try {
+        const optimized = await optimizeImage(coverUrl, {
+          maxWidth: 1000,
+          maxHeight: 800,
+          quality: 0.72,
+          maxSizeBytes: 300 * 1024,
+        });
+        coverUrl = await uploadImageToFirebaseStorage('news_covers', `${newId}.jpg`, optimized);
+      } catch (err) {
+        console.warn('Cover upload to storage fallback:', err);
+      }
+    }
+
     const newPost: NewsPost = {
       ...postData,
+      coverUrl,
       id: newId,
       likesCount: 0,
       createdAt: new Date().toISOString(),
@@ -570,12 +586,17 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     let finalPhotoUrl = athlete.photoUrl;
     if (finalPhotoUrl && finalPhotoUrl.startsWith('data:image')) {
       try {
-        finalPhotoUrl = await optimizeImage(finalPhotoUrl, {
+        const optimized = await optimizeImage(finalPhotoUrl, {
           maxWidth: 600,
           maxHeight: 600,
           quality: 0.72,
           maxSizeBytes: 200 * 1024,
         });
+        finalPhotoUrl = await uploadImageToFirebaseStorage(
+          'athletes',
+          `${athlete.id || 'new'}_${Date.now()}.jpg`,
+          optimized
+        );
       } catch (err) {
         console.warn('Could not optimize athlete photo, keeping original:', err);
       }

@@ -50,6 +50,7 @@ import { AttendanceManagerTab } from './admin/AttendanceManagerTab';
 import { AdminUsersManagerTab } from './admin/AdminUsersManagerTab';
 import { AthleteDocumentsTab } from './AthleteDocumentsTab';
 import { ExportReportModal, ReportType } from './ExportReportModal';
+import { FirestoreConnectionStatus } from './FirestoreConnectionStatus';
 import { 
   groupAndRankMetrics, 
   STROKE_OPTIONS, 
@@ -1007,6 +1008,8 @@ export const AdminCoachPortalModal: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <FirestoreConnectionStatus variant="badge" />
+            
             {isAdminAuthenticated && (
               <>
                 <button
@@ -4170,6 +4173,11 @@ export const AdminCoachPortalModal: React.FC = () => {
                   </button>
                 </div>
               </form>
+
+              {/* Firestore Cloud Diagnostics */}
+              <div className="max-w-2xl">
+                <FirestoreConnectionStatus variant="card" />
+              </div>
             </div>
           )}
 

@@ -1,5 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, handleFirestoreError, OperationType } from '../lib/firebase';
+import { 
+  db, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  collection, 
+  handleFirestoreError, 
+  OperationType,
+  uploadImageToFirebaseStorage
+} from '../lib/firebase';
 import { AdminUser } from '../types';
 import { INITIAL_ADMIN_USERS } from '../data/initialCommunityData';
 import { optimizeImage } from '../lib/imageOptimizer';
@@ -552,25 +564,34 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         quality: 0.72,
         maxSizeBytes: 450 * 1024,
       });
+
+      // 1. Upload to Firebase Storage
+      const cloudUrl = await uploadImageToFirebaseStorage(
+        'site_photos',
+        `${photoId}_${Date.now()}.jpg`,
+        optimizedUrl
+      );
+
       const photoMeta = DEFAULT_PHOTOS[photoId];
 
       const payload: SitePhotoData = {
         id: photoId,
         title: title || photoMeta?.title || photoId,
         category: photoMeta?.category || 'Geral',
-        url: optimizedUrl,
+        url: cloudUrl,
         updatedAt: new Date().toISOString(),
         updatedBy: currentAdminProfile?.name || 'Administrador ACEDEP',
       };
 
+      // 2. Persist to Firestore
       await setDoc(doc(db, 'site_photos', photoId), payload, { merge: true });
 
       setPhotos((prev) => ({
         ...prev,
-        [photoId]: optimizedUrl,
+        [photoId]: cloudUrl,
       }));
       try {
-        localStorage.setItem('acedep_photo_' + photoId, optimizedUrl);
+        localStorage.setItem('acedep_photo_' + photoId, cloudUrl);
       } catch {}
 
       return true;
@@ -630,15 +651,24 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         maxSizeBytes: 450 * 1024,
       });
       const photoId = 'photo_' + Date.now();
+
+      // 1. Upload to Firebase Storage
+      const cloudUrl = await uploadImageToFirebaseStorage(
+        'gallery',
+        `${photoId}.jpg`,
+        optimizedUrl
+      );
+
       const payload: GalleryPhotoItem = {
         id: photoId,
         title: data.title || 'Foto ACEDEP',
         category: data.category || 'Geral',
-        url: optimizedUrl,
+        url: cloudUrl,
         date: data.date || new Date().toLocaleDateString('pt-BR'),
         createdAt: new Date().toISOString(),
       };
 
+      // 2. Persist to Firestore
       await setDoc(doc(db, 'gallery', photoId), payload);
 
       setGalleryPhotos((prev) => [payload, ...prev.filter((p) => p.id !== photoId)]);

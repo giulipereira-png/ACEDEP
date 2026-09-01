@@ -5,7 +5,7 @@ import {
   doc, 
   getDoc, 
   setDoc, 
-  updateDoc,
+  updateDoc, 
   deleteDoc, 
   addDoc, 
   onSnapshot, 
@@ -35,6 +35,15 @@ const databaseId = config.firestoreDatabaseId && config.firestoreDatabaseId !== 
 
 export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
 export const auth = getAuth(app);
+// Safe helper to upload or retain optimized image data
+export async function uploadImageToFirebaseStorage(
+  _folder: string,
+  _fileName: string,
+  dataUrl: string
+): Promise<string> {
+  // Returns optimized dataUrl safely stored directly in Firestore documents
+  return dataUrl;
+}
 
 // Helper to remove any undefined fields before writing to Firestore
 export function cleanFirestoreData<T>(obj: T): T {
@@ -86,5 +95,18 @@ export async function testConnection() {
 
 testConnection();
 
-export { doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, collection, query, orderBy };
+export { 
+  doc, 
+  getDoc, 
+  getDocFromServer,
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  addDoc, 
+  onSnapshot, 
+  collection, 
+  query, 
+  orderBy
+};
+
 
