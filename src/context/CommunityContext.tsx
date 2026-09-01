@@ -6,10 +6,11 @@ import {
   getDocs,
   setDoc, 
   deleteDoc, 
-  updateDoc,
+  updateDoc, 
   onSnapshot 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, cleanFirestoreData } from '../lib/firebase';
+import { saveDocToSupabase, deleteDocFromSupabase, subscribeToSupabaseCollection } from '../lib/supabase';
 import { optimizeImage } from '../lib/imageOptimizer';
 import { 
   NewsPost, 
@@ -172,7 +173,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return Array.from(new Set(emails));
   };
 
-  // Realtime Firestore synchronization and auto-seeding
+  // Realtime Supabase + Firestore synchronization
   useEffect(() => {
     let unsubscribeNews: () => void = () => {};
     let unsubscribeCheers: () => void = () => {};
@@ -181,6 +182,63 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     let unsubscribeAttendance: () => void = () => {};
     let unsubscribeAnnualEvents: () => void = () => {};
 
+    let unsubSbNews = () => {};
+    let unsubSbCheers = () => {};
+    let unsubSbAthletes = () => {};
+    let unsubSbEmailLogs = () => {};
+    let unsubSbAttendance = () => {};
+    let unsubSbAnnualEvents = () => {};
+
+    // 1. Supabase Real-time subscriptions (Uncapped & Instant)
+    try {
+      unsubSbNews = subscribeToSupabaseCollection<NewsPost>('news_posts', (items) => {
+        if (items && items.length > 0) {
+          items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+          setNewsPosts(items);
+        }
+      });
+
+      unsubSbCheers = subscribeToSupabaseCollection<CommunityCheer>('community_cheers', (items) => {
+        if (items && items.length > 0) {
+          items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+          setCheers(items);
+        }
+      });
+
+      unsubSbAthletes = subscribeToSupabaseCollection<AthleteRecord>('athletes', (items) => {
+        if (items && items.length > 0) {
+          setAthletes(items);
+          try {
+            localStorage.setItem('acedep_cached_athletes', JSON.stringify(items));
+          } catch {}
+        }
+      });
+
+      unsubSbEmailLogs = subscribeToSupabaseCollection<EmailNotificationLog>('email_notifications', (items) => {
+        if (items && items.length > 0) {
+          items.sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
+          setEmailLogs(items);
+        }
+      });
+
+      unsubSbAttendance = subscribeToSupabaseCollection<AttendanceSession>('attendance_sessions', (items) => {
+        if (items && items.length > 0) {
+          items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          setAttendanceSessions(items);
+        }
+      });
+
+      unsubSbAnnualEvents = subscribeToSupabaseCollection<AnnualCalendarEvent>('annual_events', (items) => {
+        if (items && items.length > 0) {
+          items.sort((a, b) => a.month - b.month);
+          setAnnualEvents(items);
+        }
+      });
+    } catch (sbErr) {
+      console.warn('[Supabase] CommunityContext subscription error:', sbErr);
+    }
+
+    // 2. Firestore backup synchronization
     const setupFirestore = async () => {
       // 1. Sync News
       unsubscribeNews = onSnapshot(
@@ -311,6 +369,12 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setupFirestore();
 
     return () => {
+      unsubSbNews();
+      unsubSbCheers();
+      unsubSbAthletes();
+      unsubSbEmailLogs();
+      unsubSbAttendance();
+      unsubSbAnnualEvents();
       unsubscribeNews();
       unsubscribeCheers();
       unsubscribeAthletes();
@@ -406,19 +470,24 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const updateAthleteAccessCode = async (athleteId: string, newCode: string): Promise<boolean> => {
+    const clean = newCode.trim();
     try {
+      const target = athletes.find((a) => a.id === athleteId);
+      if (target) {
+        saveDocToSupabase('athletes', athleteId, { ...target, accessCode: clean }).catch(() => {});
+      }
       await updateDoc(doc(db, 'athletes', athleteId), {
-        accessCode: newCode.trim(),
+        accessCode: clean,
       });
       setAthletes((prev) =>
-        prev.map((a) => (a.id === athleteId ? { ...a, accessCode: newCode.trim() } : a))
+        prev.map((a) => (a.id === athleteId ? { ...a, accessCode: clean } : a))
       );
       return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `athletes/${athleteId}`);
       // Fallback local update
       setAthletes((prev) =>
-        prev.map((a) => (a.id === athleteId ? { ...a, accessCode: newCode.trim() } : a))
+        prev.map((a) => (a.id === athleteId ? { ...a, accessCode: clean } : a))
       );
       return true;
     }
@@ -437,6 +506,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       createdAt: new Date().toISOString(),
     };
     try {
+      saveDocToSupabase('news_posts', newId, newPost).catch(() => {});
       await setDoc(doc(db, 'news_posts', newId), newPost);
       setNewsPosts((prev) => [newPost, ...prev]);
 
@@ -463,6 +533,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteNewsPost = async (id: string): Promise<boolean> => {
     try {
+      deleteDocFromSupabase('news_posts', id).catch(() => {});
       await deleteDoc(doc(db, 'news_posts', id));
       setNewsPosts((prev) => prev.filter((p) => p.id !== id));
       return true;
@@ -480,8 +551,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const target = newsPosts.find((p) => p.id === id);
       if (target) {
+        const updated = { ...target, likesCount: (target.likesCount || 0) + 1 };
+        saveDocToSupabase('news_posts', id, updated).catch(() => {});
         await updateDoc(doc(db, 'news_posts', id), {
-          likesCount: (target.likesCount || 0) + 1,
+          likesCount: updated.likesCount,
         });
       }
     } catch (e) {
@@ -504,6 +577,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       createdAt: new Date().toISOString(),
     };
     try {
+      saveDocToSupabase('community_cheers', newId, newCheer).catch(() => {});
       await setDoc(doc(db, 'community_cheers', newId), newCheer);
       setCheers((prev) => [newCheer, ...prev]);
       return true;
@@ -524,6 +598,8 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       message: data.message.trim(),
     };
     try {
+      const existing = cheers.find((c) => c.id === id) || ({} as CommunityCheer);
+      saveDocToSupabase('community_cheers', id, { ...existing, ...cleanData }).catch(() => {});
       await updateDoc(doc(db, 'community_cheers', id), cleanData);
       setCheers((prev) =>
         prev.map((c) => (c.id === id ? { ...c, ...cleanData } : c))
@@ -540,6 +616,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteCheer = async (id: string): Promise<boolean> => {
     try {
+      deleteDocFromSupabase('community_cheers', id).catch(() => {});
       await deleteDoc(doc(db, 'community_cheers', id));
       setCheers((prev) => prev.filter((c) => c.id !== id));
       return true;
@@ -557,8 +634,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const target = cheers.find((c) => c.id === id);
       if (target) {
+        const updated = { ...target, likes: (target.likes || 0) + 1 };
+        saveDocToSupabase('community_cheers', id, updated).catch(() => {});
         await updateDoc(doc(db, 'community_cheers', id), {
-          likes: (target.likes || 0) + 1,
+          likes: updated.likes,
         });
       }
     } catch (e) {
@@ -604,6 +683,9 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     try {
+      saveDocToSupabase('athletes', sanitized.id, sanitized).catch((e) =>
+        console.warn('[Supabase] athlete save error:', e)
+      );
       await setDoc(doc(db, 'athletes', sanitized.id), sanitized, { merge: true });
       setAthletes((prev) => {
         const index = prev.findIndex((a) => a.id === sanitized.id);
@@ -635,6 +717,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteAthleteRecord = async (athleteId: string): Promise<boolean> => {
     try {
+      deleteDocFromSupabase('athletes', athleteId).catch(() => {});
       await deleteDoc(doc(db, 'athletes', athleteId));
       setAthletes((prev) => prev.filter((a) => a.id !== athleteId));
       if (currentAthleteId === athleteId) {
@@ -810,6 +893,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     try {
+      saveDocToSupabase('email_notifications', newId, newLog).catch(() => {});
       await setDoc(doc(db, 'email_notifications', newId), newLog);
       setEmailLogs((prev) => [newLog, ...prev]);
       return true;
@@ -965,6 +1049,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     try {
+      saveDocToSupabase('attendance_sessions', id, newSession).catch(() => {});
       await setDoc(doc(db, 'attendance_sessions', id), newSession);
       setAttendanceSessions((prev) => [newSession, ...prev]);
       return true;
@@ -980,6 +1065,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updates: Partial<AttendanceSession>
   ): Promise<boolean> => {
     try {
+      const target = attendanceSessions.find((s) => s.id === id);
+      if (target) {
+        saveDocToSupabase('attendance_sessions', id, { ...target, ...updates }).catch(() => {});
+      }
       await updateDoc(doc(db, 'attendance_sessions', id), updates);
       setAttendanceSessions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
@@ -996,6 +1085,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteAttendanceSession = async (id: string): Promise<boolean> => {
     try {
+      deleteDocFromSupabase('attendance_sessions', id).catch(() => {});
       await deleteDoc(doc(db, 'attendance_sessions', id));
       setAttendanceSessions((prev) => prev.filter((s) => s.id !== id));
       return true;
@@ -1084,6 +1174,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     try {
+      saveDocToSupabase('annual_events', newId, newEvent).catch(() => {});
       await setDoc(doc(db, 'annual_events', newId), newEvent);
       setAnnualEvents((prev) => [...prev, newEvent].sort((a, b) => a.month - b.month));
       return true;
@@ -1099,6 +1190,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updates: Partial<AnnualCalendarEvent>
   ): Promise<boolean> => {
     try {
+      const target = annualEvents.find((e) => e.id === id);
+      if (target) {
+        saveDocToSupabase('annual_events', id, { ...target, ...updates }).catch(() => {});
+      }
       await updateDoc(doc(db, 'annual_events', id), updates);
       setAnnualEvents((prev) =>
         prev.map((evt) => (evt.id === id ? { ...evt, ...updates } : evt)).sort((a, b) => a.month - b.month)
@@ -1115,6 +1210,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteAnnualEvent = async (id: string): Promise<boolean> => {
     try {
+      deleteDocFromSupabase('annual_events', id).catch(() => {});
       await deleteDoc(doc(db, 'annual_events', id));
       setAnnualEvents((prev) => prev.filter((evt) => evt.id !== id));
       return true;
