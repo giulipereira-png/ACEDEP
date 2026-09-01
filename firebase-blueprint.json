@@ -231,6 +231,14 @@
       "schema": "AnnualCalendarEvent",
       "description": "Eventos e competições do calendário oficial da ACEDEP"
     },
+    "/guardian_accounts/{accountId}": {
+      "schema": "AdminUser",
+      "description": "Contas de acesso dos responsáveis"
+    },
+    "/athlete_messages/{messageId}": {
+      "schema": "EmailNotificationLog",
+      "description": "Mensagens e comunicados diretos aos responsáveis"
+    },
     "/admin_users/{userId}": {
       "schema": "AdminUser",
       "description": "Usuários e comissão técnica com acesso administrativo"

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { db, doc, setDoc, OperationType, handleFirestoreError } from '../lib/firebase';
+import { sanitizeText, validatePhone, isBotSubmission, checkRateLimit, whitelistFields, getSafeErrorMessage } from '../utils/security';
 
 interface AthleteEnrollmentModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
+  const [honeypot, setHoneypot] = useState(''); // Anti-bot honeypot field
   const [formData, setFormData] = useState({
     athleteName: '',
     guardianName: '',
@@ -57,31 +59,79 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMessage('');
 
+    // 1. Anti-Bot Honeypot check
+    if (isBotSubmission(honeypot)) {
+      console.warn('Bot submission blocked via honeypot.');
+      setSubmitted(true); // Silent drop for bots
+      return;
+    }
+
+    // 2. Client Rate-Limiting check
+    const rateCheck = checkRateLimit('enrollment_submission', 3, 60000);
+    if (!rateCheck.allowed) {
+      setErrorMessage(`Muitas tentativas em sequência. Por favor, aguarde ${rateCheck.retryAfterSeconds} segundos.`);
+      return;
+    }
+
+    // 3. Input Sanitization & Validation
+    const cleanAthleteName = sanitizeText(formData.athleteName, 120);
+    const cleanGuardianName = sanitizeText(formData.guardianName, 120);
+    const cleanPhone = sanitizeText(formData.phone, 30);
+    const cleanNotes = sanitizeText(formData.notes, 500);
+    const cleanEmail = sanitizeText(formData.email, 120);
+    const cleanAge = parseInt(formData.age, 10);
+
+    if (!cleanAthleteName || cleanAthleteName.length < 2) {
+      setErrorMessage('Por favor, informe o nome completo do atleta.');
+      return;
+    }
+    if (!cleanGuardianName || cleanGuardianName.length < 2) {
+      setErrorMessage('Por favor, informe o nome do responsável.');
+      return;
+    }
+    if (!validatePhone(cleanPhone)) {
+      setErrorMessage('Por favor, informe um telefone de contato válido com DDD.');
+      return;
+    }
+    if (isNaN(cleanAge) || cleanAge < 10 || cleanAge > 90) {
+      setErrorMessage('A idade informada deve estar entre 10 e 90 anos.');
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      // Salva os dados permanentemente na nuvem (Firestore) - Acessível de qualquer aparelho
       const enrollmentId = `req-${Date.now()}`;
-      await setDoc(doc(db, 'enrollment_requests', enrollmentId), {
+      // 4. Whitelist Fields (Mass-Assignment Prevention)
+      const rawPayload = {
         id: enrollmentId,
-        athleteName: formData.athleteName,
-        guardianName: formData.guardianName,
-        age: formData.age,
-        disabilityType: formData.disabilityType,
-        modalityType: formData.modalityType,
-        swimmingExperience: formData.swimmingExperience,
-        phone: formData.phone,
-        email: formData.email || '',
-        notes: formData.notes || '',
+        athleteName: cleanAthleteName,
+        guardianName: cleanGuardianName,
+        age: String(cleanAge),
+        disabilityType: sanitizeText(formData.disabilityType, 100),
+        modalityType: sanitizeText(formData.modalityType, 100),
+        swimmingExperience: sanitizeText(formData.swimmingExperience, 150),
+        phone: cleanPhone,
+        email: cleanEmail,
+        notes: cleanNotes,
         status: 'Pendente',
         createdAt: new Date().toISOString(),
-      });
+      };
 
+      const sanitizedPayload = whitelistFields(rawPayload, [
+        'id', 'athleteName', 'guardianName', 'age', 'disabilityType',
+        'modalityType', 'swimmingExperience', 'phone', 'email', 'notes',
+        'status', 'createdAt'
+      ]);
+
+      await setDoc(doc(db, 'enrollment_requests', enrollmentId), sanitizedPayload);
       setSubmitted(true);
     } catch (err: any) {
       console.error('Erro ao salvar no Firestore:', err);
       handleFirestoreError(err, OperationType.CREATE, 'enrollment_requests');
+      setErrorMessage(getSafeErrorMessage(err));
       setSubmitted(true);
     } finally {
       setLoading(false);
@@ -189,6 +239,19 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Anti-Bot Honeypot Field (hidden from human users) */}
+              <div className="hidden" aria-hidden="true" style={{ display: 'none' }}>
+                <label htmlFor="website_hp">Não preencha este campo se for humano</label>
+                <input
+                  id="website_hp"
+                  type="text"
+                  name="website_hp"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
               
               {/* Requirements Banner */}
               <div className="p-3.5 rounded-xl bg-[#0f2744] border border-[#d4af37]/40 text-xs text-slate-200 flex items-start gap-3">

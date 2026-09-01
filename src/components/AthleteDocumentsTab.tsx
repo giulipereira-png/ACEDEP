@@ -28,6 +28,7 @@ import { AthleteRecord, AthleteDocumentItem, DocumentCategory } from '../types';
 import { useCommunity } from '../context/CommunityContext';
 import { downloadAthleteDocument, formatFileSize, getInitialSampleDocuments } from '../utils/documentHelpers';
 import { uploadDocumentToGoogleDrive } from '../services/driveService';
+import { validateFileUpload, sanitizeText } from '../utils/security';
 
 const CATEGORIES: DocumentCategory[] = [
   'Laudo Médico / Neurológico (S14)',
@@ -92,20 +93,26 @@ export const AthleteDocumentsTab: React.FC<AthleteDocumentsTabProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check size (max 8MB)
-    if (file.size > 8 * 1024 * 1024) {
-      setUploadError('O arquivo selecionado é maior que o limite de 8 MB.');
+    // Strict Security Validation (MIME type, size limit, extensions)
+    const validation = validateFileUpload(
+      file, 
+      ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      8 * 1024 * 1024
+    );
+
+    if (!validation.valid) {
+      setUploadError(validation.error || 'Arquivo inválido.');
       return;
     }
 
     setUploadError('');
-    setUploadedFileName(file.name);
+    setUploadedFileName(sanitizeText(file.name, 100));
     setUploadedFileSize(formatFileSize(file.size));
     setUploadedFileType(file.type || 'application/pdf');
 
     // Auto-fill title if empty
     if (!docTitle.trim()) {
-      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      const cleanName = sanitizeText(file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '), 100);
       setDocTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
     }
 
@@ -125,13 +132,17 @@ export const AthleteDocumentsTab: React.FC<AthleteDocumentsTabProps> = ({
     setUploadError('');
     setUploadSuccess('');
 
-    if (!docTitle.trim()) {
+    const cleanTitle = sanitizeText(docTitle, 150);
+    const cleanNotes = sanitizeText(docNotes, 500);
+    const cleanExpiry = sanitizeText(docExpiryDate, 50);
+
+    if (!cleanTitle || cleanTitle.length < 2) {
       setUploadError('Por favor, informe o título do documento.');
       return;
     }
 
     if (!uploadedFileUrl) {
-      setUploadError('Por favor, selecione um arquivo (PDF, imagem ou documento) para enviar.');
+      setUploadError('Por favor, selecione um arquivo (PDF ou imagem) para enviar.');
       return;
     }
 
@@ -142,8 +153,8 @@ export const AthleteDocumentsTab: React.FC<AthleteDocumentsTabProps> = ({
     try {
       driveInfo = await uploadDocumentToGoogleDrive({
         athleteName: athlete.name,
-        documentTitle: docTitle.trim(),
-        fileName: uploadedFileName || `${docTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}.pdf`,
+        documentTitle: cleanTitle,
+        fileName: uploadedFileName || `${cleanTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}.pdf`,
         fileDataUrl: uploadedFileUrl,
       });
     } catch (driveErr) {
@@ -152,18 +163,18 @@ export const AthleteDocumentsTab: React.FC<AthleteDocumentsTabProps> = ({
 
     const newDocItem: AthleteDocumentItem = {
       id: `doc-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      title: docTitle.trim(),
+      title: cleanTitle,
       category: docCategory,
-      fileName: uploadedFileName || `${docTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}.pdf`,
+      fileName: uploadedFileName || `${cleanTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}.pdf`,
       fileUrl: uploadedFileUrl,
       fileSize: uploadedFileSize || '1.0 MB',
       fileType: uploadedFileType || 'application/pdf',
       uploadedBy: isStaff ? 'Comissão Técnica / Admin' : 'Responsável',
       uploadedByName: uploaderName || (isStaff ? 'Coordenação ACEDEP' : athlete.guardianName),
       uploadedAt: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-      expiryDate: docExpiryDate.trim() || undefined,
+      expiryDate: cleanExpiry || undefined,
       status: 'Válido',
-      notes: docNotes.trim() || undefined,
+      notes: cleanNotes || undefined,
       driveFileId: driveInfo?.fileId,
       driveViewLink: driveInfo?.webViewLink,
       driveFolderLink: driveInfo?.folderLink,

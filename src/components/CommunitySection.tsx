@@ -26,6 +26,7 @@ import {
 import { useCommunity } from '../context/CommunityContext';
 import { usePhotos } from '../context/PhotosContext';
 import { NewsCategory, CommunityCheer } from '../types';
+import { sanitizeText, isBotSubmission, checkRateLimit, getSafeErrorMessage } from '../utils/security';
 
 export const CommunitySection: React.FC = () => {
   const { 
@@ -48,8 +49,10 @@ export const CommunitySection: React.FC = () => {
   const [cheerAuthor, setCheerAuthor] = useState('');
   const [cheerRelation, setCheerRelation] = useState('');
   const [cheerMsg, setCheerMsg] = useState('');
+  const [cheerHoneypot, setCheerHoneypot] = useState('');
   const [isSubmittingCheer, setIsSubmittingCheer] = useState(false);
   const [cheerSuccess, setCheerSuccess] = useState(false);
+  const [cheerError, setCheerError] = useState('');
 
   // Carousel Pagination & Autoplay State
   const [cheerPage, setCheerPage] = useState(0);
@@ -104,13 +107,42 @@ export const CommunitySection: React.FC = () => {
 
   const handleCheerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cheerAuthor.trim() || !cheerMsg.trim()) return;
+    setCheerError('');
+
+    // 1. Anti-Bot Honeypot check
+    if (isBotSubmission(cheerHoneypot)) {
+      console.warn('Bot cheer submission dropped.');
+      setCheerSuccess(true);
+      return;
+    }
+
+    // 2. Client Rate-Limiting
+    const rateCheck = checkRateLimit('cheer_submission', 4, 60000);
+    if (!rateCheck.allowed) {
+      setCheerError(`Por favor, aguarde ${rateCheck.retryAfterSeconds} segundos antes de postar outra mensagem.`);
+      return;
+    }
+
+    // 3. String Sanitization & Length Restrictions
+    const cleanAuthor = sanitizeText(cheerAuthor, 80);
+    const cleanRelation = sanitizeText(cheerRelation, 80) || 'Comunidade ACEDEP';
+    const cleanMessage = sanitizeText(cheerMsg, 300);
+
+    if (!cleanAuthor || cleanAuthor.length < 2) {
+      setCheerError('Por favor, informe seu nome (pelo menos 2 letras).');
+      return;
+    }
+
+    if (!cleanMessage || cleanMessage.length < 3) {
+      setCheerError('Por favor, escreva uma mensagem de incentivo para os atletas.');
+      return;
+    }
 
     setIsSubmittingCheer(true);
     const success = await addCheer({
-      authorName: cheerAuthor,
-      relationship: cheerRelation || 'Comunidade ACEDEP',
-      message: cheerMsg,
+      authorName: cleanAuthor,
+      relationship: cleanRelation,
+      message: cleanMessage,
     });
     setIsSubmittingCheer(false);
 
@@ -118,8 +150,11 @@ export const CommunitySection: React.FC = () => {
       setCheerAuthor('');
       setCheerRelation('');
       setCheerMsg('');
+      setCheerHoneypot('');
       setCheerSuccess(true);
       setTimeout(() => setCheerSuccess(false), 4000);
+    } else {
+      setCheerError('Não foi possível registrar o recado no momento. Tente novamente.');
     }
   };
 
@@ -391,6 +426,20 @@ export const CommunitySection: React.FC = () => {
                 </div>
 
                 <form onSubmit={handleCheerSubmit} className="space-y-3">
+                  {/* Anti-Bot Honeypot Field */}
+                  <div className="hidden" aria-hidden="true" style={{ display: 'none' }}>
+                    <label htmlFor="cheer_hp">Não preencha este campo se for humano</label>
+                    <input
+                      id="cheer_hp"
+                      type="text"
+                      name="cheer_hp"
+                      value={cheerHoneypot}
+                      onChange={(e) => setCheerHoneypot(e.target.value)}
+                      tabIndex={-1}
+                      autoComplete="off"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold text-slate-300 block mb-1">
@@ -438,6 +487,13 @@ export const CommunitySection: React.FC = () => {
                     <p className="text-xs text-emerald-400 flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Recado publicado com sucesso no mural!</span>
+                    </p>
+                  )}
+
+                  {cheerError && (
+                    <p className="text-xs text-amber-400 flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{cheerError}</span>
                     </p>
                   )}
 

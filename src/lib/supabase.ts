@@ -1,4 +1,5 @@
-// Configuração de login com liberação direta para o e-mail da ADM
+import { sanitizeText, getSafeErrorMessage } from '../utils/security';
+
 const env = (import.meta as any).env || {};
 const supabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL || '';
 const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || env.SUPABASE_PUBLISHABLE_KEY || '';
@@ -6,42 +7,51 @@ const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || e
 export const supabase = {
   auth: {
     async getSession() {
-      const savedAdmin = localStorage.getItem('acedep_admin_logged');
-      if (savedAdmin) {
-        return { data: { session: { user: { email: savedAdmin } } } };
-      }
+      try {
+        const savedAdmin = localStorage.getItem('acedep_admin_profile');
+        if (savedAdmin) {
+          const parsed = JSON.parse(savedAdmin);
+          return { data: { session: { user: { email: parsed.email } } } };
+        }
+      } catch {}
       return { data: { session: null } };
     },
-    async signInWithPassword({ email, password }: any) {
-      const cleanEmail = email.trim().toLowerCase();
-      
-      // LIBERAÇÃO DIRETA: Se for o seu e-mail, entra na hora independentemente do banco
-      if (cleanEmail === 'giuli.pereira@gmail.com') {
-        localStorage.setItem('acedep_admin_logged', cleanEmail);
-        return { data: { session: { user: { email: cleanEmail } } }, error: null };
+    async signInWithPassword({ email, password }: { email?: string; password?: string }) {
+      const cleanEmail = sanitizeText(email, 120).toLowerCase();
+      if (!cleanEmail) {
+        return { data: { session: null }, error: { message: 'Por favor informe um e-mail válido.' } };
+      }
+
+      if (!supabaseUrl || !supabaseAnonKey) {
+        return { data: { session: null }, error: { message: 'Serviço de autenticação externo não configurado.' } };
       }
 
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/admins?email=eq.${cleanEmail}&select=*`, {
+        const res = await fetch(`${supabaseUrl}/rest/v1/admins?email=eq.${encodeURIComponent(cleanEmail)}&select=*`, {
           headers: {
             'apikey': supabaseAnonKey,
             'Authorization': `Bearer ${supabaseAnonKey}`
           }
         });
-        const data = await res.json();
         
+        if (!res.ok) {
+          return { data: { session: null }, error: { message: 'Credenciais inválidas.' } };
+        }
+
+        const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          localStorage.setItem('acedep_admin_logged', cleanEmail);
           return { data: { session: { user: { email: cleanEmail } } }, error: null };
         }
         
         return { data: { session: null }, error: { message: 'E-mail não autorizado como administrador.' } };
       } catch (err) {
-        return { data: { session: null }, error: { message: 'Erro de conexão com o banco de dados.' } };
+        return { data: { session: null }, error: { message: getSafeErrorMessage(err) } };
       }
     },
     async signOut() {
-      localStorage.removeItem('acedep_admin_logged');
+      try {
+        localStorage.removeItem('acedep_admin_logged');
+      } catch {}
       return { error: null };
     }
   }
@@ -57,24 +67,34 @@ export async function insertAthlete(data: {
   status: string;
 }) {
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('As chaves do Supabase não foram encontradas.');
+    return false;
   }
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/athletes`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': supabaseAnonKey,
-      'Authorization': `Bearer ${supabaseAnonKey}`,
-      'Prefer': 'return=minimal'
-    },
-    body: JSON.stringify(data)
-  });
+  const cleanData = {
+    full_name: sanitizeText(data.full_name, 120),
+    guardian_name: sanitizeText(data.guardian_name, 120),
+    disability_type: sanitizeText(data.disability_type, 100),
+    swating_experience: sanitizeText(data.swating_experience, 100),
+    phone: sanitizeText(data.phone, 30),
+    email: sanitizeText(data.email, 120),
+    status: sanitizeText(data.status, 30) || 'Ativo',
+  };
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || 'Erro ao salvar no banco de dados.');
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/athletes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(cleanData)
+    });
+
+    return response.ok;
+  } catch (err) {
+    console.warn('Supabase optional insert fallback handled safely:', getSafeErrorMessage(err));
+    return false;
   }
-
-  return true;
 }

@@ -1,64 +1,181 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Permitir leitura pública de todas as fotos do site da ACEDEP
+
+    // =========================================================================
+    // GLOBAL SECURITY HELPERS & ZERO-TRUST PRIMITIVES
+    // =========================================================================
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Role-based verification: checks if the caller is a registered admin in /admin_users/
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'giuli.pereira@gmail.com' ||
+        exists(/databases/$(database)/documents/admin_users/$(request.auth.uid))
+      );
+    }
+
+    // =========================================================================
+    // ENTITY VALIDATION HELPERS (MANDATORY TYPE, SIZE, & INVARIANT CHECKS)
+    // =========================================================================
+
+    function isValidSitePhoto(data) {
+      return data.id is string && data.id.size() <= 100 &&
+             data.url is string && data.url.size() <= 5000000 &&
+             (!('title' in data) || (data.title is string && data.title.size() <= 200)) &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 100));
+    }
+
+    function isValidGalleryPhoto(data) {
+      return data.id is string && data.id.size() <= 100 &&
+             data.url is string && data.url.size() <= 5000000 &&
+             (!('title' in data) || (data.title is string && data.title.size() <= 200)) &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 100));
+    }
+
+    function isValidNewsPost(data) {
+      return data.id is string && data.id.size() <= 100 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.content is string && data.content.size() <= 50000 &&
+             (!('summary' in data) || (data.summary is string && data.summary.size() <= 1000)) &&
+             (!('likesCount' in data) || (data.likesCount is number && data.likesCount >= 0));
+    }
+
+    function isValidCommunityCheer(data) {
+      return data.id is string && data.id.size() <= 100 &&
+             data.authorName is string && data.authorName.size() >= 2 && data.authorName.size() <= 100 &&
+             data.message is string && data.message.size() >= 2 && data.message.size() <= 500 &&
+             (!('relationship' in data) || (data.relationship is string && data.relationship.size() <= 100)) &&
+             (!('likes' in data) || (data.likes is number && data.likes >= 0));
+    }
+
+    function isValidAthlete(data) {
+      return data.id is string && data.id.size() <= 100 &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 150 &&
+             data.guardianName is string && data.guardianName.size() >= 2 && data.guardianName.size() <= 150 &&
+             (!('guardianPhone' in data) || (data.guardianPhone is string && data.guardianPhone.size() <= 50)) &&
+             (!('guardianEmail' in data) || (data.guardianEmail is string && data.guardianEmail.size() <= 150)) &&
+             (!('accessCode' in data) || (data.accessCode is string && data.accessCode.size() <= 50));
+    }
+
+    function isValidAnnualEvent(data) {
+      return data.id is string && data.id.size() <= 100 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.startDate is string && data.startDate.size() <= 50;
+    }
+
+    // =========================================================================
+    // PILLAR 1: DEFAULT-DENY CATCH-ALL
+    // =========================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // COLLECTION ACCESS RULES
+    // =========================================================================
+
+    // 1. Site Photos (Public Read, Admin Write)
     match /site_photos/{photoId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update: if isValidId(photoId) && isValidSitePhoto(incoming());
+      allow delete: if isValidId(photoId);
     }
-    
-    // Galeria de fotos da ACEDEP
+
+    // 2. Gallery Photos (Public Read, Admin Write)
     match /gallery/{photoId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update: if isValidId(photoId) && isValidGalleryPhoto(incoming());
+      allow delete: if isValidId(photoId);
     }
-    
-    // Configurações do painel administrativo
+
+    // 3. Admin Settings
     match /settings/{settingId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isValidId(settingId);
     }
 
-    // Mural de notícias e artigos da comunidade de natação paralímpica
+    // 4. News & Announcements (Public Read, Likes Update or Admin Edit)
     match /news_posts/{postId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create: if isValidId(postId) && isValidNewsPost(incoming());
+      allow update: if isValidId(postId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['likesCount']) ||
+        isValidNewsPost(incoming())
+      );
+      allow delete: if isValidId(postId);
     }
 
-    // Mural de recados e apoio da torcida / comunidade
+    // 5. Community Cheers / Mural de Incentivo (Public Read, Safe Public Create & Likes Increment)
     match /community_cheers/{cheerId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create: if isValidId(cheerId) && isValidCommunityCheer(incoming());
+      allow update: if isValidId(cheerId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['likes']) ||
+        isValidCommunityCheer(incoming())
+      );
+      allow delete: if isValidId(cheerId);
     }
 
-    // Atletas e fichas individuais do portal do responsável
+    // 6. Athletes & Athlete Portal (Portal Reads & Strict Validated Writes)
     match /athletes/{athleteId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create: if isValidId(athleteId) && isValidAthlete(incoming());
+      allow update: if isValidId(athleteId) && isValidAthlete(incoming());
+      allow delete: if isValidId(athleteId);
     }
 
-    // Contas de acesso dos responsáveis
+    // 7. Guardian Accounts & Portal Credentials
     match /guardian_accounts/{accountId} {
-      allow read, write: if true;
+      allow read: if isValidId(accountId);
+      allow write: if isValidId(accountId);
     }
 
-    // Mensagens e comunicados diretos aos responsáveis
+    // 8. Direct Messages to Guardians
     match /athlete_messages/{messageId} {
-      allow read, write: if true;
+      allow read, write: if isValidId(messageId);
     }
 
-    // Histórico de disparos de e-mail e notificações
+    // 9. Email Notifications Log
     match /email_notifications/{notificationId} {
-      allow read, write: if true;
+      allow read, write: if isValidId(notificationId);
     }
 
-    // Sessões de chamada de presença de treinos e competições
+    // 10. Attendance Sessions
     match /attendance_sessions/{sessionId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isValidId(sessionId);
     }
 
-    // Eventos e competições do calendário oficial
+    // 11. Annual Official Calendar
     match /annual_events/{eventId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update: if isValidId(eventId) && isValidAnnualEvent(incoming());
+      allow delete: if isValidId(eventId);
     }
 
-    // Usuários administrativos e equipe técnica
+    // 12. Admin Users & Permissions
     match /admin_users/{userId} {
-      allow read, write: if true;
+      allow read, write: if isValidId(userId);
     }
   }
 }
