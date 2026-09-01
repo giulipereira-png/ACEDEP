@@ -10,7 +10,6 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, cleanFirestoreData } from '../lib/firebase';
-import { saveDocToSupabase, deleteDocFromSupabase, subscribeToSupabaseCollection } from '../lib/supabase';
 import { optimizeImage } from '../lib/imageOptimizer';
 import { 
   NewsPost, 
@@ -173,7 +172,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return Array.from(new Set(emails));
   };
 
-  // Realtime Supabase + Firestore synchronization
+  // Realtime Firestore synchronization
   useEffect(() => {
     let unsubscribeNews: () => void = () => {};
     let unsubscribeCheers: () => void = () => {};
@@ -182,208 +181,132 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     let unsubscribeAttendance: () => void = () => {};
     let unsubscribeAnnualEvents: () => void = () => {};
 
-    let unsubSbNews = () => {};
-    let unsubSbCheers = () => {};
-    let unsubSbAthletes = () => {};
-    let unsubSbEmailLogs = () => {};
-    let unsubSbAttendance = () => {};
-    let unsubSbAnnualEvents = () => {};
+    // 1. Sync News
+    unsubscribeNews = onSnapshot(
+      collection(db, 'news_posts'),
+      (snapshot) => {
+        const list: NewsPost[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ ...docSnap.data(), id: docSnap.id } as NewsPost);
+        });
+        list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
-    // 1. Supabase Real-time subscriptions (Uncapped & Instant)
-    try {
-      unsubSbNews = subscribeToSupabaseCollection<NewsPost>('news_posts', (items) => {
-        if (items && items.length > 0) {
-          items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-          setNewsPosts(items);
+        if (snapshot.empty) {
+          setNewsPosts(INITIAL_NEWS_POSTS);
+        } else {
+          setNewsPosts(list);
         }
-      });
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'news_posts');
+      }
+    );
 
-      unsubSbCheers = subscribeToSupabaseCollection<any>('community_cheers', (items) => {
-        if (items && items.length > 0) {
-          const sanitizedCheers: CommunityCheer[] = items.map((item) => ({
-            id: item.id || `cheer_${Date.now()}`,
-            authorName: item.authorName || item.name || 'Torcedor ACEDEP',
-            relationship: item.relationship || item.relation || 'Torcida ACEDEP',
-            message: item.message || '',
-            avatarColor: item.avatarColor || '#d4af37',
-            likes: Number(item.likes) || 0,
-            createdAt: item.createdAt || new Date().toISOString(),
-          }));
-          sanitizedCheers.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-          setCheers(sanitizedCheers);
+    // 2. Sync Cheers
+    unsubscribeCheers = onSnapshot(
+      collection(db, 'community_cheers'),
+      (snapshot) => {
+        const list: CommunityCheer[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ ...docSnap.data(), id: docSnap.id } as CommunityCheer);
+        });
+        list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+        if (snapshot.empty) {
+          setCheers(INITIAL_COMMUNITY_CHEERS);
+        } else {
+          setCheers(list);
         }
-      });
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'community_cheers');
+      }
+    );
 
-      unsubSbAthletes = subscribeToSupabaseCollection<AthleteRecord>('athletes', (items) => {
-        if (items && items.length > 0) {
-          setAthletes(items);
+    // 3. Sync Athletes
+    unsubscribeAthletes = onSnapshot(
+      collection(db, 'athletes'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const list: AthleteRecord[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push({ ...docSnap.data(), id: docSnap.id } as AthleteRecord);
+          });
+          setAthletes(list);
           try {
-            localStorage.setItem('acedep_cached_athletes', JSON.stringify(items));
+            localStorage.setItem('acedep_cached_athletes', JSON.stringify(list));
           } catch {}
+        } else {
+          setAthletes(INITIAL_ATHLETES);
         }
-      });
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'athletes');
+      }
+    );
 
-      unsubSbEmailLogs = subscribeToSupabaseCollection<EmailNotificationLog>('email_notifications', (items) => {
-        if (items && items.length > 0) {
-          items.sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
-          setEmailLogs(items);
-        }
-      });
-
-      unsubSbAttendance = subscribeToSupabaseCollection<AttendanceSession>('attendance_sessions', (items) => {
-        if (items && items.length > 0) {
-          items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-          setAttendanceSessions(items);
-        }
-      });
-
-      unsubSbAnnualEvents = subscribeToSupabaseCollection<AnnualCalendarEvent>('annual_events', (items) => {
-        if (items && items.length > 0) {
-          items.sort((a, b) => a.month - b.month);
-          setAnnualEvents(items);
-        }
-      });
-    } catch (sbErr) {
-      console.warn('[Supabase] CommunityContext subscription error:', sbErr);
-    }
-
-    // 2. Firestore backup synchronization
-    const setupFirestore = async () => {
-      // 1. Sync News
-      unsubscribeNews = onSnapshot(
-        collection(db, 'news_posts'),
-        (snapshot) => {
-          const list: NewsPost[] = [];
+    // 4. Sync Email Notifications Log
+    unsubscribeEmailLogs = onSnapshot(
+      collection(db, 'email_notifications'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const list: EmailNotificationLog[] = [];
           snapshot.forEach((docSnap) => {
-            list.push({ ...docSnap.data(), id: docSnap.id } as NewsPost);
+            list.push({ ...docSnap.data(), id: docSnap.id } as EmailNotificationLog);
           });
-          list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-
-          if (snapshot.empty) {
-            setNewsPosts(INITIAL_NEWS_POSTS);
-          } else {
-            setNewsPosts(list);
-          }
-        },
-        (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'news_posts');
+          list.sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
+          setEmailLogs(list);
+        } else {
+          setEmailLogs(INITIAL_EMAIL_LOGS);
         }
-      );
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'email_notifications');
+      }
+    );
 
-      // 2. Sync Cheers
-      unsubscribeCheers = onSnapshot(
-        collection(db, 'community_cheers'),
-        (snapshot) => {
-          const list: CommunityCheer[] = [];
+    // 5. Sync Attendance Sessions (Treinos e Campeonatos)
+    unsubscribeAttendance = onSnapshot(
+      collection(db, 'attendance_sessions'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const list: AttendanceSession[] = [];
           snapshot.forEach((docSnap) => {
-            list.push({ ...docSnap.data(), id: docSnap.id } as CommunityCheer);
+            list.push({ ...docSnap.data(), id: docSnap.id } as AttendanceSession);
           });
-          list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-
-          if (snapshot.empty) {
-            setCheers(INITIAL_COMMUNITY_CHEERS);
-          } else {
-            setCheers(list);
-          }
-        },
-        (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'community_cheers');
+          list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          setAttendanceSessions(list);
+        } else {
+          setAttendanceSessions(INITIAL_ATTENDANCE_SESSIONS);
         }
-      );
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'attendance_sessions');
+      }
+    );
 
-      // 3. Sync Athletes
-      unsubscribeAthletes = onSnapshot(
-        collection(db, 'athletes'),
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const list: AthleteRecord[] = [];
-            snapshot.forEach((docSnap) => {
-              list.push({ ...docSnap.data(), id: docSnap.id } as AthleteRecord);
-            });
-            setAthletes(list);
-            try {
-              localStorage.setItem('acedep_cached_athletes', JSON.stringify(list));
-            } catch {}
-          } else {
-            setAthletes(INITIAL_ATHLETES);
-          }
-        },
-        (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'athletes');
+    // 6. Sync Annual Calendar Events (Competições e Atividades Anuais)
+    unsubscribeAnnualEvents = onSnapshot(
+      collection(db, 'annual_events'),
+      (snapshot) => {
+        const list: AnnualCalendarEvent[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ ...docSnap.data(), id: docSnap.id } as AnnualCalendarEvent);
+        });
+        list.sort((a, b) => a.month - b.month);
+
+        if (snapshot.empty) {
+          setAnnualEvents(INITIAL_ANNUAL_EVENTS);
+        } else {
+          setAnnualEvents(list);
         }
-      );
-
-      // 4. Sync Email Notifications Log
-      unsubscribeEmailLogs = onSnapshot(
-        collection(db, 'email_notifications'),
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const list: EmailNotificationLog[] = [];
-            snapshot.forEach((docSnap) => {
-              list.push({ ...docSnap.data(), id: docSnap.id } as EmailNotificationLog);
-            });
-            list.sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
-            setEmailLogs(list);
-          } else {
-            setEmailLogs(INITIAL_EMAIL_LOGS);
-          }
-        },
-        (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'email_notifications');
-        }
-      );
-
-      // 5. Sync Attendance Sessions (Treinos e Campeonatos)
-      unsubscribeAttendance = onSnapshot(
-        collection(db, 'attendance_sessions'),
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const list: AttendanceSession[] = [];
-            snapshot.forEach((docSnap) => {
-              list.push({ ...docSnap.data(), id: docSnap.id } as AttendanceSession);
-            });
-            list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-            setAttendanceSessions(list);
-          } else {
-            setAttendanceSessions(INITIAL_ATTENDANCE_SESSIONS);
-          }
-        },
-        (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'attendance_sessions');
-        }
-      );
-
-      // 6. Sync Annual Calendar Events (Competições e Atividades Anuais)
-      unsubscribeAnnualEvents = onSnapshot(
-        collection(db, 'annual_events'),
-        (snapshot) => {
-          const list: AnnualCalendarEvent[] = [];
-          snapshot.forEach((docSnap) => {
-            list.push({ ...docSnap.data(), id: docSnap.id } as AnnualCalendarEvent);
-          });
-          list.sort((a, b) => a.month - b.month);
-
-          if (snapshot.empty) {
-            setAnnualEvents(INITIAL_ANNUAL_EVENTS);
-          } else {
-            setAnnualEvents(list);
-          }
-        },
-        (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'annual_events');
-        }
-      );
-    };
-
-    setupFirestore();
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'annual_events');
+      }
+    );
 
     return () => {
-      unsubSbNews();
-      unsubSbCheers();
-      unsubSbAthletes();
-      unsubSbEmailLogs();
-      unsubSbAttendance();
-      unsubSbAnnualEvents();
       unsubscribeNews();
       unsubscribeCheers();
       unsubscribeAthletes();
@@ -481,10 +404,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const updateAthleteAccessCode = async (athleteId: string, newCode: string): Promise<boolean> => {
     const clean = newCode.trim();
     try {
-      const target = athletes.find((a) => a.id === athleteId);
-      if (target) {
-        saveDocToSupabase('athletes', athleteId, { ...target, accessCode: clean }).catch(() => {});
-      }
       await updateDoc(doc(db, 'athletes', athleteId), {
         accessCode: clean,
       });
@@ -515,8 +434,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       createdAt: new Date().toISOString(),
     };
     try {
-      await saveDocToSupabase('news_posts', newId, newPost);
-      setDoc(doc(db, 'news_posts', newId), newPost).catch(() => {});
+      await setDoc(doc(db, 'news_posts', newId), newPost);
       setNewsPosts((prev) => [newPost, ...prev]);
 
       if (notifyParentsByEmail) {
@@ -534,6 +452,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `news_posts/${newId}`);
       setNewsPosts((prev) => [newPost, ...prev]);
       return true;
     }
@@ -541,11 +460,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteNewsPost = async (id: string): Promise<boolean> => {
     try {
-      await deleteDocFromSupabase('news_posts', id);
-      deleteDoc(doc(db, 'news_posts', id)).catch(() => {});
+      await deleteDoc(doc(db, 'news_posts', id));
       setNewsPosts((prev) => prev.filter((p) => p.id !== id));
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `news_posts/${id}`);
       setNewsPosts((prev) => prev.filter((p) => p.id !== id));
       return true;
     }
@@ -558,11 +477,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const target = newsPosts.find((p) => p.id === id);
       if (target) {
-        const updated = { ...target, likesCount: (target.likesCount || 0) + 1 };
-        await saveDocToSupabase('news_posts', id, updated);
-        updateDoc(doc(db, 'news_posts', id), {
-          likesCount: updated.likesCount,
-        }).catch(() => {});
+        const updatedLikes = (target.likesCount || 0) + 1;
+        await updateDoc(doc(db, 'news_posts', id), {
+          likesCount: updatedLikes,
+        });
       }
     } catch (e) {
       console.warn('Like news error:', e);
@@ -584,11 +502,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       createdAt: new Date().toISOString(),
     };
     try {
-      await saveDocToSupabase('community_cheers', newId, newCheer);
-      setDoc(doc(db, 'community_cheers', newId), newCheer).catch(() => {});
+      await setDoc(doc(db, 'community_cheers', newId), newCheer);
       setCheers((prev) => [newCheer, ...prev]);
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `community_cheers/${newId}`);
       setCheers((prev) => [newCheer, ...prev]);
       return true;
     }
@@ -604,15 +522,13 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       message: data.message.trim(),
     };
     try {
-      const existing = cheers.find((c) => c.id === id) || ({} as CommunityCheer);
-      const updated = { ...existing, ...cleanData };
-      await saveDocToSupabase('community_cheers', id, updated);
-      updateDoc(doc(db, 'community_cheers', id), cleanData).catch(() => {});
+      await updateDoc(doc(db, 'community_cheers', id), cleanData);
       setCheers((prev) =>
         prev.map((c) => (c.id === id ? { ...c, ...cleanData } : c))
       );
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `community_cheers/${id}`);
       setCheers((prev) =>
         prev.map((c) => (c.id === id ? { ...c, ...cleanData } : c))
       );
@@ -622,11 +538,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteCheer = async (id: string): Promise<boolean> => {
     try {
-      await deleteDocFromSupabase('community_cheers', id);
-      deleteDoc(doc(db, 'community_cheers', id)).catch(() => {});
+      await deleteDoc(doc(db, 'community_cheers', id));
       setCheers((prev) => prev.filter((c) => c.id !== id));
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `community_cheers/${id}`);
       setCheers((prev) => prev.filter((c) => c.id !== id));
       return true;
     }
@@ -639,11 +555,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const target = cheers.find((c) => c.id === id);
       if (target) {
-        const updated = { ...target, likes: (target.likes || 0) + 1 };
-        await saveDocToSupabase('community_cheers', id, updated);
-        updateDoc(doc(db, 'community_cheers', id), {
-          likes: updated.likes,
-        }).catch(() => {});
+        const newLikes = (target.likes || 0) + 1;
+        await updateDoc(doc(db, 'community_cheers', id), {
+          likes: newLikes,
+        });
       }
     } catch (e) {
       console.warn('Like cheer error:', e);
@@ -688,8 +603,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     try {
-      await saveDocToSupabase('athletes', sanitized.id, sanitized);
-      setDoc(doc(db, 'athletes', sanitized.id), sanitized, { merge: true }).catch(() => {});
+      await setDoc(doc(db, 'athletes', sanitized.id), sanitized, { merge: true });
       setAthletes((prev) => {
         const index = prev.findIndex((a) => a.id === sanitized.id);
         const updated = index >= 0
@@ -703,6 +617,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return true;
     } catch (e) {
       console.error('Error saving athlete:', e);
+      handleFirestoreError(e, OperationType.WRITE, `athletes/${sanitized.id}`);
       setAthletes((prev) => {
         const index = prev.findIndex((a) => a.id === sanitized.id);
         const updated = index >= 0
@@ -719,14 +634,14 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteAthleteRecord = async (athleteId: string): Promise<boolean> => {
     try {
-      await deleteDocFromSupabase('athletes', athleteId);
-      deleteDoc(doc(db, 'athletes', athleteId)).catch(() => {});
+      await deleteDoc(doc(db, 'athletes', athleteId));
       setAthletes((prev) => prev.filter((a) => a.id !== athleteId));
       if (currentAthleteId === athleteId) {
         guardianLogout();
       }
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `athletes/${athleteId}`);
       setAthletes((prev) => prev.filter((a) => a.id !== athleteId));
       if (currentAthleteId === athleteId) {
         guardianLogout();
@@ -894,7 +809,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     try {
-      saveDocToSupabase('email_notifications', newId, newLog).catch(() => {});
       await setDoc(doc(db, 'email_notifications', newId), newLog);
       setEmailLogs((prev) => [newLog, ...prev]);
       return true;
@@ -1050,11 +964,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     try {
-      await saveDocToSupabase('attendance_sessions', id, newSession);
-      setDoc(doc(db, 'attendance_sessions', id), newSession).catch(() => {});
+      await setDoc(doc(db, 'attendance_sessions', id), newSession);
       setAttendanceSessions((prev) => [newSession, ...prev]);
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `attendance_sessions/${id}`);
       setAttendanceSessions((prev) => [newSession, ...prev]);
       return true;
     }
@@ -1065,16 +979,13 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updates: Partial<AttendanceSession>
   ): Promise<boolean> => {
     try {
-      const target = attendanceSessions.find((s) => s.id === id);
-      if (target) {
-        await saveDocToSupabase('attendance_sessions', id, { ...target, ...updates });
-      }
-      updateDoc(doc(db, 'attendance_sessions', id), updates).catch(() => {});
+      await updateDoc(doc(db, 'attendance_sessions', id), updates);
       setAttendanceSessions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
       );
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `attendance_sessions/${id}`);
       setAttendanceSessions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
       );
@@ -1084,11 +995,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteAttendanceSession = async (id: string): Promise<boolean> => {
     try {
-      await deleteDocFromSupabase('attendance_sessions', id);
-      deleteDoc(doc(db, 'attendance_sessions', id)).catch(() => {});
+      await deleteDoc(doc(db, 'attendance_sessions', id));
       setAttendanceSessions((prev) => prev.filter((s) => s.id !== id));
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `attendance_sessions/${id}`);
       setAttendanceSessions((prev) => prev.filter((s) => s.id !== id));
       return true;
     }
@@ -1172,11 +1083,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     try {
-      await saveDocToSupabase('annual_events', newId, newEvent);
-      setDoc(doc(db, 'annual_events', newId), newEvent).catch(() => {});
+      await setDoc(doc(db, 'annual_events', newId), newEvent);
       setAnnualEvents((prev) => [...prev, newEvent].sort((a, b) => a.month - b.month));
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `annual_events/${newId}`);
       setAnnualEvents((prev) => [...prev, newEvent].sort((a, b) => a.month - b.month));
       return true;
     }
@@ -1187,16 +1098,13 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updates: Partial<AnnualCalendarEvent>
   ): Promise<boolean> => {
     try {
-      const target = annualEvents.find((e) => e.id === id);
-      if (target) {
-        await saveDocToSupabase('annual_events', id, { ...target, ...updates });
-      }
-      updateDoc(doc(db, 'annual_events', id), updates).catch(() => {});
+      await updateDoc(doc(db, 'annual_events', id), updates);
       setAnnualEvents((prev) =>
         prev.map((evt) => (evt.id === id ? { ...evt, ...updates } : evt)).sort((a, b) => a.month - b.month)
       );
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `annual_events/${id}`);
       setAnnualEvents((prev) =>
         prev.map((evt) => (evt.id === id ? { ...evt, ...updates } : evt)).sort((a, b) => a.month - b.month)
       );
@@ -1206,11 +1114,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteAnnualEvent = async (id: string): Promise<boolean> => {
     try {
-      await deleteDocFromSupabase('annual_events', id);
-      deleteDoc(doc(db, 'annual_events', id)).catch(() => {});
+      await deleteDoc(doc(db, 'annual_events', id));
       setAnnualEvents((prev) => prev.filter((evt) => evt.id !== id));
       return true;
     } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `annual_events/${id}`);
       setAnnualEvents((prev) => prev.filter((evt) => evt.id !== id));
       return true;
     }

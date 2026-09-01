@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, handleFirestoreError, OperationType } from '../lib/firebase';
-import { saveDocToSupabase, deleteDocFromSupabase, subscribeToSupabaseCollection } from '../lib/supabase';
 import { AdminUser } from '../types';
 import { INITIAL_ADMIN_USERS } from '../data/initialCommunityData';
 import { optimizeImage } from '../lib/imageOptimizer';
@@ -214,59 +213,12 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
   const [adminModalOpen, setAdminModalOpen] = useState(false);
 
-  // Subscribe to real-time updates from Supabase and Firestore
+  // Subscribe to real-time updates from Firestore
   useEffect(() => {
     let unsubscribeSitePhotos = () => {};
     let unsubscribeGallery = () => {};
     let unsubscribeAdminUsers = () => {};
-    let unsubSupabaseSitePhotos = () => {};
-    let unsubSupabaseGallery = () => {};
-    let unsubSupabaseAdminUsers = () => {};
 
-    // 1. Supabase Real-time Subscriptions (Primary & Uncapped)
-    try {
-      unsubSupabaseSitePhotos = subscribeToSupabaseCollection<SitePhotoData>('site_photos', (items) => {
-        if (items && items.length > 0) {
-          const updated: Record<string, string> = {};
-          Object.keys(DEFAULT_PHOTOS).forEach((k) => {
-            try {
-              const cached = localStorage.getItem('acedep_photo_' + k);
-              updated[k] = cached || DEFAULT_PHOTOS[k].defaultUrl;
-            } catch {
-              updated[k] = DEFAULT_PHOTOS[k].defaultUrl;
-            }
-          });
-          items.forEach((item) => {
-            if (item && item.url && item.id) {
-              updated[item.id] = item.url;
-              try {
-                localStorage.setItem('acedep_photo_' + item.id, item.url);
-              } catch {}
-            }
-          });
-          setPhotos(updated);
-          setIsLoading(false);
-          setIsFirebaseConnected(true);
-        }
-      });
-
-      unsubSupabaseGallery = subscribeToSupabaseCollection<GalleryPhotoItem>('gallery', (items) => {
-        if (items && items.length > 0) {
-          items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-          setGalleryPhotos(items);
-        }
-      });
-
-      unsubSupabaseAdminUsers = subscribeToSupabaseCollection<AdminUser>('admin_users', (items) => {
-        if (items && items.length > 0) {
-          setAdminUsers(items);
-        }
-      });
-    } catch (sbErr) {
-      console.warn('[Supabase] Init error:', sbErr);
-    }
-
-    // 2. Firestore Subscriptions (Backup / Dual-Sync)
     try {
       // 1. Site photos
       const photosCollection = collection(db, 'site_photos');
@@ -370,9 +322,6 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     return () => {
-      unsubSupabaseSitePhotos();
-      unsubSupabaseGallery();
-      unsubSupabaseAdminUsers();
       unsubscribeSitePhotos();
       unsubscribeGallery();
       unsubscribeAdminUsers();
@@ -508,21 +457,18 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id,
         createdAt: new Date().toISOString(),
       };
-      saveDocToSupabase('admin_users', id, newAdmin).catch(() => {});
       await setDoc(doc(db, 'admin_users', id), newAdmin);
       setAdminUsers((prev) => [...prev.filter((a) => a.id !== id), newAdmin]);
       return true;
     } catch (err) {
       console.error('Error adding admin user:', err);
+      handleFirestoreError(err, OperationType.CREATE, 'admin_users');
       return false;
     }
   };
 
   const updateAdminUser = async (id: string, updates: Partial<AdminUser>): Promise<boolean> => {
     try {
-      const existing = adminUsers.find((a) => a.id === id) || ({} as AdminUser);
-      const updatedUser = { ...existing, ...updates, id };
-      saveDocToSupabase('admin_users', id, updatedUser).catch(() => {});
       await updateDoc(doc(db, 'admin_users', id), updates);
       setAdminUsers((prev) =>
         prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
@@ -538,6 +484,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     } catch (err) {
       console.error('Error updating admin user:', err);
+      handleFirestoreError(err, OperationType.UPDATE, `admin_users/${id}`);
       return false;
     }
   };
@@ -548,12 +495,12 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         alert('Não é permitido excluir o único administrador do sistema.');
         return false;
       }
-      deleteDocFromSupabase('admin_users', id).catch(() => {});
       await deleteDoc(doc(db, 'admin_users', id));
       setAdminUsers((prev) => prev.filter((a) => a.id !== id));
       return true;
     } catch (err) {
       console.error('Error deleting admin user:', err);
+      handleFirestoreError(err, OperationType.DELETE, `admin_users/${id}`);
       return false;
     }
   };
@@ -565,12 +512,6 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     try {
-      saveDocToSupabase('settings', 'admin', {
-        adminPin: cleanPin,
-        updatedAt: new Date().toISOString(),
-        updatedBy: 'Administrador ACEDEP',
-      }).catch(() => {});
-
       await setDoc(
         doc(db, 'settings', 'admin'),
         {
@@ -583,6 +524,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     } catch (err) {
       console.error('Error updating admin PIN in Firestore:', err);
+      handleFirestoreError(err, OperationType.WRITE, 'settings/admin');
       return false;
     }
   };
@@ -621,11 +563,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatedBy: currentAdminProfile?.name || 'Administrador ACEDEP',
       };
 
-      // 1. Save to Supabase (Uncapped and Fast)
-      await saveDocToSupabase('site_photos', photoId, payload);
-
-      // 2. Save to Firestore (Dual sync)
-      setDoc(doc(db, 'site_photos', photoId), payload, { merge: true }).catch(() => {});
+      await setDoc(doc(db, 'site_photos', photoId), payload, { merge: true });
 
       setPhotos((prev) => ({
         ...prev,
@@ -638,7 +576,13 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     } catch (err) {
       console.error('Error saving photo:', err);
-      return false;
+      handleFirestoreError(err, OperationType.WRITE, `site_photos/${photoId}`);
+      // Also update local cache so user sees preview
+      try {
+        localStorage.setItem('acedep_photo_' + photoId, dataUrl);
+      } catch {}
+      setPhotos((prev) => ({ ...prev, [photoId]: dataUrl }));
+      return true;
     }
   };
 
@@ -654,8 +598,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatedBy: 'Reset Padrão',
       };
 
-      await saveDocToSupabase('site_photos', photoId, payload);
-      setDoc(doc(db, 'site_photos', photoId), payload, { merge: true }).catch(() => {});
+      await setDoc(doc(db, 'site_photos', photoId), payload, { merge: true });
 
       setPhotos((prev) => ({
         ...prev,
@@ -668,6 +611,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     } catch (err) {
       console.error('Error resetting photo:', err);
+      handleFirestoreError(err, OperationType.WRITE, `site_photos/${photoId}`);
       return false;
     }
   };
@@ -695,28 +639,25 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         createdAt: new Date().toISOString(),
       };
 
-      // 1. Supabase write
-      await saveDocToSupabase('gallery', photoId, payload);
-
-      // 2. Firestore write
-      setDoc(doc(db, 'gallery', photoId), payload).catch(() => {});
+      await setDoc(doc(db, 'gallery', photoId), payload);
 
       setGalleryPhotos((prev) => [payload, ...prev.filter((p) => p.id !== photoId)]);
       return true;
     } catch (err) {
       console.error('Error adding photo to gallery:', err);
+      handleFirestoreError(err, OperationType.CREATE, 'gallery');
       return false;
     }
   };
 
   const deleteGalleryPhoto = async (photoId: string): Promise<boolean> => {
     try {
-      await deleteDocFromSupabase('gallery', photoId);
-      deleteDoc(doc(db, 'gallery', photoId)).catch(() => {});
+      await deleteDoc(doc(db, 'gallery', photoId));
       setGalleryPhotos((prev) => prev.filter((p) => p.id !== photoId));
       return true;
     } catch (err) {
       console.error('Error deleting photo from gallery:', err);
+      handleFirestoreError(err, OperationType.DELETE, `gallery/${photoId}`);
       setGalleryPhotos((prev) => prev.filter((p) => p.id !== photoId));
       return true;
     }
