@@ -13,6 +13,7 @@ import {
 import { Logo } from './Logo';
 import { db, doc, setDoc, OperationType, handleFirestoreError } from '../lib/firebase';
 import { sanitizeText, validatePhone, isBotSubmission, checkRateLimit, whitelistFields, getSafeErrorMessage } from '../utils/security';
+import { usePhotos } from '../context/PhotosContext';
 
 interface AthleteEnrollmentModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { isAdminAuthenticated } = usePhotos();
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -253,14 +255,16 @@ export const AthleteEnrollmentModal: React.FC<AthleteEnrollmentModalProps> = ({
                 />
               </div>
               
-              {/* Requirements Banner */}
-              <div className="p-3.5 rounded-xl bg-[#0f2744] border border-[#d4af37]/40 text-xs text-slate-200 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-[#d4af37] shrink-0 mt-0.5" />
-                <div>
-                  <strong className="text-white block mb-0.5">Sincronização em Nuvem:</strong>
-                  Ao enviar este formulário, o perfil do atleta é gravado permanentemente no banco de dados e poderá ser acessado de qualquer computador ou celular pela diretoria.
+              {/* Requirements Banner - Visible only in Admin Mode */}
+              {isAdminAuthenticated && (
+                <div className="p-3.5 rounded-xl bg-[#0f2744] border border-[#d4af37]/40 text-xs text-slate-200 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-[#d4af37] shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="text-white block mb-0.5">Sincronização em Nuvem:</strong>
+                    Ao enviar este formulário, o perfil do atleta é gravado permanentemente no banco de dados e poderá ser acessado de qualquer computador ou celular pela diretoria.
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
