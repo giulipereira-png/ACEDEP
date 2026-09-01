@@ -1,14 +1,14 @@
 /**
  * ACEDEP Image Optimizer Utility
  * Automatically compresses, scales, and cleans uploaded images (avatars, banners, gallery photos)
- * so they save instantly in Firestore without exceeding the 1MB document limit.
+ * so they save cleanly in Firestore (< 200KB) and load instantly across all devices.
  */
 
 export interface OptimizeImageOptions {
   maxWidth?: number;
   maxHeight?: number;
   quality?: number;
-  maxSizeBytes?: number; // target max bytes for the base64 string
+  maxSizeBytes?: number; // target max characters for base64 string
 }
 
 export async function optimizeImage(
@@ -16,10 +16,10 @@ export async function optimizeImage(
   options: OptimizeImageOptions = {}
 ): Promise<string> {
   const {
-    maxWidth = 1200,
-    maxHeight = 1200,
-    quality = 0.72,
-    maxSizeBytes = 500 * 1024, // 500 KB safe ceiling
+    maxWidth = 900,
+    maxHeight = 900,
+    quality = 0.70,
+    maxSizeBytes = 220 * 1024, // 220 KB safe ceiling for Firestore documents
   } = options;
 
   // 1. Convert File to Data URL if needed
@@ -55,7 +55,6 @@ export async function optimizeImage(
           }
         }
 
-        // Draw to canvas
         const canvas = document.createElement('canvas');
         canvas.width = Math.max(1, width);
         canvas.height = Math.max(1, height);
@@ -65,7 +64,6 @@ export async function optimizeImage(
           return resolve(dataUrl);
         }
 
-        // Clean white background for transparency fallback
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
@@ -73,24 +71,26 @@ export async function optimizeImage(
         let currentQuality = quality;
         let result = canvas.toDataURL('image/jpeg', currentQuality);
 
-        // If string is still over maxSizeBytes, downscale further
-        if (result.length > maxSizeBytes) {
-          const secondCanvas = document.createElement('canvas');
-          const scale = 0.75;
-          secondCanvas.width = Math.round(width * scale);
-          secondCanvas.height = Math.round(height * scale);
-          const secondCtx = secondCanvas.getContext('2d');
-          if (secondCtx) {
-            secondCtx.fillStyle = '#FFFFFF';
-            secondCtx.fillRect(0, 0, secondCanvas.width, secondCanvas.height);
-            secondCtx.drawImage(img, 0, 0, secondCanvas.width, secondCanvas.height);
-            result = secondCanvas.toDataURL('image/jpeg', 0.62);
-          }
+        // Iterative reduction if base64 size still exceeds target limit
+        let attempts = 0;
+        while (result.length > maxSizeBytes && attempts < 4) {
+          attempts++;
+          const scale = 0.8;
+          width = Math.max(100, Math.round(width * scale));
+          height = Math.max(100, Math.round(height * scale));
+          currentQuality = Math.max(0.45, currentQuality - 0.1);
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          result = canvas.toDataURL('image/jpeg', currentQuality);
         }
 
         resolve(result);
       } catch (err) {
-        console.warn('Image optimization canvas error, returning original dataUrl:', err);
+        console.warn('Image optimization canvas error, returning original:', err);
         resolve(dataUrl);
       }
     };

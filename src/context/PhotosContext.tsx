@@ -10,8 +10,15 @@ import {
   collection, 
   handleFirestoreError, 
   OperationType,
+  cleanFirestoreData,
   uploadImageToFirebaseStorage
 } from '../lib/firebase';
+import { 
+  saveLocalStorageBackup, 
+  getLocalStorageBackup, 
+  enqueueOfflineOperation 
+} from '../lib/offlineFallbackManager';
+import { ensureFirestoreDatabaseSeeded } from '../lib/firestoreSeeder';
 import { AdminUser } from '../types';
 import { INITIAL_ADMIN_USERS } from '../data/initialCommunityData';
 import { optimizeImage } from '../lib/imageOptimizer';
@@ -204,8 +211,12 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return initial;
   });
 
-  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhotoItem[]>(INITIAL_GALLERY_PHOTOS);
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(INITIAL_ADMIN_USERS);
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhotoItem[]>(() =>
+    getLocalStorageBackup('gallery_photos', INITIAL_GALLERY_PHOTOS)
+  );
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(() =>
+    getLocalStorageBackup('admin_users', INITIAL_ADMIN_USERS)
+  );
   const [currentAdminProfile, setCurrentAdminProfile] = useState<AdminUser | null>(() => {
     try {
       const saved = localStorage.getItem('acedep_admin_profile') || sessionStorage.getItem('acedep_admin_profile');
@@ -227,6 +238,9 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Subscribe to real-time updates from Firestore
   useEffect(() => {
+    // 0. Ensure cloud database seed
+    ensureFirestoreDatabaseSeeded().catch((err) => console.warn('Firestore seed notice from photos:', err));
+
     let unsubscribeSitePhotos = () => {};
     let unsubscribeGallery = () => {};
     let unsubscribeAdminUsers = () => {};
@@ -262,6 +276,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           });
 
           setPhotos(updated);
+          saveLocalStorageBackup('site_photos_map', updated);
         },
         (error) => {
           handleFirestoreError(error, OperationType.LIST, 'site_photos');
@@ -292,8 +307,10 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           if (snapshot.empty) {
             setGalleryPhotos(INITIAL_GALLERY_PHOTOS);
+            saveLocalStorageBackup('gallery_photos', INITIAL_GALLERY_PHOTOS);
           } else {
             setGalleryPhotos(list);
+            saveLocalStorageBackup('gallery_photos', list);
           }
         },
         (error) => {
@@ -320,8 +337,10 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           if (list.length > 0) {
             setAdminUsers(list);
+            saveLocalStorageBackup('admin_users', list);
           } else {
             setAdminUsers(INITIAL_ADMIN_USERS);
+            saveLocalStorageBackup('admin_users', INITIAL_ADMIN_USERS);
           }
         },
         (error) => {
@@ -436,18 +455,67 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn('Could not verify remote admin pin from Firestore:', e);
     }
 
-    // 3. Fallback PINs (initial bootstrap)
-    if (['acedep1990', '1990', 'admin1990', '2026'].includes(normalizedPin)) {
-      setIsAdminAuthenticated(true);
-      const fallbackAdmin: AdminUser = {
+    // 3. Fallback PINs (initial bootstrap for coaches & super admin)
+    const fallbackMap: Record<string, AdminUser> = {
+      '1990': {
         id: 'admin-master-1',
-        name: 'Coordenação Geral ACEDEP',
+        name: 'Coordenação Geral ACEDEP (Giuliana)',
         email: 'giuli.pereira@gmail.com',
         role: 'Super Admin',
-        pin: normalizedPin,
-        createdAt: new Date().toISOString(),
+        pin: '1990',
+        createdAt: '2026-01-01T00:00:00Z',
         isActive: true,
-      };
+      },
+      'acedep1990': {
+        id: 'admin-master-1',
+        name: 'Coordenação Geral ACEDEP (Giuliana)',
+        email: 'giuli.pereira@gmail.com',
+        role: 'Super Admin',
+        pin: '1990',
+        createdAt: '2026-01-01T00:00:00Z',
+        isActive: true,
+      },
+      'admin1990': {
+        id: 'admin-master-1',
+        name: 'Coordenação Geral ACEDEP (Giuliana)',
+        email: 'giuli.pereira@gmail.com',
+        role: 'Super Admin',
+        pin: '1990',
+        createdAt: '2026-01-01T00:00:00Z',
+        isActive: true,
+      },
+      '2026': {
+        id: 'admin-coach-enio',
+        name: 'Prof. Enio Salvador Sanches',
+        email: 'enio.sanches@acedep.org.br',
+        role: 'Professor',
+        pin: '2026',
+        createdAt: '2026-01-05T00:00:00Z',
+        isActive: true,
+      },
+      '1587': {
+        id: 'admin-coach-giuliana',
+        name: 'Profª. Giuliana Sousa',
+        email: 'giuliana.sousa@acedep.org.br',
+        role: 'Professor',
+        pin: '1587',
+        createdAt: '2026-01-10T00:00:00Z',
+        isActive: true,
+      },
+      '1324': {
+        id: 'admin-coach-tatiana',
+        name: 'Profª. Tatiana Farias',
+        email: 'tatiana.farias@acedep.org.br',
+        role: 'Professor',
+        pin: '1324',
+        createdAt: '2026-01-12T00:00:00Z',
+        isActive: true,
+      },
+    };
+
+    if (fallbackMap[normalizedPin]) {
+      const fallbackAdmin = fallbackMap[normalizedPin];
+      setIsAdminAuthenticated(true);
       setCurrentAdminProfile(fallbackAdmin);
       try {
         localStorage.setItem('acedep_admin_auth', 'true');
@@ -462,59 +530,75 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addAdminUser = async (admin: Omit<AdminUser, 'id' | 'createdAt'>): Promise<boolean> => {
+    const id = 'admin_' + Date.now();
+    const newAdmin: AdminUser = {
+      ...admin,
+      id,
+      createdAt: new Date().toISOString(),
+    };
+
     try {
-      const id = 'admin_' + Date.now();
-      const newAdmin: AdminUser = {
-        ...admin,
-        id,
-        createdAt: new Date().toISOString(),
-      };
       await setDoc(doc(db, 'admin_users', id), newAdmin);
-      setAdminUsers((prev) => [...prev.filter((a) => a.id !== id), newAdmin]);
-      return true;
     } catch (err) {
       console.error('Error adding admin user:', err);
       handleFirestoreError(err, OperationType.CREATE, 'admin_users');
-      return false;
+      enqueueOfflineOperation({ collection: 'admin_users', docId: id, action: 'set', payload: newAdmin });
     }
+
+    setAdminUsers((prev) => {
+      const updated = [...prev.filter((a) => a.id !== id), newAdmin];
+      saveLocalStorageBackup('admin_users', updated);
+      return updated;
+    });
+    return true;
   };
 
   const updateAdminUser = async (id: string, updates: Partial<AdminUser>): Promise<boolean> => {
     try {
       await updateDoc(doc(db, 'admin_users', id), updates);
-      setAdminUsers((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
-      );
-      if (currentAdminProfile?.id === id) {
-        const updated = { ...currentAdminProfile, ...updates };
-        setCurrentAdminProfile(updated);
-        try {
-          localStorage.setItem('acedep_admin_profile', JSON.stringify(updated));
-          sessionStorage.setItem('acedep_admin_profile', JSON.stringify(updated));
-        } catch {}
-      }
-      return true;
     } catch (err) {
       console.error('Error updating admin user:', err);
       handleFirestoreError(err, OperationType.UPDATE, `admin_users/${id}`);
-      return false;
+      enqueueOfflineOperation({ collection: 'admin_users', docId: id, action: 'update', payload: updates });
     }
+
+    setAdminUsers((prev) => {
+      const updated = prev.map((a) => (a.id === id ? { ...a, ...updates } : a));
+      saveLocalStorageBackup('admin_users', updated);
+      return updated;
+    });
+
+    if (currentAdminProfile?.id === id) {
+      const updated = { ...currentAdminProfile, ...updates };
+      setCurrentAdminProfile(updated);
+      try {
+        localStorage.setItem('acedep_admin_profile', JSON.stringify(updated));
+        sessionStorage.setItem('acedep_admin_profile', JSON.stringify(updated));
+      } catch {}
+    }
+    return true;
   };
 
   const deleteAdminUser = async (id: string): Promise<boolean> => {
+    if (adminUsers.length <= 1) {
+      alert('Não é permitido excluir o único administrador do sistema.');
+      return false;
+    }
+
     try {
-      if (adminUsers.length <= 1) {
-        alert('Não é permitido excluir o único administrador do sistema.');
-        return false;
-      }
       await deleteDoc(doc(db, 'admin_users', id));
-      setAdminUsers((prev) => prev.filter((a) => a.id !== id));
-      return true;
     } catch (err) {
       console.error('Error deleting admin user:', err);
       handleFirestoreError(err, OperationType.DELETE, `admin_users/${id}`);
-      return false;
+      enqueueOfflineOperation({ collection: 'admin_users', docId: id, action: 'delete' });
     }
+
+    setAdminUsers((prev) => {
+      const updated = prev.filter((a) => a.id !== id);
+      saveLocalStorageBackup('admin_users', updated);
+      return updated;
+    });
+    return true;
   };
 
   const updateAdminPin = async (newPin: string): Promise<boolean> => {
@@ -523,21 +607,20 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return false;
     }
 
+    const payload = {
+      adminPin: cleanPin,
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'Administrador ACEDEP',
+    };
+
     try {
-      await setDoc(
-        doc(db, 'settings', 'admin'),
-        {
-          adminPin: cleanPin,
-          updatedAt: new Date().toISOString(),
-          updatedBy: 'Administrador ACEDEP',
-        },
-        { merge: true }
-      );
+      await setDoc(doc(db, 'settings', 'admin'), payload, { merge: true });
       return true;
     } catch (err) {
       console.error('Error updating admin PIN in Firestore:', err);
       handleFirestoreError(err, OperationType.WRITE, 'settings/admin');
-      return false;
+      enqueueOfflineOperation({ collection: 'settings', docId: 'admin', action: 'set', payload });
+      return true;
     }
   };
 
@@ -559,37 +642,48 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   ): Promise<boolean> => {
     try {
       const optimizedUrl = await optimizeImage(dataUrl, {
-        maxWidth: 1200,
-        maxHeight: 1200,
-        quality: 0.72,
-        maxSizeBytes: 450 * 1024,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        quality: 0.70,
+        maxSizeBytes: 200 * 1024,
       });
 
       // 1. Upload to Firebase Storage
-      const cloudUrl = await uploadImageToFirebaseStorage(
-        'site_photos',
-        `${photoId}_${Date.now()}.jpg`,
-        optimizedUrl
-      );
+      let cloudUrl = optimizedUrl;
+      try {
+        cloudUrl = await uploadImageToFirebaseStorage(
+          'site_photos',
+          `${photoId}_${Date.now()}.jpg`,
+          optimizedUrl
+        );
+      } catch (uploadErr) {
+        console.warn('Storage upload fallback, keeping base64/url for site photo:', uploadErr);
+      }
 
       const photoMeta = DEFAULT_PHOTOS[photoId];
 
-      const payload: SitePhotoData = {
+      const payload: SitePhotoData = cleanFirestoreData({
         id: photoId,
         title: title || photoMeta?.title || photoId,
         category: photoMeta?.category || 'Geral',
         url: cloudUrl,
         updatedAt: new Date().toISOString(),
         updatedBy: currentAdminProfile?.name || 'Administrador ACEDEP',
-      };
+      });
 
       // 2. Persist to Firestore
-      await setDoc(doc(db, 'site_photos', photoId), payload, { merge: true });
+      try {
+        await setDoc(doc(db, 'site_photos', photoId), payload, { merge: true });
+      } catch (fsErr) {
+        console.warn('Firestore write queued for site photo:', fsErr);
+        enqueueOfflineOperation({ collection: 'site_photos', docId: photoId, action: 'set', payload });
+      }
 
-      setPhotos((prev) => ({
-        ...prev,
-        [photoId]: cloudUrl,
-      }));
+      setPhotos((prev) => {
+        const updated = { ...prev, [photoId]: cloudUrl };
+        saveLocalStorageBackup('site_photos_map', updated);
+        return updated;
+      });
       try {
         localStorage.setItem('acedep_photo_' + photoId, cloudUrl);
       } catch {}
@@ -602,7 +696,11 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         localStorage.setItem('acedep_photo_' + photoId, dataUrl);
       } catch {}
-      setPhotos((prev) => ({ ...prev, [photoId]: dataUrl }));
+      setPhotos((prev) => {
+        const updated = { ...prev, [photoId]: dataUrl };
+        saveLocalStorageBackup('site_photos_map', updated);
+        return updated;
+      });
       return true;
     }
   };
@@ -612,19 +710,24 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const defaultUrl = DEFAULT_PHOTOS[photoId]?.defaultUrl || '';
       if (!defaultUrl) return false;
 
-      const payload = {
+      const payload = cleanFirestoreData({
         id: photoId,
         url: defaultUrl,
         updatedAt: new Date().toISOString(),
         updatedBy: 'Reset Padrão',
-      };
+      });
 
-      await setDoc(doc(db, 'site_photos', photoId), payload, { merge: true });
+      try {
+        await setDoc(doc(db, 'site_photos', photoId), payload, { merge: true });
+      } catch (fsErr) {
+        enqueueOfflineOperation({ collection: 'site_photos', docId: photoId, action: 'set', payload });
+      }
 
-      setPhotos((prev) => ({
-        ...prev,
-        [photoId]: defaultUrl,
-      }));
+      setPhotos((prev) => {
+        const updated = { ...prev, [photoId]: defaultUrl };
+        saveLocalStorageBackup('site_photos_map', updated);
+        return updated;
+      });
       try {
         localStorage.removeItem('acedep_photo_' + photoId);
       } catch {}
@@ -645,33 +748,47 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }): Promise<boolean> => {
     try {
       const optimizedUrl = await optimizeImage(data.url, {
-        maxWidth: 1200,
-        maxHeight: 1200,
-        quality: 0.72,
-        maxSizeBytes: 450 * 1024,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        quality: 0.70,
+        maxSizeBytes: 200 * 1024,
       });
       const photoId = 'photo_' + Date.now();
 
       // 1. Upload to Firebase Storage
-      const cloudUrl = await uploadImageToFirebaseStorage(
-        'gallery',
-        `${photoId}.jpg`,
-        optimizedUrl
-      );
+      let cloudUrl = optimizedUrl;
+      try {
+        cloudUrl = await uploadImageToFirebaseStorage(
+          'gallery',
+          `${photoId}.jpg`,
+          optimizedUrl
+        );
+      } catch (uploadErr) {
+        console.warn('Storage upload fallback for gallery:', uploadErr);
+      }
 
-      const payload: GalleryPhotoItem = {
+      const payload: GalleryPhotoItem = cleanFirestoreData({
         id: photoId,
         title: data.title || 'Foto ACEDEP',
         category: data.category || 'Geral',
         url: cloudUrl,
         date: data.date || new Date().toLocaleDateString('pt-BR'),
         createdAt: new Date().toISOString(),
-      };
+      });
 
       // 2. Persist to Firestore
-      await setDoc(doc(db, 'gallery', photoId), payload);
+      try {
+        await setDoc(doc(db, 'gallery', photoId), payload);
+      } catch (fsErr) {
+        console.warn('Firestore gallery write queued:', fsErr);
+        enqueueOfflineOperation({ collection: 'gallery', docId: photoId, action: 'set', payload });
+      }
 
-      setGalleryPhotos((prev) => [payload, ...prev.filter((p) => p.id !== photoId)]);
+      setGalleryPhotos((prev) => {
+        const updated = [payload, ...prev.filter((p) => p.id !== photoId)];
+        saveLocalStorageBackup('gallery_photos', updated);
+        return updated;
+      });
       return true;
     } catch (err) {
       console.error('Error adding photo to gallery:', err);
@@ -683,14 +800,18 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const deleteGalleryPhoto = async (photoId: string): Promise<boolean> => {
     try {
       await deleteDoc(doc(db, 'gallery', photoId));
-      setGalleryPhotos((prev) => prev.filter((p) => p.id !== photoId));
-      return true;
     } catch (err) {
       console.error('Error deleting photo from gallery:', err);
       handleFirestoreError(err, OperationType.DELETE, `gallery/${photoId}`);
-      setGalleryPhotos((prev) => prev.filter((p) => p.id !== photoId));
-      return true;
+      enqueueOfflineOperation({ collection: 'gallery', docId: photoId, action: 'delete' });
     }
+
+    setGalleryPhotos((prev) => {
+      const updated = prev.filter((p) => p.id !== photoId);
+      saveLocalStorageBackup('gallery_photos', updated);
+      return updated;
+    });
+    return true;
   };
 
   const getPhotoUrl = (photoId: string): string => {

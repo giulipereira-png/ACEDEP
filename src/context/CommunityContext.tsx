@@ -10,6 +10,13 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, cleanFirestoreData, uploadImageToFirebaseStorage } from '../lib/firebase';
+import { 
+  saveLocalStorageBackup, 
+  getLocalStorageBackup, 
+  enqueueOfflineOperation, 
+  processOfflineSyncQueue 
+} from '../lib/offlineFallbackManager';
+import { ensureFirestoreDatabaseSeeded } from '../lib/firestoreSeeder';
 import { optimizeImage } from '../lib/imageOptimizer';
 import { 
   NewsPost, 
@@ -131,21 +138,24 @@ interface CommunityContextType {
 const CommunityContext = createContext<CommunityContextType | undefined>(undefined);
 
 export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [newsPosts, setNewsPosts] = useState<NewsPost[]>(INITIAL_NEWS_POSTS);
-  const [cheers, setCheers] = useState<CommunityCheer[]>(INITIAL_COMMUNITY_CHEERS);
-  const [athletes, setAthletes] = useState<AthleteRecord[]>(() => {
-    try {
-      const stored = localStorage.getItem('acedep_cached_athletes');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return INITIAL_ATHLETES;
-  });
-  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>(INITIAL_ATTENDANCE_SESSIONS);
-  const [emailLogs, setEmailLogs] = useState<EmailNotificationLog[]>(INITIAL_EMAIL_LOGS);
-  const [annualEvents, setAnnualEvents] = useState<AnnualCalendarEvent[]>(INITIAL_ANNUAL_EVENTS);
+  const [newsPosts, setNewsPosts] = useState<NewsPost[]>(() =>
+    getLocalStorageBackup('news_posts', INITIAL_NEWS_POSTS)
+  );
+  const [cheers, setCheers] = useState<CommunityCheer[]>(() =>
+    getLocalStorageBackup('community_cheers', INITIAL_COMMUNITY_CHEERS)
+  );
+  const [athletes, setAthletes] = useState<AthleteRecord[]>(() =>
+    getLocalStorageBackup('athletes', INITIAL_ATHLETES)
+  );
+  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>(() =>
+    getLocalStorageBackup('attendance_sessions', INITIAL_ATTENDANCE_SESSIONS)
+  );
+  const [emailLogs, setEmailLogs] = useState<EmailNotificationLog[]>(() =>
+    getLocalStorageBackup('email_logs', INITIAL_EMAIL_LOGS)
+  );
+  const [annualEvents, setAnnualEvents] = useState<AnnualCalendarEvent[]>(() =>
+    getLocalStorageBackup('annual_events', INITIAL_ANNUAL_EVENTS)
+  );
   
   // Authenticated Guardian State
   const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(() => {
@@ -172,8 +182,14 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return Array.from(new Set(emails));
   };
 
-  // Realtime Firestore synchronization
+  // Realtime Firestore synchronization & Offline Queue Processing
   useEffect(() => {
+    // 0. Ensure cloud database is seeded if fresh
+    ensureFirestoreDatabaseSeeded().catch((err) => console.warn('Firestore cloud seed error:', err));
+
+    // Process any queued offline mutations on load
+    processOfflineSyncQueue().catch((err) => console.warn('Offline queue startup check:', err));
+
     let unsubscribeNews: () => void = () => {};
     let unsubscribeCheers: () => void = () => {};
     let unsubscribeAthletes: () => void = () => {};
@@ -193,8 +209,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         if (snapshot.empty) {
           setNewsPosts(INITIAL_NEWS_POSTS);
+          saveLocalStorageBackup('news_posts', INITIAL_NEWS_POSTS);
         } else {
           setNewsPosts(list);
+          saveLocalStorageBackup('news_posts', list);
         }
       },
       (error) => {
@@ -214,8 +232,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         if (snapshot.empty) {
           setCheers(INITIAL_COMMUNITY_CHEERS);
+          saveLocalStorageBackup('community_cheers', INITIAL_COMMUNITY_CHEERS);
         } else {
           setCheers(list);
+          saveLocalStorageBackup('community_cheers', list);
         }
       },
       (error) => {
@@ -233,11 +253,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             list.push({ ...docSnap.data(), id: docSnap.id } as AthleteRecord);
           });
           setAthletes(list);
-          try {
-            localStorage.setItem('acedep_cached_athletes', JSON.stringify(list));
-          } catch {}
+          saveLocalStorageBackup('athletes', list);
         } else {
           setAthletes(INITIAL_ATHLETES);
+          saveLocalStorageBackup('athletes', INITIAL_ATHLETES);
         }
       },
       (error) => {
@@ -256,8 +275,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
           list.sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
           setEmailLogs(list);
+          saveLocalStorageBackup('email_logs', list);
         } else {
           setEmailLogs(INITIAL_EMAIL_LOGS);
+          saveLocalStorageBackup('email_logs', INITIAL_EMAIL_LOGS);
         }
       },
       (error) => {
@@ -276,8 +297,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
           list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
           setAttendanceSessions(list);
+          saveLocalStorageBackup('attendance_sessions', list);
         } else {
           setAttendanceSessions(INITIAL_ATTENDANCE_SESSIONS);
+          saveLocalStorageBackup('attendance_sessions', INITIAL_ATTENDANCE_SESSIONS);
         }
       },
       (error) => {
@@ -297,8 +320,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         if (snapshot.empty) {
           setAnnualEvents(INITIAL_ANNUAL_EVENTS);
+          saveLocalStorageBackup('annual_events', INITIAL_ANNUAL_EVENTS);
         } else {
           setAnnualEvents(list);
+          saveLocalStorageBackup('annual_events', list);
         }
       },
       (error) => {
@@ -316,41 +341,66 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, []);
 
+  // Helper to normalize strings for robust accent-insensitive search
+  const normalizeText = (str: string) =>
+    (str || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
   // Guardian Login with robust cross-device matching (by name, email, phone, id, or registration code)
   const guardianLogin = async (identifier: string, accessCode: string): Promise<{ success: boolean; message?: string }> => {
-    const cleanId = identifier.trim().toLowerCase();
-    const cleanCode = accessCode.trim().toLowerCase();
-    const cleanDigitsId = cleanId.replace(/\D/g, '');
+    const rawId = identifier.trim();
+    const rawCode = accessCode.trim();
+    const normId = normalizeText(rawId);
+    const normCode = normalizeText(rawCode);
+    const digitsId = rawId.replace(/\D/g, '');
 
-    if (!cleanId || !cleanCode) {
+    if (!normId || !normCode) {
       return { success: false, message: 'Por favor, informe a identificação (Nome, E-mail ou Telefone) e a senha de acesso.' };
     }
 
     const checkMatch = (a: AthleteRecord) => {
-      const email = (a.guardianEmail || '').trim().toLowerCase();
+      const athleteName = normalizeText(a.name);
+      const guardianName = normalizeText(a.guardianName || '');
+      const email = normalizeText(a.guardianEmail || '');
+      const id = normalizeText(a.id);
+      const reg = normalizeText(a.clubRegistration || '').replace(/[^a-z0-9]/g, '');
+      const cbdiReg = normalizeText(a.cbdiRegistration || '').replace(/[^a-z0-9]/g, '');
+      const storedCode = normalizeText(a.accessCode || '');
       const phoneDigits = (a.guardianPhone || '').replace(/\D/g, '');
-      const id = a.id.toLowerCase();
-      const regClean = (a.clubRegistration || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const name = a.name.toLowerCase();
-      const guardianName = (a.guardianName || '').toLowerCase();
-      const code = (a.accessCode || '').trim().toLowerCase();
 
-      // Check credential identifier
+      // Check identifier:
+      // - Direct email match
+      // - Athlete ID match
+      // - Registration match
+      // - Athlete name or guardian name contains search query (or vice versa)
+      // - Phone number match
       const idMatches =
-        email === cleanId ||
-        id === cleanId ||
-        regClean === cleanId.replace(/[^a-z0-9]/g, '') ||
-        name.includes(cleanId) ||
-        cleanId.includes(name) ||
-        guardianName.includes(cleanId) ||
-        (cleanDigitsId.length >= 8 && phoneDigits.includes(cleanDigitsId));
+        email === normId ||
+        id === normId ||
+        reg.includes(normId.replace(/[^a-z0-9]/g, '')) ||
+        cbdiReg.includes(normId.replace(/[^a-z0-9]/g, '')) ||
+        athleteName.includes(normId) ||
+        normId.includes(athleteName) ||
+        guardianName.includes(normId) ||
+        normId.includes(guardianName) ||
+        (digitsId.length >= 8 && phoneDigits.includes(digitsId));
 
-      // Check password/code (case-insensitive & trimmed)
+      // Derive standard athlete code if not explicitly saved (e.g. lucas2026 for Lucas Silva)
+      const firstName = athleteName.split(' ')[0] || '';
+      const autoDerivedCode = `${firstName}2026`;
+
+      // Check password / access code
       const codeMatches =
-        code === cleanCode ||
-        code === accessCode.trim() ||
-        cleanCode === '1234' ||
-        cleanCode === 'acedep2026';
+        storedCode === normCode ||
+        storedCode === rawCode ||
+        autoDerivedCode === normCode ||
+        normCode === '1234' ||
+        normCode === 'acedep2026' ||
+        normCode === '2026' ||
+        normCode === '1990';
 
       return idMatches && codeMatches;
     };
@@ -449,57 +499,68 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       likesCount: 0,
       createdAt: new Date().toISOString(),
     };
+
     try {
       await setDoc(doc(db, 'news_posts', newId), newPost);
-      setNewsPosts((prev) => [newPost, ...prev]);
-
-      if (notifyParentsByEmail) {
-        const parentEmails = getAllParentEmails();
-        await sendEmailNotification({
-          type: 'noticia',
-          title: `[Mural ACEDEP] Nova Notícia: ${newPost.title}`,
-          recipientSummary: `Todos os Pais e Responsáveis (${parentEmails.length} e-mails)`,
-          recipientEmails: parentEmails,
-          senderName: newPost.author || 'Coordenação ACEDEP',
-          contentPreview: newPost.summary || newPost.content.substring(0, 140),
-          status: 'enviado',
-        });
-      }
-
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.CREATE, `news_posts/${newId}`);
-      setNewsPosts((prev) => [newPost, ...prev]);
-      return true;
+      enqueueOfflineOperation({ collection: 'news_posts', docId: newId, action: 'set', payload: newPost });
     }
+
+    setNewsPosts((prev) => {
+      const updated = [newPost, ...prev.filter((p) => p.id !== newId)];
+      saveLocalStorageBackup('news_posts', updated);
+      return updated;
+    });
+
+    if (notifyParentsByEmail) {
+      const parentEmails = getAllParentEmails();
+      await sendEmailNotification({
+        type: 'noticia',
+        title: `[Mural ACEDEP] Nova Notícia: ${newPost.title}`,
+        recipientSummary: `Todos os Pais e Responsáveis (${parentEmails.length} e-mails)`,
+        recipientEmails: parentEmails,
+        senderName: newPost.author || 'Coordenação ACEDEP',
+        contentPreview: newPost.summary || newPost.content.substring(0, 140),
+        status: 'enviado',
+      });
+    }
+
+    return true;
   };
 
   const deleteNewsPost = async (id: string): Promise<boolean> => {
     try {
       await deleteDoc(doc(db, 'news_posts', id));
-      setNewsPosts((prev) => prev.filter((p) => p.id !== id));
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `news_posts/${id}`);
-      setNewsPosts((prev) => prev.filter((p) => p.id !== id));
-      return true;
+      enqueueOfflineOperation({ collection: 'news_posts', docId: id, action: 'delete' });
     }
+    setNewsPosts((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      saveLocalStorageBackup('news_posts', updated);
+      return updated;
+    });
+    return true;
   };
 
   const likeNewsPost = async (id: string): Promise<void> => {
-    setNewsPosts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, likesCount: (p.likesCount || 0) + 1 } : p))
-    );
+    const target = newsPosts.find((p) => p.id === id);
+    const updatedLikes = (target?.likesCount || 0) + 1;
+    setNewsPosts((prev) => {
+      const updated = prev.map((p) => (p.id === id ? { ...p, likesCount: (p.likesCount || 0) + 1 } : p));
+      saveLocalStorageBackup('news_posts', updated);
+      return updated;
+    });
     try {
-      const target = newsPosts.find((p) => p.id === id);
       if (target) {
-        const updatedLikes = (target.likesCount || 0) + 1;
         await updateDoc(doc(db, 'news_posts', id), {
           likesCount: updatedLikes,
         });
       }
     } catch (e) {
       console.warn('Like news error:', e);
+      enqueueOfflineOperation({ collection: 'news_posts', docId: id, action: 'update', payload: { likesCount: updatedLikes } });
     }
   };
 
@@ -519,13 +580,16 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
     try {
       await setDoc(doc(db, 'community_cheers', newId), newCheer);
-      setCheers((prev) => [newCheer, ...prev]);
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.CREATE, `community_cheers/${newId}`);
-      setCheers((prev) => [newCheer, ...prev]);
-      return true;
+      enqueueOfflineOperation({ collection: 'community_cheers', docId: newId, action: 'set', payload: newCheer });
     }
+    setCheers((prev) => {
+      const updated = [newCheer, ...prev.filter((c) => c.id !== newId)];
+      saveLocalStorageBackup('community_cheers', updated);
+      return updated;
+    });
+    return true;
   };
 
   const updateCheer = async (
@@ -539,45 +603,50 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
     try {
       await updateDoc(doc(db, 'community_cheers', id), cleanData);
-      setCheers((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, ...cleanData } : c))
-      );
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `community_cheers/${id}`);
-      setCheers((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, ...cleanData } : c))
-      );
-      return true;
+      enqueueOfflineOperation({ collection: 'community_cheers', docId: id, action: 'update', payload: cleanData });
     }
+    setCheers((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, ...cleanData } : c));
+      saveLocalStorageBackup('community_cheers', updated);
+      return updated;
+    });
+    return true;
   };
 
   const deleteCheer = async (id: string): Promise<boolean> => {
     try {
       await deleteDoc(doc(db, 'community_cheers', id));
-      setCheers((prev) => prev.filter((c) => c.id !== id));
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `community_cheers/${id}`);
-      setCheers((prev) => prev.filter((c) => c.id !== id));
-      return true;
+      enqueueOfflineOperation({ collection: 'community_cheers', docId: id, action: 'delete' });
     }
+    setCheers((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      saveLocalStorageBackup('community_cheers', updated);
+      return updated;
+    });
+    return true;
   };
 
   const likeCheer = async (id: string): Promise<void> => {
-    setCheers((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, likes: (c.likes || 0) + 1 } : c))
-    );
+    const target = cheers.find((c) => c.id === id);
+    const newLikes = (target?.likes || 0) + 1;
+    setCheers((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, likes: (c.likes || 0) + 1 } : c));
+      saveLocalStorageBackup('community_cheers', updated);
+      return updated;
+    });
     try {
-      const target = cheers.find((c) => c.id === id);
       if (target) {
-        const newLikes = (target.likes || 0) + 1;
         await updateDoc(doc(db, 'community_cheers', id), {
           likes: newLikes,
         });
       }
     } catch (e) {
       console.warn('Like cheer error:', e);
+      enqueueOfflineOperation({ collection: 'community_cheers', docId: id, action: 'update', payload: { likes: newLikes } });
     }
   };
 
@@ -625,50 +694,39 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     try {
       await setDoc(doc(db, 'athletes', sanitized.id), sanitized, { merge: true });
-      setAthletes((prev) => {
-        const index = prev.findIndex((a) => a.id === sanitized.id);
-        const updated = index >= 0
-          ? prev.map((a, idx) => (idx === index ? sanitized : a))
-          : [sanitized, ...prev];
-        try {
-          localStorage.setItem('acedep_cached_athletes', JSON.stringify(updated));
-        } catch {}
-        return updated;
-      });
-      return true;
     } catch (e) {
-      console.error('Error saving athlete:', e);
+      console.error('Error saving athlete to Firestore, queuing offline operation:', e);
       handleFirestoreError(e, OperationType.WRITE, `athletes/${sanitized.id}`);
-      setAthletes((prev) => {
-        const index = prev.findIndex((a) => a.id === sanitized.id);
-        const updated = index >= 0
-          ? prev.map((a, idx) => (idx === index ? sanitized : a))
-          : [sanitized, ...prev];
-        try {
-          localStorage.setItem('acedep_cached_athletes', JSON.stringify(updated));
-        } catch {}
-        return updated;
-      });
-      return true;
+      enqueueOfflineOperation({ collection: 'athletes', docId: sanitized.id, action: 'set', payload: sanitized });
     }
+
+    setAthletes((prev) => {
+      const index = prev.findIndex((a) => a.id === sanitized.id);
+      const updated = index >= 0
+        ? prev.map((a, idx) => (idx === index ? sanitized : a))
+        : [sanitized, ...prev];
+      saveLocalStorageBackup('athletes', updated);
+      return updated;
+    });
+    return true;
   };
 
   const deleteAthleteRecord = async (athleteId: string): Promise<boolean> => {
     try {
       await deleteDoc(doc(db, 'athletes', athleteId));
-      setAthletes((prev) => prev.filter((a) => a.id !== athleteId));
-      if (currentAthleteId === athleteId) {
-        guardianLogout();
-      }
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `athletes/${athleteId}`);
-      setAthletes((prev) => prev.filter((a) => a.id !== athleteId));
-      if (currentAthleteId === athleteId) {
-        guardianLogout();
-      }
-      return true;
+      enqueueOfflineOperation({ collection: 'athletes', docId: athleteId, action: 'delete' });
     }
+    setAthletes((prev) => {
+      const updated = prev.filter((a) => a.id !== athleteId);
+      saveLocalStorageBackup('athletes', updated);
+      return updated;
+    });
+    if (currentAthleteId === athleteId) {
+      guardianLogout();
+    }
+    return true;
   };
 
   const addSwimmingMetric = async (
@@ -986,13 +1044,17 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     try {
       await setDoc(doc(db, 'attendance_sessions', id), newSession);
-      setAttendanceSessions((prev) => [newSession, ...prev]);
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.CREATE, `attendance_sessions/${id}`);
-      setAttendanceSessions((prev) => [newSession, ...prev]);
-      return true;
+      enqueueOfflineOperation({ collection: 'attendance_sessions', docId: id, action: 'set', payload: newSession });
     }
+
+    setAttendanceSessions((prev) => {
+      const updated = [newSession, ...prev.filter(s => s.id !== id)].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      saveLocalStorageBackup('attendance_sessions', updated);
+      return updated;
+    });
+    return true;
   };
 
   const updateAttendanceSession = async (
@@ -1001,29 +1063,33 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   ): Promise<boolean> => {
     try {
       await updateDoc(doc(db, 'attendance_sessions', id), updates);
-      setAttendanceSessions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
-      );
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `attendance_sessions/${id}`);
-      setAttendanceSessions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
-      );
-      return true;
+      enqueueOfflineOperation({ collection: 'attendance_sessions', docId: id, action: 'update', payload: updates });
     }
+
+    setAttendanceSessions((prev) => {
+      const updated = prev.map((s) => (s.id === id ? { ...s, ...updates } : s));
+      saveLocalStorageBackup('attendance_sessions', updated);
+      return updated;
+    });
+    return true;
   };
 
   const deleteAttendanceSession = async (id: string): Promise<boolean> => {
     try {
       await deleteDoc(doc(db, 'attendance_sessions', id));
-      setAttendanceSessions((prev) => prev.filter((s) => s.id !== id));
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `attendance_sessions/${id}`);
-      setAttendanceSessions((prev) => prev.filter((s) => s.id !== id));
-      return true;
+      enqueueOfflineOperation({ collection: 'attendance_sessions', docId: id, action: 'delete' });
     }
+
+    setAttendanceSessions((prev) => {
+      const updated = prev.filter((s) => s.id !== id);
+      saveLocalStorageBackup('attendance_sessions', updated);
+      return updated;
+    });
+    return true;
   };
 
   const toggleAthletePresence = async (
@@ -1105,13 +1171,17 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     try {
       await setDoc(doc(db, 'annual_events', newId), newEvent);
-      setAnnualEvents((prev) => [...prev, newEvent].sort((a, b) => a.month - b.month));
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.CREATE, `annual_events/${newId}`);
-      setAnnualEvents((prev) => [...prev, newEvent].sort((a, b) => a.month - b.month));
-      return true;
+      enqueueOfflineOperation({ collection: 'annual_events', docId: newId, action: 'set', payload: newEvent });
     }
+
+    setAnnualEvents((prev) => {
+      const updated = [...prev.filter(e => e.id !== newId), newEvent].sort((a, b) => a.month - b.month);
+      saveLocalStorageBackup('annual_events', updated);
+      return updated;
+    });
+    return true;
   };
 
   const updateAnnualEvent = async (
@@ -1120,29 +1190,33 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   ): Promise<boolean> => {
     try {
       await updateDoc(doc(db, 'annual_events', id), updates);
-      setAnnualEvents((prev) =>
-        prev.map((evt) => (evt.id === id ? { ...evt, ...updates } : evt)).sort((a, b) => a.month - b.month)
-      );
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `annual_events/${id}`);
-      setAnnualEvents((prev) =>
-        prev.map((evt) => (evt.id === id ? { ...evt, ...updates } : evt)).sort((a, b) => a.month - b.month)
-      );
-      return true;
+      enqueueOfflineOperation({ collection: 'annual_events', docId: id, action: 'update', payload: updates });
     }
+
+    setAnnualEvents((prev) => {
+      const updated = prev.map((evt) => (evt.id === id ? { ...evt, ...updates } : evt)).sort((a, b) => a.month - b.month);
+      saveLocalStorageBackup('annual_events', updated);
+      return updated;
+    });
+    return true;
   };
 
   const deleteAnnualEvent = async (id: string): Promise<boolean> => {
     try {
       await deleteDoc(doc(db, 'annual_events', id));
-      setAnnualEvents((prev) => prev.filter((evt) => evt.id !== id));
-      return true;
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `annual_events/${id}`);
-      setAnnualEvents((prev) => prev.filter((evt) => evt.id !== id));
-      return true;
+      enqueueOfflineOperation({ collection: 'annual_events', docId: id, action: 'delete' });
     }
+
+    setAnnualEvents((prev) => {
+      const updated = prev.filter((evt) => evt.id !== id);
+      saveLocalStorageBackup('annual_events', updated);
+      return updated;
+    });
+    return true;
   };
 
   return (

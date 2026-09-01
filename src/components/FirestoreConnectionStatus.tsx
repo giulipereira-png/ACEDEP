@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  CloudCheck, 
+  Cloud, 
   CloudOff, 
   RefreshCw, 
   Database, 
@@ -12,9 +12,12 @@ import {
   Layers, 
   ChevronDown, 
   X,
-  ExternalLink
+  HardDrive,
+  ShieldCheck
 } from 'lucide-react';
 import { db, doc, getDocFromServer, collection, onSnapshot } from '../lib/firebase';
+import { getOfflineQueueLength, processOfflineSyncQueue } from '../lib/offlineFallbackManager';
+import { ensureFirestoreDatabaseSeeded } from '../lib/firestoreSeeder';
 import config from '../../firebase-applet-config.json';
 import { useCommunity } from '../context/CommunityContext';
 import { usePhotos } from '../context/PhotosContext';
@@ -36,8 +39,9 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [isPinging, setIsPinging] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [offlineQueueCount, setOfflineQueueCount] = useState<number>(() => getOfflineQueueLength());
+  const [isFlushingQueue, setIsFlushingQueue] = useState(false);
   const [syncHistory, setSyncHistory] = useState<Array<{ timestamp: string; message: string; type: 'success' | 'warning' | 'error' }>>([]);
-  const [activeListenersCount, setActiveListenersCount] = useState<number>(6);
 
   const { athletes, annualEvents, newsPosts, cheers, attendanceSessions } = useCommunity();
   const { galleryPhotos, photos } = usePhotos();
@@ -61,6 +65,13 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
       setStatus('connected');
       const now = new Date();
       setLastSyncTime(now);
+      setOfflineQueueCount(getOfflineQueueLength());
+
+      // If there are pending offline mutations, auto sync
+      if (getOfflineQueueLength() > 0) {
+        await processOfflineSyncQueue();
+        setOfflineQueueCount(getOfflineQueueLength());
+      }
 
       setSyncHistory((prev) => [
         {
@@ -72,7 +83,6 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
       ]);
     } catch (err: any) {
       console.warn('[Firestore Status] Diagnostics ping warning:', err);
-      // If we are getting real-time updates via onSnapshot, we are still connected
       if (navigator.onLine) {
         setStatus('connected');
         setLatency(120);
@@ -89,8 +99,21 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
       }
     } finally {
       setIsPinging(false);
+      setOfflineQueueCount(getOfflineQueueLength());
     }
   }, []);
+
+  const handleManualFlush = async () => {
+    setIsFlushingQueue(true);
+    try {
+      await ensureFirestoreDatabaseSeeded();
+      await processOfflineSyncQueue();
+      setOfflineQueueCount(getOfflineQueueLength());
+      await testConnection();
+    } finally {
+      setIsFlushingQueue(false);
+    }
+  };
 
   // Periodic heartbeat & listener
   useEffect(() => {
@@ -99,6 +122,7 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         testConnection();
+        setOfflineQueueCount(getOfflineQueueLength());
       }
     }, 45000); // Check every 45s
 
@@ -106,7 +130,10 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
       setStatus('connecting');
       testConnection();
     };
-    const handleOffline = () => setStatus('offline');
+    const handleOffline = () => {
+      setStatus('offline');
+      setOfflineQueueCount(getOfflineQueueLength());
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -121,6 +148,7 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
   // Update sync timestamp when collections receive live data
   useEffect(() => {
     setLastSyncTime(new Date());
+    setOfflineQueueCount(getOfflineQueueLength());
   }, [athletes.length, annualEvents.length, galleryPhotos.length, newsPosts.length, cheers.length]);
 
   const databaseName = config.firestoreDatabaseId || '(default)';
@@ -230,13 +258,13 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
 
           <div className="p-3 rounded-xl bg-[#0c1f38] border border-[#1e3a5f]/50">
             <span className="text-[11px] text-slate-400 flex items-center gap-1">
-              <Wifi className="w-3.5 h-3.5 text-cyan-400" />
-              Canais Ativos
+              <HardDrive className="w-3.5 h-3.5 text-amber-400" />
+              Fallback Local
             </span>
-            <p className="text-base font-bold text-white mt-1">
-              6 coleções
+            <p className="text-base font-bold text-amber-300 mt-1">
+              {offlineQueueCount > 0 ? `${offlineQueueCount} pendentes` : 'Protegido'}
             </p>
-            <span className="text-[10px] text-cyan-300 font-medium">onSnapshot Streaming</span>
+            <span className="text-[10px] text-slate-400">Backup automático em cache</span>
           </div>
 
           <div className="p-3 rounded-xl bg-[#0c1f38] border border-[#1e3a5f]/50">
@@ -250,6 +278,26 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
             <span className="text-[10px] text-slate-400">Automático</span>
           </div>
         </div>
+
+        {/* Offline Queue Sync Bar if pending */}
+        {offlineQueueCount > 0 && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                Há <strong>{offlineQueueCount} alteraç{offlineQueueCount === 1 ? 'ão' : 'ões'}</strong> salva(s) no backup local aguardando envio para o Firestore.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleManualFlush}
+              disabled={isFlushingQueue}
+              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+            >
+              {isFlushingQueue ? 'Sincronizando...' : 'Enviar Agora'}
+            </button>
+          </div>
+        )}
 
         {/* Database Identifiers Breakdown */}
         <div className="p-3 rounded-xl bg-[#061120] border border-[#1e3a5f]/40 text-xs flex flex-wrap items-center justify-between gap-2">
@@ -429,8 +477,8 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
               </div>
             </div>
 
-            {/* Technical Identifiers */}
-            <div className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-1 text-[11px] font-mono text-slate-400">
+            {/* Technical Identifiers & Fallback Status */}
+            <div className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-1.5 text-[11px] font-mono text-slate-400">
               <div className="flex justify-between">
                 <span>Database:</span>
                 <span className="text-[#f3e5ab] truncate max-w-[240px]">{databaseName}</span>
@@ -443,7 +491,36 @@ export const FirestoreConnectionStatus: React.FC<FirestoreConnectionStatusProps>
                 <span>Protocolo:</span>
                 <span className="text-cyan-300">Firestore WebChannel / Realtime</span>
               </div>
+              <div className="flex justify-between items-center pt-1 border-t border-white/5">
+                <span className="flex items-center gap-1 text-slate-300">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  Fallback LocalStorage:
+                </span>
+                <span className={offlineQueueCount > 0 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>
+                  {offlineQueueCount > 0 ? `${offlineQueueCount} pendentes de envio` : 'Ativo & Protegido'}
+                </span>
+              </div>
             </div>
+
+            {/* Offline Queue Sync Bar if pending */}
+            {offlineQueueCount > 0 && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    Há <strong>{offlineQueueCount} alteraç{offlineQueueCount === 1 ? 'ão' : 'ões'}</strong> salva(s) localmente aguardando envio.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleManualFlush}
+                  disabled={isFlushingQueue}
+                  className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+                >
+                  {isFlushingQueue ? 'Sincronizando...' : 'Enviar'}
+                </button>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex items-center gap-3 pt-2">
