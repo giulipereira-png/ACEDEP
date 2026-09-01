@@ -198,10 +198,19 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       });
 
-      unsubSbCheers = subscribeToSupabaseCollection<CommunityCheer>('community_cheers', (items) => {
+      unsubSbCheers = subscribeToSupabaseCollection<any>('community_cheers', (items) => {
         if (items && items.length > 0) {
-          items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-          setCheers(items);
+          const sanitizedCheers: CommunityCheer[] = items.map((item) => ({
+            id: item.id || `cheer_${Date.now()}`,
+            authorName: item.authorName || item.name || 'Torcedor ACEDEP',
+            relationship: item.relationship || item.relation || 'Torcida ACEDEP',
+            message: item.message || '',
+            avatarColor: item.avatarColor || '#d4af37',
+            likes: Number(item.likes) || 0,
+            createdAt: item.createdAt || new Date().toISOString(),
+          }));
+          sanitizedCheers.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+          setCheers(sanitizedCheers);
         }
       });
 
@@ -506,8 +515,8 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       createdAt: new Date().toISOString(),
     };
     try {
-      saveDocToSupabase('news_posts', newId, newPost).catch(() => {});
-      await setDoc(doc(db, 'news_posts', newId), newPost);
+      await saveDocToSupabase('news_posts', newId, newPost);
+      setDoc(doc(db, 'news_posts', newId), newPost).catch(() => {});
       setNewsPosts((prev) => [newPost, ...prev]);
 
       if (notifyParentsByEmail) {
@@ -525,7 +534,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.CREATE, `news_posts/${newId}`);
       setNewsPosts((prev) => [newPost, ...prev]);
       return true;
     }
@@ -533,12 +541,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteNewsPost = async (id: string): Promise<boolean> => {
     try {
-      deleteDocFromSupabase('news_posts', id).catch(() => {});
-      await deleteDoc(doc(db, 'news_posts', id));
+      await deleteDocFromSupabase('news_posts', id);
+      deleteDoc(doc(db, 'news_posts', id)).catch(() => {});
       setNewsPosts((prev) => prev.filter((p) => p.id !== id));
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, `news_posts/${id}`);
       setNewsPosts((prev) => prev.filter((p) => p.id !== id));
       return true;
     }
@@ -552,13 +559,13 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const target = newsPosts.find((p) => p.id === id);
       if (target) {
         const updated = { ...target, likesCount: (target.likesCount || 0) + 1 };
-        saveDocToSupabase('news_posts', id, updated).catch(() => {});
-        await updateDoc(doc(db, 'news_posts', id), {
+        await saveDocToSupabase('news_posts', id, updated);
+        updateDoc(doc(db, 'news_posts', id), {
           likesCount: updated.likesCount,
-        });
+        }).catch(() => {});
       }
     } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `news_posts/${id}`);
+      console.warn('Like news error:', e);
     }
   };
 
@@ -577,12 +584,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       createdAt: new Date().toISOString(),
     };
     try {
-      saveDocToSupabase('community_cheers', newId, newCheer).catch(() => {});
-      await setDoc(doc(db, 'community_cheers', newId), newCheer);
+      await saveDocToSupabase('community_cheers', newId, newCheer);
+      setDoc(doc(db, 'community_cheers', newId), newCheer).catch(() => {});
       setCheers((prev) => [newCheer, ...prev]);
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.CREATE, `community_cheers/${newId}`);
       setCheers((prev) => [newCheer, ...prev]);
       return true;
     }
@@ -599,14 +605,14 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
     try {
       const existing = cheers.find((c) => c.id === id) || ({} as CommunityCheer);
-      saveDocToSupabase('community_cheers', id, { ...existing, ...cleanData }).catch(() => {});
-      await updateDoc(doc(db, 'community_cheers', id), cleanData);
+      const updated = { ...existing, ...cleanData };
+      await saveDocToSupabase('community_cheers', id, updated);
+      updateDoc(doc(db, 'community_cheers', id), cleanData).catch(() => {});
       setCheers((prev) =>
         prev.map((c) => (c.id === id ? { ...c, ...cleanData } : c))
       );
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `community_cheers/${id}`);
       setCheers((prev) =>
         prev.map((c) => (c.id === id ? { ...c, ...cleanData } : c))
       );
@@ -616,12 +622,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteCheer = async (id: string): Promise<boolean> => {
     try {
-      deleteDocFromSupabase('community_cheers', id).catch(() => {});
-      await deleteDoc(doc(db, 'community_cheers', id));
+      await deleteDocFromSupabase('community_cheers', id);
+      deleteDoc(doc(db, 'community_cheers', id)).catch(() => {});
       setCheers((prev) => prev.filter((c) => c.id !== id));
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, `community_cheers/${id}`);
       setCheers((prev) => prev.filter((c) => c.id !== id));
       return true;
     }
@@ -635,13 +640,13 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const target = cheers.find((c) => c.id === id);
       if (target) {
         const updated = { ...target, likes: (target.likes || 0) + 1 };
-        saveDocToSupabase('community_cheers', id, updated).catch(() => {});
-        await updateDoc(doc(db, 'community_cheers', id), {
+        await saveDocToSupabase('community_cheers', id, updated);
+        updateDoc(doc(db, 'community_cheers', id), {
           likes: updated.likes,
-        });
+        }).catch(() => {});
       }
     } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `community_cheers/${id}`);
+      console.warn('Like cheer error:', e);
     }
   };
 
@@ -683,10 +688,8 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     try {
-      saveDocToSupabase('athletes', sanitized.id, sanitized).catch((e) =>
-        console.warn('[Supabase] athlete save error:', e)
-      );
-      await setDoc(doc(db, 'athletes', sanitized.id), sanitized, { merge: true });
+      await saveDocToSupabase('athletes', sanitized.id, sanitized);
+      setDoc(doc(db, 'athletes', sanitized.id), sanitized, { merge: true }).catch(() => {});
       setAthletes((prev) => {
         const index = prev.findIndex((a) => a.id === sanitized.id);
         const updated = index >= 0
@@ -699,8 +702,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       return true;
     } catch (e) {
-      console.error('Error saving athlete to Firestore:', e);
-      handleFirestoreError(e, OperationType.WRITE, `athletes/${sanitized.id}`);
+      console.error('Error saving athlete:', e);
       setAthletes((prev) => {
         const index = prev.findIndex((a) => a.id === sanitized.id);
         const updated = index >= 0
@@ -717,15 +719,14 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteAthleteRecord = async (athleteId: string): Promise<boolean> => {
     try {
-      deleteDocFromSupabase('athletes', athleteId).catch(() => {});
-      await deleteDoc(doc(db, 'athletes', athleteId));
+      await deleteDocFromSupabase('athletes', athleteId);
+      deleteDoc(doc(db, 'athletes', athleteId)).catch(() => {});
       setAthletes((prev) => prev.filter((a) => a.id !== athleteId));
       if (currentAthleteId === athleteId) {
         guardianLogout();
       }
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, `athletes/${athleteId}`);
       setAthletes((prev) => prev.filter((a) => a.id !== athleteId));
       if (currentAthleteId === athleteId) {
         guardianLogout();
@@ -1049,12 +1050,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     try {
-      saveDocToSupabase('attendance_sessions', id, newSession).catch(() => {});
-      await setDoc(doc(db, 'attendance_sessions', id), newSession);
+      await saveDocToSupabase('attendance_sessions', id, newSession);
+      setDoc(doc(db, 'attendance_sessions', id), newSession).catch(() => {});
       setAttendanceSessions((prev) => [newSession, ...prev]);
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.CREATE, `attendance_sessions/${id}`);
       setAttendanceSessions((prev) => [newSession, ...prev]);
       return true;
     }
@@ -1067,15 +1067,14 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const target = attendanceSessions.find((s) => s.id === id);
       if (target) {
-        saveDocToSupabase('attendance_sessions', id, { ...target, ...updates }).catch(() => {});
+        await saveDocToSupabase('attendance_sessions', id, { ...target, ...updates });
       }
-      await updateDoc(doc(db, 'attendance_sessions', id), updates);
+      updateDoc(doc(db, 'attendance_sessions', id), updates).catch(() => {});
       setAttendanceSessions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
       );
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `attendance_sessions/${id}`);
       setAttendanceSessions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
       );
@@ -1085,12 +1084,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteAttendanceSession = async (id: string): Promise<boolean> => {
     try {
-      deleteDocFromSupabase('attendance_sessions', id).catch(() => {});
-      await deleteDoc(doc(db, 'attendance_sessions', id));
+      await deleteDocFromSupabase('attendance_sessions', id);
+      deleteDoc(doc(db, 'attendance_sessions', id)).catch(() => {});
       setAttendanceSessions((prev) => prev.filter((s) => s.id !== id));
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, `attendance_sessions/${id}`);
       setAttendanceSessions((prev) => prev.filter((s) => s.id !== id));
       return true;
     }
@@ -1174,12 +1172,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     try {
-      saveDocToSupabase('annual_events', newId, newEvent).catch(() => {});
-      await setDoc(doc(db, 'annual_events', newId), newEvent);
+      await saveDocToSupabase('annual_events', newId, newEvent);
+      setDoc(doc(db, 'annual_events', newId), newEvent).catch(() => {});
       setAnnualEvents((prev) => [...prev, newEvent].sort((a, b) => a.month - b.month));
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.CREATE, `annual_events/${newId}`);
       setAnnualEvents((prev) => [...prev, newEvent].sort((a, b) => a.month - b.month));
       return true;
     }
@@ -1192,15 +1189,14 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const target = annualEvents.find((e) => e.id === id);
       if (target) {
-        saveDocToSupabase('annual_events', id, { ...target, ...updates }).catch(() => {});
+        await saveDocToSupabase('annual_events', id, { ...target, ...updates });
       }
-      await updateDoc(doc(db, 'annual_events', id), updates);
+      updateDoc(doc(db, 'annual_events', id), updates).catch(() => {});
       setAnnualEvents((prev) =>
         prev.map((evt) => (evt.id === id ? { ...evt, ...updates } : evt)).sort((a, b) => a.month - b.month)
       );
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `annual_events/${id}`);
       setAnnualEvents((prev) =>
         prev.map((evt) => (evt.id === id ? { ...evt, ...updates } : evt)).sort((a, b) => a.month - b.month)
       );
@@ -1210,12 +1206,11 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteAnnualEvent = async (id: string): Promise<boolean> => {
     try {
-      deleteDocFromSupabase('annual_events', id).catch(() => {});
-      await deleteDoc(doc(db, 'annual_events', id));
+      await deleteDocFromSupabase('annual_events', id);
+      deleteDoc(doc(db, 'annual_events', id)).catch(() => {});
       setAnnualEvents((prev) => prev.filter((evt) => evt.id !== id));
       return true;
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, `annual_events/${id}`);
       setAnnualEvents((prev) => prev.filter((evt) => evt.id !== id));
       return true;
     }

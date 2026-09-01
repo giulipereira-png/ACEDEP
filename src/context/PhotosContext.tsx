@@ -622,9 +622,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
 
       // 1. Save to Supabase (Uncapped and Fast)
-      saveDocToSupabase('site_photos', photoId, payload).catch((e) =>
-        console.warn('[Supabase] site_photos write error:', e)
-      );
+      await saveDocToSupabase('site_photos', photoId, payload);
 
       // 2. Save to Firestore (Dual sync)
       setDoc(doc(db, 'site_photos', photoId), payload, { merge: true }).catch(() => {});
@@ -640,7 +638,6 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     } catch (err) {
       console.error('Error saving photo:', err);
-      handleFirestoreError(err, OperationType.WRITE, `site_photos/${photoId}`);
       return false;
     }
   };
@@ -657,7 +654,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatedBy: 'Reset Padrão',
       };
 
-      saveDocToSupabase('site_photos', photoId, payload).catch(() => {});
+      await saveDocToSupabase('site_photos', photoId, payload);
       setDoc(doc(db, 'site_photos', photoId), payload, { merge: true }).catch(() => {});
 
       setPhotos((prev) => ({
@@ -671,7 +668,6 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     } catch (err) {
       console.error('Error resetting photo:', err);
-      handleFirestoreError(err, OperationType.WRITE, `site_photos/${photoId}`);
       return false;
     }
   };
@@ -700,9 +696,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
 
       // 1. Supabase write
-      saveDocToSupabase('gallery', photoId, payload).catch((e) =>
-        console.warn('[Supabase] gallery write error:', e)
-      );
+      await saveDocToSupabase('gallery', photoId, payload);
 
       // 2. Firestore write
       setDoc(doc(db, 'gallery', photoId), payload).catch(() => {});
@@ -711,14 +705,13 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     } catch (err) {
       console.error('Error adding photo to gallery:', err);
-      handleFirestoreError(err, OperationType.CREATE, 'gallery');
       return false;
     }
   };
 
   const deleteGalleryPhoto = async (photoId: string): Promise<boolean> => {
     try {
-      deleteDocFromSupabase('gallery', photoId).catch(() => {});
+      await deleteDocFromSupabase('gallery', photoId);
       deleteDoc(doc(db, 'gallery', photoId)).catch(() => {});
       setGalleryPhotos((prev) => prev.filter((p) => p.id !== photoId));
       return true;

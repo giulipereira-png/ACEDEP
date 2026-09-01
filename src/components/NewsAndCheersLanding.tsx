@@ -293,7 +293,7 @@ export const NewsAndCheersLanding: React.FC<NewsAndCheersLandingProps> = ({
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 font-black text-xs">
-                          {activeCheer.authorName.charAt(0).toUpperCase()}
+                          {(activeCheer.authorName || 'A').charAt(0).toUpperCase()}
                         </div>
                         <div>
                           <h4 className="text-xs font-bold text-white leading-tight">

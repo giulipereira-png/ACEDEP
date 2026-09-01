@@ -560,7 +560,7 @@ export const CommunitySection: React.FC = () => {
                                   className="w-7 h-7 rounded-full flex items-center justify-center text-[#060e1c] text-[11px] font-bold shrink-0 shadow"
                                   style={{ backgroundColor: c.avatarColor || '#d4af37' }}
                                 >
-                                  {c.authorName.charAt(0).toUpperCase()}
+                                  {(c.authorName || 'A').charAt(0).toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
                                   <p className="text-xs font-bold text-white leading-tight truncate">{c.authorName}</p>

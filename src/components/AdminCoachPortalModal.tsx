@@ -3785,7 +3785,7 @@ export const AdminCoachPortalModal: React.FC = () => {
                                     className="w-8 h-8 rounded-full flex items-center justify-center text-[#060e1c] text-xs font-bold shrink-0 shadow"
                                     style={{ backgroundColor: cheer.avatarColor || '#d4af37' }}
                                   >
-                                    {cheer.authorName.charAt(0).toUpperCase()}
+                                    {(cheer.authorName || 'A').charAt(0).toUpperCase()}
                                   </div>
                                   <div className="min-w-0">
                                     <p className="text-xs font-bold text-white truncate">{cheer.authorName}</p>
