@@ -96,5 +96,12 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read, write: if isValidDocId(settingId);
     }
+
+    // =========================================================================
+    // 13. CATCH-ALL TOP LEVEL & SUBCOLLECTIONS (Ensure full cross-device sync)
+    // =========================================================================
+    match /{collectionName}/{docId=**} {
+      allow read, write: if true;
+    }
   }
 }

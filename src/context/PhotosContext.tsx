@@ -115,22 +115,22 @@ export const INITIAL_GALLERY_PHOTOS: GalleryPhotoItem[] = [
     title: 'Equipe ACEDEP Reunida',
     category: 'Equipe Oficial',
     url: '/IMG_4378.jpeg',
-    date: 'Campeonatos & Conquistas',
+    date: 'Centro Paralímpico Brasileiro',
     createdAt: '2026-01-01T00:00:00.000Z',
   },
   {
     id: 'gal-2',
-    title: 'Iniciação Esportiva e Aperfeiçoamento',
-    category: 'Iniciação Esportiva',
-    url: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=85',
-    date: 'Treinos Técnicos',
+    title: 'Treinos Técnicos & Concentração',
+    category: 'Treinamento',
+    url: '/IMG_4378.jpeg',
+    date: 'Treinos Técnicos CPB',
     createdAt: '2026-01-02T00:00:00.000Z',
   },
   {
     id: 'gal-3',
     title: 'Alto Rendimento e Foco na Performance',
     category: 'Alto Rendimento',
-    url: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=85',
+    url: '/IMG_4378.jpeg',
     date: 'Classes S14 & S21',
     createdAt: '2026-01-03T00:00:00.000Z',
   },
@@ -138,16 +138,16 @@ export const INITIAL_GALLERY_PHOTOS: GalleryPhotoItem[] = [
     id: 'gal-4',
     title: 'Superação e Disciplina nas Piscinas',
     category: 'Treinamento',
-    url: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=85',
-    date: 'Piscina Olímpica',
+    url: '/IMG_4378.jpeg',
+    date: 'Piscina Olímpica 50m',
     createdAt: '2026-01-04T00:00:00.000Z',
   },
   {
     id: 'gal-5',
     title: 'Conquista da Autonomia e Técnica',
     category: 'Iniciação Esportiva',
-    url: 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?auto=format&fit=crop&w=1200&q=85',
-    date: 'Formação Contínua',
+    url: '/IMG_4378.jpeg',
+    date: 'Iniciação e Rendimento',
     createdAt: '2026-01-05T00:00:00.000Z',
   },
 ];
@@ -295,7 +295,11 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (!initSnap.exists()) {
             try {
               for (const photo of INITIAL_GALLERY_PHOTOS) {
-                await setDoc(doc(db, 'gallery', photo.id), photo);
+                const docRef = doc(db, 'gallery', photo.id);
+                const docSnap = await getDoc(docRef);
+                if (!docSnap.exists()) {
+                  await setDoc(docRef, photo);
+                }
               }
               await setDoc(galleryInitDocRef, { initialized: true, seededAt: new Date().toISOString() });
             } catch (seedErr) {
@@ -324,14 +328,11 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           // Sort by createdAt descending
           list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
-          if (list.length > 0) {
-            setGalleryPhotos(list);
-          } else {
-            // Check if user has explicitly deleted all photos or if it's unseeded
+          if (snapshot.empty) {
             getDoc(galleryInitDocRef)
               .then((initSnap) => {
                 if (initSnap.exists()) {
-                  setGalleryPhotos([]); // Empty because user deleted all photos
+                  setGalleryPhotos([]);
                 } else {
                   setGalleryPhotos(INITIAL_GALLERY_PHOTOS);
                 }
@@ -339,6 +340,8 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               .catch(() => {
                 setGalleryPhotos([]);
               });
+          } else {
+            setGalleryPhotos(list);
           }
         },
         (error) => {

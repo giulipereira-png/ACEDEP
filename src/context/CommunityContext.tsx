@@ -189,7 +189,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           if (!snap.exists()) {
             try {
               for (const post of INITIAL_NEWS_POSTS) {
-                await setDoc(doc(db, 'news_posts', post.id), post);
+                const existingSnap = await getDoc(doc(db, 'news_posts', post.id));
+                if (!existingSnap.exists()) {
+                  await setDoc(doc(db, 'news_posts', post.id), post);
+                }
               }
               await setDoc(newsInitDoc, { initialized: true, seededAt: new Date().toISOString() });
             } catch (e) {
@@ -204,12 +207,25 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       unsubscribeNews = onSnapshot(
         collection(db, 'news_posts'),
         (snapshot) => {
-          if (!snapshot.empty) {
-            const list: NewsPost[] = [];
-            snapshot.forEach((docSnap) => {
-              list.push({ ...docSnap.data(), id: docSnap.id } as NewsPost);
-            });
-            list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+          const list: NewsPost[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push({ ...docSnap.data(), id: docSnap.id } as NewsPost);
+          });
+          list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+          if (snapshot.empty) {
+            getDoc(newsInitDoc)
+              .then((initSnap) => {
+                if (initSnap.exists()) {
+                  setNewsPosts([]);
+                } else {
+                  setNewsPosts(INITIAL_NEWS_POSTS);
+                }
+              })
+              .catch(() => {
+                setNewsPosts([]);
+              });
+          } else {
             setNewsPosts(list);
           }
         },
@@ -225,7 +241,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           if (!snap.exists()) {
             try {
               for (const cheer of INITIAL_COMMUNITY_CHEERS) {
-                await setDoc(doc(db, 'community_cheers', cheer.id), cheer);
+                const existingSnap = await getDoc(doc(db, 'community_cheers', cheer.id));
+                if (!existingSnap.exists()) {
+                  await setDoc(doc(db, 'community_cheers', cheer.id), cheer);
+                }
               }
               await setDoc(cheersInitDoc, { initialized: true, seededAt: new Date().toISOString() });
             } catch (e) {
@@ -240,12 +259,25 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       unsubscribeCheers = onSnapshot(
         collection(db, 'community_cheers'),
         (snapshot) => {
-          if (!snapshot.empty) {
-            const list: CommunityCheer[] = [];
-            snapshot.forEach((docSnap) => {
-              list.push({ ...docSnap.data(), id: docSnap.id } as CommunityCheer);
-            });
-            list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+          const list: CommunityCheer[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push({ ...docSnap.data(), id: docSnap.id } as CommunityCheer);
+          });
+          list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+          if (snapshot.empty) {
+            getDoc(cheersInitDoc)
+              .then((initSnap) => {
+                if (initSnap.exists()) {
+                  setCheers([]);
+                } else {
+                  setCheers(INITIAL_COMMUNITY_CHEERS);
+                }
+              })
+              .catch(() => {
+                setCheers([]);
+              });
+          } else {
             setCheers(list);
           }
         },
@@ -376,7 +408,10 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           if (!snap.exists()) {
             try {
               for (const evt of INITIAL_ANNUAL_EVENTS) {
-                await setDoc(doc(db, 'annual_events', evt.id), evt);
+                const existingSnap = await getDoc(doc(db, 'annual_events', evt.id));
+                if (!existingSnap.exists()) {
+                  await setDoc(doc(db, 'annual_events', evt.id), evt);
+                }
               }
               await setDoc(annualEventsInitDoc, { initialized: true, seededAt: new Date().toISOString() });
             } catch (e) {
@@ -391,15 +426,26 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       unsubscribeAnnualEvents = onSnapshot(
         collection(db, 'annual_events'),
         (snapshot) => {
-          if (!snapshot.empty) {
-            const list: AnnualCalendarEvent[] = [];
-            snapshot.forEach((docSnap) => {
-              list.push({ ...docSnap.data(), id: docSnap.id } as AnnualCalendarEvent);
-            });
-            list.sort((a, b) => a.month - b.month);
-            setAnnualEvents(list);
+          const list: AnnualCalendarEvent[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push({ ...docSnap.data(), id: docSnap.id } as AnnualCalendarEvent);
+          });
+          list.sort((a, b) => a.month - b.month);
+
+          if (snapshot.empty) {
+            getDoc(annualEventsInitDoc)
+              .then((initSnap) => {
+                if (initSnap.exists()) {
+                  setAnnualEvents([]);
+                } else {
+                  setAnnualEvents(INITIAL_ANNUAL_EVENTS);
+                }
+              })
+              .catch(() => {
+                setAnnualEvents([]);
+              });
           } else {
-            setAnnualEvents(INITIAL_ANNUAL_EVENTS);
+            setAnnualEvents(list);
           }
         },
         (error) => {
