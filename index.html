@@ -8,13 +8,13 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.googleapis.com;
+      default-src 'self' https: data: blob:;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.googleapis.com https://*.gstatic.com;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com data:;
       img-src 'self' data: blob: https: http:;
       media-src 'self' data: blob: https:;
-      connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://firestore.googleapis.com https://*.cloudfunctions.net https://*.supabase.co https://*.google.com https://*.gstatic.com wss://*.firebaseio.com;
+      connect-src 'self' https: wss: data: blob:;
       frame-src 'self' https://*.google.com https://*.google.com.br https://drive.google.com https://maps.google.com https://www.google.com;
       object-src 'none';
       base-uri 'self';
