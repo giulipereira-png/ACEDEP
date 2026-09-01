@@ -217,38 +217,11 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     let unsubscribeSitePhotos = () => {};
     let unsubscribeGallery = () => {};
+    let unsubscribeAdminUsers = () => {};
 
     try {
       // 1. Site photos
       const photosCollection = collection(db, 'site_photos');
-      const sitePhotosInitDocRef = doc(db, 'settings', 'site_photos_init');
-
-      getDoc(sitePhotosInitDocRef)
-        .then(async (initSnap) => {
-          if (!initSnap.exists()) {
-            try {
-              for (const [photoKey, photoInfo] of Object.entries(DEFAULT_PHOTOS)) {
-                const existingSnap = await getDoc(doc(db, 'site_photos', photoKey));
-                if (!existingSnap.exists()) {
-                  await setDoc(doc(db, 'site_photos', photoKey), {
-                    id: photoKey,
-                    title: photoInfo.title,
-                    category: photoInfo.category,
-                    url: photoInfo.defaultUrl,
-                    updatedAt: new Date().toISOString(),
-                    updatedBy: 'Sistema ACEDEP',
-                  });
-                }
-              }
-              await setDoc(sitePhotosInitDocRef, { initialized: true, seededAt: new Date().toISOString() });
-            } catch (seedErr) {
-              handleFirestoreError(seedErr, OperationType.WRITE, 'site_photos_seed');
-            }
-          }
-        })
-        .catch((err) => {
-          handleFirestoreError(err, OperationType.GET, 'settings/site_photos_init');
-        });
 
       unsubscribeSitePhotos = onSnapshot(
         photosCollection,
@@ -287,29 +260,6 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // 2. Gallery photos
       const galleryCollection = collection(db, 'gallery');
-      const galleryInitDocRef = doc(db, 'settings', 'gallery_init');
-
-      // Check if initialization has occurred; if not, seed initial photos to Firestore
-      getDoc(galleryInitDocRef)
-        .then(async (initSnap) => {
-          if (!initSnap.exists()) {
-            try {
-              for (const photo of INITIAL_GALLERY_PHOTOS) {
-                const docRef = doc(db, 'gallery', photo.id);
-                const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) {
-                  await setDoc(docRef, photo);
-                }
-              }
-              await setDoc(galleryInitDocRef, { initialized: true, seededAt: new Date().toISOString() });
-            } catch (seedErr) {
-              handleFirestoreError(seedErr, OperationType.WRITE, 'gallery_seed');
-            }
-          }
-        })
-        .catch((err) => {
-          handleFirestoreError(err, OperationType.GET, 'settings/gallery_init');
-        });
 
       unsubscribeGallery = onSnapshot(
         galleryCollection,
@@ -329,17 +279,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
           if (snapshot.empty) {
-            getDoc(galleryInitDocRef)
-              .then((initSnap) => {
-                if (initSnap.exists()) {
-                  setGalleryPhotos([]);
-                } else {
-                  setGalleryPhotos(INITIAL_GALLERY_PHOTOS);
-                }
-              })
-              .catch(() => {
-                setGalleryPhotos([]);
-              });
+            setGalleryPhotos(INITIAL_GALLERY_PHOTOS);
           } else {
             setGalleryPhotos(list);
           }
@@ -350,26 +290,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       );
 
       // 3. Admin Users
-      let unsubscribeAdminUsers = () => {};
       const adminsCollection = collection(db, 'admin_users');
-      const adminInitDocRef = doc(db, 'settings', 'admin_users_init');
-
-      getDoc(adminInitDocRef)
-        .then(async (initSnap) => {
-          if (!initSnap.exists()) {
-            try {
-              for (const adm of INITIAL_ADMIN_USERS) {
-                await setDoc(doc(db, 'admin_users', adm.id), adm);
-              }
-              await setDoc(adminInitDocRef, { initialized: true, seededAt: new Date().toISOString() });
-            } catch (seedErr) {
-              handleFirestoreError(seedErr, OperationType.WRITE, 'admin_users_seed');
-            }
-          }
-        })
-        .catch((err) => {
-          handleFirestoreError(err, OperationType.GET, 'settings/admin_users_init');
-        });
 
       unsubscribeAdminUsers = onSnapshot(
         adminsCollection,
@@ -403,6 +324,7 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => {
       unsubscribeSitePhotos();
       unsubscribeGallery();
+      unsubscribeAdminUsers();
     };
   }, []);
 

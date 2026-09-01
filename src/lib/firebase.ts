@@ -28,22 +28,12 @@ const firebaseConfig = {
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with robust long-polling support and undefined properties handling
+// Initialize Firestore
 const databaseId = config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)' 
   ? config.firestoreDatabaseId 
   : undefined;
 
-let firestoreDb;
-try {
-  firestoreDb = initializeFirestore(app, {
-    experimentalAutoDetectLongPolling: true,
-    ignoreUndefinedProperties: true,
-  }, databaseId);
-} catch {
-  firestoreDb = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
-}
-
-export const db = firestoreDb;
+export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
 export const auth = getAuth(app);
 
 // Helper to remove any undefined fields before writing to Firestore

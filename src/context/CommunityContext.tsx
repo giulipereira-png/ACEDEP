@@ -183,27 +183,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const setupFirestore = async () => {
       // 1. Sync News
-      const newsInitDoc = doc(db, 'settings', 'news_init');
-      getDoc(newsInitDoc)
-        .then(async (snap) => {
-          if (!snap.exists()) {
-            try {
-              for (const post of INITIAL_NEWS_POSTS) {
-                const existingSnap = await getDoc(doc(db, 'news_posts', post.id));
-                if (!existingSnap.exists()) {
-                  await setDoc(doc(db, 'news_posts', post.id), post);
-                }
-              }
-              await setDoc(newsInitDoc, { initialized: true, seededAt: new Date().toISOString() });
-            } catch (e) {
-              handleFirestoreError(e, OperationType.WRITE, 'news_posts_seed');
-            }
-          }
-        })
-        .catch((e) => {
-          handleFirestoreError(e, OperationType.GET, 'settings/news_init');
-        });
-
       unsubscribeNews = onSnapshot(
         collection(db, 'news_posts'),
         (snapshot) => {
@@ -214,17 +193,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
           if (snapshot.empty) {
-            getDoc(newsInitDoc)
-              .then((initSnap) => {
-                if (initSnap.exists()) {
-                  setNewsPosts([]);
-                } else {
-                  setNewsPosts(INITIAL_NEWS_POSTS);
-                }
-              })
-              .catch(() => {
-                setNewsPosts([]);
-              });
+            setNewsPosts(INITIAL_NEWS_POSTS);
           } else {
             setNewsPosts(list);
           }
@@ -235,27 +204,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
 
       // 2. Sync Cheers
-      const cheersInitDoc = doc(db, 'settings', 'cheers_init');
-      getDoc(cheersInitDoc)
-        .then(async (snap) => {
-          if (!snap.exists()) {
-            try {
-              for (const cheer of INITIAL_COMMUNITY_CHEERS) {
-                const existingSnap = await getDoc(doc(db, 'community_cheers', cheer.id));
-                if (!existingSnap.exists()) {
-                  await setDoc(doc(db, 'community_cheers', cheer.id), cheer);
-                }
-              }
-              await setDoc(cheersInitDoc, { initialized: true, seededAt: new Date().toISOString() });
-            } catch (e) {
-              handleFirestoreError(e, OperationType.WRITE, 'community_cheers_seed');
-            }
-          }
-        })
-        .catch((e) => {
-          handleFirestoreError(e, OperationType.GET, 'settings/cheers_init');
-        });
-
       unsubscribeCheers = onSnapshot(
         collection(db, 'community_cheers'),
         (snapshot) => {
@@ -266,17 +214,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
           if (snapshot.empty) {
-            getDoc(cheersInitDoc)
-              .then((initSnap) => {
-                if (initSnap.exists()) {
-                  setCheers([]);
-                } else {
-                  setCheers(INITIAL_COMMUNITY_CHEERS);
-                }
-              })
-              .catch(() => {
-                setCheers([]);
-              });
+            setCheers(INITIAL_COMMUNITY_CHEERS);
           } else {
             setCheers(list);
           }
@@ -287,27 +225,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
 
       // 3. Sync Athletes
-      const athletesInitDoc = doc(db, 'settings', 'athletes_init');
-      getDoc(athletesInitDoc)
-        .then(async (snap) => {
-          if (!snap.exists()) {
-            try {
-              for (const athlete of INITIAL_ATHLETES) {
-                const existingSnap = await getDoc(doc(db, 'athletes', athlete.id));
-                if (!existingSnap.exists()) {
-                  await setDoc(doc(db, 'athletes', athlete.id), cleanFirestoreData(athlete));
-                }
-              }
-              await setDoc(athletesInitDoc, { initialized: true, seededAt: new Date().toISOString() });
-            } catch (e) {
-              handleFirestoreError(e, OperationType.WRITE, 'athletes_seed');
-            }
-          }
-        })
-        .catch((e) => {
-          handleFirestoreError(e, OperationType.GET, 'settings/athletes_init');
-        });
-
       unsubscribeAthletes = onSnapshot(
         collection(db, 'athletes'),
         (snapshot) => {
@@ -320,6 +237,8 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             try {
               localStorage.setItem('acedep_cached_athletes', JSON.stringify(list));
             } catch {}
+          } else {
+            setAthletes(INITIAL_ATHLETES);
           }
         },
         (error) => {
@@ -328,24 +247,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
 
       // 4. Sync Email Notifications Log
-      const emailLogsInitDoc = doc(db, 'settings', 'email_logs_init');
-      getDoc(emailLogsInitDoc)
-        .then(async (snap) => {
-          if (!snap.exists()) {
-            try {
-              for (const logItem of INITIAL_EMAIL_LOGS) {
-                await setDoc(doc(db, 'email_notifications', logItem.id), logItem);
-              }
-              await setDoc(emailLogsInitDoc, { initialized: true, seededAt: new Date().toISOString() });
-            } catch (e) {
-              handleFirestoreError(e, OperationType.WRITE, 'email_logs_seed');
-            }
-          }
-        })
-        .catch((e) => {
-          handleFirestoreError(e, OperationType.GET, 'settings/email_logs_init');
-        });
-
       unsubscribeEmailLogs = onSnapshot(
         collection(db, 'email_notifications'),
         (snapshot) => {
@@ -356,6 +257,8 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             });
             list.sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
             setEmailLogs(list);
+          } else {
+            setEmailLogs(INITIAL_EMAIL_LOGS);
           }
         },
         (error) => {
@@ -364,24 +267,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
 
       // 5. Sync Attendance Sessions (Treinos e Campeonatos)
-      const attendanceInitDoc = doc(db, 'settings', 'attendance_init');
-      getDoc(attendanceInitDoc)
-        .then(async (snap) => {
-          if (!snap.exists()) {
-            try {
-              for (const sess of INITIAL_ATTENDANCE_SESSIONS) {
-                await setDoc(doc(db, 'attendance_sessions', sess.id), sess);
-              }
-              await setDoc(attendanceInitDoc, { initialized: true, seededAt: new Date().toISOString() });
-            } catch (e) {
-              handleFirestoreError(e, OperationType.WRITE, 'attendance_seed');
-            }
-          }
-        })
-        .catch((e) => {
-          handleFirestoreError(e, OperationType.GET, 'settings/attendance_init');
-        });
-
       unsubscribeAttendance = onSnapshot(
         collection(db, 'attendance_sessions'),
         (snapshot) => {
@@ -402,27 +287,6 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
 
       // 6. Sync Annual Calendar Events (Competições e Atividades Anuais)
-      const annualEventsInitDoc = doc(db, 'settings', 'annual_events_init');
-      getDoc(annualEventsInitDoc)
-        .then(async (snap) => {
-          if (!snap.exists()) {
-            try {
-              for (const evt of INITIAL_ANNUAL_EVENTS) {
-                const existingSnap = await getDoc(doc(db, 'annual_events', evt.id));
-                if (!existingSnap.exists()) {
-                  await setDoc(doc(db, 'annual_events', evt.id), evt);
-                }
-              }
-              await setDoc(annualEventsInitDoc, { initialized: true, seededAt: new Date().toISOString() });
-            } catch (e) {
-              handleFirestoreError(e, OperationType.WRITE, 'annual_events_seed');
-            }
-          }
-        })
-        .catch((e) => {
-          handleFirestoreError(e, OperationType.GET, 'settings/annual_events_init');
-        });
-
       unsubscribeAnnualEvents = onSnapshot(
         collection(db, 'annual_events'),
         (snapshot) => {
@@ -433,17 +297,7 @@ export const CommunityProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           list.sort((a, b) => a.month - b.month);
 
           if (snapshot.empty) {
-            getDoc(annualEventsInitDoc)
-              .then((initSnap) => {
-                if (initSnap.exists()) {
-                  setAnnualEvents([]);
-                } else {
-                  setAnnualEvents(INITIAL_ANNUAL_EVENTS);
-                }
-              })
-              .catch(() => {
-                setAnnualEvents([]);
-              });
+            setAnnualEvents(INITIAL_ANNUAL_EVENTS);
           } else {
             setAnnualEvents(list);
           }
