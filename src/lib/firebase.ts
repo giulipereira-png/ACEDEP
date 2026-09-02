@@ -26,7 +26,7 @@ const firebaseConfig = {
   appId: config.appId,
 };
 
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 // Initialize Firestore
 const databaseId = config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)' 
