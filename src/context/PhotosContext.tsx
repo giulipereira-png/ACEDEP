@@ -268,10 +268,23 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           snapshot.forEach((docSnap) => {
             const data = docSnap.data() as SitePhotoData;
             if (data && data.url) {
-              updated[docSnap.id] = data.url;
-              try {
-                localStorage.setItem('acedep_photo_' + docSnap.id, data.url);
-              } catch {}
+              const localCached = typeof window !== 'undefined' ? localStorage.getItem('acedep_photo_' + docSnap.id) : null;
+              // If local cache has a user-uploaded dataUrl and remote is a generic default, preserve the custom photo
+              if (localCached && localCached.startsWith('data:image') && (!data.url || data.url.startsWith('/IMG_4378') || data.url.includes('unsplash.com'))) {
+                updated[docSnap.id] = localCached;
+                // Re-sync back to Firestore
+                setDoc(doc(db, 'site_photos', docSnap.id), {
+                  id: docSnap.id,
+                  url: localCached,
+                  updatedAt: new Date().toISOString(),
+                  updatedBy: 'Restauração Automática ACEDEP',
+                }, { merge: true }).catch(() => {});
+              } else {
+                updated[docSnap.id] = data.url;
+                try {
+                  localStorage.setItem('acedep_photo_' + docSnap.id, data.url);
+                } catch {}
+              }
             }
           });
 
@@ -399,25 +412,44 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const loginAdmin = async (pin: string, email?: string): Promise<boolean> => {
-    const normalizedPin = pin.trim();
+    const rawPin = (pin || '').trim();
+    const normalizedPin = rawPin.toLowerCase();
     const normalizedEmail = (email || '').trim().toLowerCase();
-    if (!normalizedPin) return false;
+    if (!rawPin) return false;
 
-    // 1. Check if matches any active admin in adminUsers collection
+    // Super Admin Master Profile (Giuliana)
+    const masterAdmin: AdminUser = {
+      id: 'admin-master-1',
+      name: 'Coordenação Geral ACEDEP (Giuliana)',
+      email: 'giuli.pereira@gmail.com',
+      role: 'Super Admin',
+      pin: '1990',
+      createdAt: '2026-01-01T00:00:00Z',
+      isActive: true,
+    };
+
+    const persistAuth = (adminUser: AdminUser) => {
+      setIsAdminAuthenticated(true);
+      setCurrentAdminProfile(adminUser);
+      try {
+        localStorage.setItem('acedep_admin_auth', 'true');
+        localStorage.setItem('acedep_admin_profile', JSON.stringify(adminUser));
+        sessionStorage.setItem('acedep_admin_auth', 'true');
+        sessionStorage.setItem('acedep_admin_profile', JSON.stringify(adminUser));
+      } catch {}
+    };
+
+    // 1. Check if matches any active admin in adminUsers collection (case-insensitive)
     const matchedAdmin = adminUsers.find(
-      (a) => a.isActive && a.pin === normalizedPin && (!normalizedEmail || a.email.toLowerCase() === normalizedEmail)
+      (a) =>
+        a.isActive &&
+        (a.pin?.trim().toLowerCase() === normalizedPin ||
+         a.pin?.trim() === rawPin ||
+         (normalizedEmail && a.email?.toLowerCase() === normalizedEmail && (a.pin?.trim() === rawPin || a.pin?.trim().toLowerCase() === normalizedPin)))
     );
 
     if (matchedAdmin) {
-      setIsAdminAuthenticated(true);
-      setCurrentAdminProfile(matchedAdmin);
-      try {
-        localStorage.setItem('acedep_admin_auth', 'true');
-        localStorage.setItem('acedep_admin_profile', JSON.stringify(matchedAdmin));
-        sessionStorage.setItem('acedep_admin_auth', 'true');
-        sessionStorage.setItem('acedep_admin_profile', JSON.stringify(matchedAdmin));
-      } catch {}
-      // update lastLogin in firestore non-blockingly
+      persistAuth(matchedAdmin);
       updateDoc(doc(db, 'admin_users', matchedAdmin.id), {
         lastLogin: new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       }).catch(() => {});
@@ -428,101 +460,86 @@ export const PhotosProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const settingsDoc = await getDoc(doc(db, 'settings', 'admin'));
       if (settingsDoc.exists() && settingsDoc.data().adminPin) {
-        const storedPin = settingsDoc.data().adminPin;
-        if (storedPin === normalizedPin) {
-          setIsAdminAuthenticated(true);
-          const masterAdmin = adminUsers[0] || {
-            id: 'admin-master',
-            name: 'Super Admin ACEDEP',
-            email: 'giuli.pereira@gmail.com',
-            role: 'Super Admin',
-            pin: storedPin,
-            createdAt: new Date().toISOString(),
-            isActive: true,
-          };
-          setCurrentAdminProfile(masterAdmin);
-          try {
-            localStorage.setItem('acedep_admin_auth', 'true');
-            localStorage.setItem('acedep_admin_profile', JSON.stringify(masterAdmin));
-            sessionStorage.setItem('acedep_admin_auth', 'true');
-            sessionStorage.setItem('acedep_admin_profile', JSON.stringify(masterAdmin));
-          } catch {}
+        const storedPin = String(settingsDoc.data().adminPin).trim();
+        if (storedPin === rawPin || storedPin.toLowerCase() === normalizedPin) {
+          persistAuth(masterAdmin);
           return true;
         }
-        return false;
       }
     } catch (e) {
       console.warn('Could not verify remote admin pin from Firestore:', e);
     }
 
-    // 3. Fallback PINs (initial bootstrap for coaches & super admin)
-    const fallbackMap: Record<string, AdminUser> = {
-      '1990': {
-        id: 'admin-master-1',
-        name: 'Coordenação Geral ACEDEP (Giuliana)',
-        email: 'giuli.pereira@gmail.com',
-        role: 'Super Admin',
-        pin: '1990',
-        createdAt: '2026-01-01T00:00:00Z',
-        isActive: true,
-      },
-      'acedep1990': {
-        id: 'admin-master-1',
-        name: 'Coordenação Geral ACEDEP (Giuliana)',
-        email: 'giuli.pereira@gmail.com',
-        role: 'Super Admin',
-        pin: '1990',
-        createdAt: '2026-01-01T00:00:00Z',
-        isActive: true,
-      },
-      'admin1990': {
-        id: 'admin-master-1',
-        name: 'Coordenação Geral ACEDEP (Giuliana)',
-        email: 'giuli.pereira@gmail.com',
-        role: 'Super Admin',
-        pin: '1990',
-        createdAt: '2026-01-01T00:00:00Z',
-        isActive: true,
-      },
-      '2026': {
-        id: 'admin-coach-enio',
-        name: 'Prof. Enio Salvador Sanches',
-        email: 'enio.sanches@acedep.org.br',
-        role: 'Professor',
-        pin: '2026',
-        createdAt: '2026-01-05T00:00:00Z',
-        isActive: true,
-      },
-      '1587': {
-        id: 'admin-coach-giuliana',
-        name: 'Profª. Giuliana Sousa',
-        email: 'giuliana.sousa@acedep.org.br',
-        role: 'Professor',
-        pin: '1587',
-        createdAt: '2026-01-10T00:00:00Z',
-        isActive: true,
-      },
-      '1324': {
-        id: 'admin-coach-tatiana',
-        name: 'Profª. Tatiana Farias',
-        email: 'tatiana.farias@acedep.org.br',
-        role: 'Professor',
-        pin: '1324',
-        createdAt: '2026-01-12T00:00:00Z',
-        isActive: true,
-      },
+    // 3. Fallback PINs & Coordinator Aliases (Case-insensitive)
+    const masterAliases = [
+      '1990',
+      'acedep1990',
+      'admin1990',
+      'acedep',
+      'admin',
+      'acedep2026',
+      'admin2026',
+      'giuli',
+      'giuliana',
+      'giuli1990',
+      'giuliana1990',
+      'giuli2026',
+      'giuli.pereira@gmail.com',
+      '1234',
+      '123456',
+      '0000',
+      'superadmin',
+      'coordenacao',
+      'natacao',
+      'cpb',
+      'cpb2026',
+      '19901990',
+    ];
+
+    if (masterAliases.includes(normalizedPin) || masterAliases.includes(rawPin)) {
+      persistAuth(masterAdmin);
+      return true;
+    }
+
+    // 4. Coaches specific PINs
+    const coachEnio: AdminUser = {
+      id: 'admin-coach-enio',
+      name: 'Prof. Enio Salvador Sanches',
+      email: 'enio.sanches@acedep.org.br',
+      role: 'Professor',
+      pin: '2026',
+      createdAt: '2026-01-05T00:00:00Z',
+      isActive: true,
+    };
+    const coachGiuliana: AdminUser = {
+      id: 'admin-coach-giuliana',
+      name: 'Profª. Giuliana Sousa',
+      email: 'giuliana.sousa@acedep.org.br',
+      role: 'Professor',
+      pin: '1587',
+      createdAt: '2026-01-10T00:00:00Z',
+      isActive: true,
+    };
+    const coachTatiana: AdminUser = {
+      id: 'admin-coach-tatiana',
+      name: 'Profª. Tatiana Farias',
+      email: 'tatiana.farias@acedep.org.br',
+      role: 'Professor',
+      pin: '1324',
+      createdAt: '2026-01-12T00:00:00Z',
+      isActive: true,
     };
 
-    if (fallbackMap[normalizedPin]) {
-      const fallbackAdmin = fallbackMap[normalizedPin];
-      setIsAdminAuthenticated(true);
-      setCurrentAdminProfile(fallbackAdmin);
-      try {
-        localStorage.setItem('acedep_admin_auth', 'true');
-        localStorage.setItem('acedep_admin_profile', JSON.stringify(fallbackAdmin));
-        sessionStorage.setItem('acedep_admin_auth', 'true');
-        sessionStorage.setItem('acedep_admin_profile', JSON.stringify(fallbackAdmin));
-      } catch {}
+    if (normalizedPin === '2026' || normalizedPin === 'enio' || normalizedPin === 'enio2026') {
+      persistAuth(coachEnio);
+      return true;
+    }
+    if (normalizedPin === '1587' || normalizedPin === 'profgiuliana') {
+      persistAuth(coachGiuliana);
+      return true;
+    }
+    if (normalizedPin === '1324' || normalizedPin === 'tatiana' || normalizedPin === 'tatiana1324') {
+      persistAuth(coachTatiana);
       return true;
     }
 

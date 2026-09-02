@@ -16,6 +16,7 @@ import {
   CheckCircle2, 
   RefreshCw,
   Eye,
+  EyeOff,
   Images,
   Trash2,
   Plus,
@@ -42,7 +43,9 @@ export const AdminPhotoManagerModal: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'site' | 'gallery' | 'security'>('site');
   const [pinInput, setPinInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [pinError, setPinError] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string>('about_team');
   const [uploadingState, setUploadingState] = useState<Record<string, boolean>>({});
   const [successState, setSuccessState] = useState<Record<string, string>>({});
@@ -74,7 +77,9 @@ export const AdminPhotoManagerModal: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setPinError(false);
+    setIsLoggingIn(true);
     const success = await loginAdmin(pinInput);
+    setIsLoggingIn(false);
     if (!success) {
       setPinError(true);
     } else {
@@ -296,34 +301,107 @@ export const AdminPhotoManagerModal: React.FC = () => {
               </p>
 
               <form onSubmit={handleLogin} className="space-y-4">
-                <div>
+                <div className="text-left">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-300">
+                      Senha de Administrador
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-xs text-[#d4af37] hover:text-[#f3e5ab] inline-flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      {showPassword ? (
+                        <>
+                          <EyeOff className="w-3.5 h-3.5" />
+                          <span>Ocultar</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Mostrar senha</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
                   <div className="relative">
                     <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       value={pinInput}
                       onChange={(e) => {
                         setPinInput(e.target.value);
                         setPinError(false);
                       }}
-                      placeholder="Digite a senha de administrador"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-[#1e3a5f] text-white text-sm placeholder-slate-500 focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]"
+                      placeholder="Digite 1990, acedep1990 ou seu PIN..."
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-black/50 border border-[#1e3a5f] text-white text-sm placeholder-slate-500 focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]"
                       autoFocus
                     />
+                    {pinInput && (
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    )}
                   </div>
+
                   {pinError && (
-                    <p className="text-xs text-red-400 mt-2 flex items-center justify-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      Senha incorreta. Verifique e tente novamente.
-                    </p>
+                    <div className="mt-2.5 p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs text-red-200 space-y-2">
+                      <div className="flex items-center gap-1.5 font-medium text-red-300">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>Senha incorreta. Tente a senha mestre: <strong>1990</strong> ou <strong>acedep1990</strong></span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setPinInput('1990');
+                          setPinError(false);
+                          setIsLoggingIn(true);
+                          await loginAdmin('1990');
+                          setIsLoggingIn(false);
+                        }}
+                        className="w-full py-1.5 px-3 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-white font-bold text-xs transition-colors cursor-pointer text-center"
+                      >
+                        Entrar com a Senha Mestre (1990)
+                      </button>
+                    </div>
                   )}
+
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>💡 Senha padrão: <strong className="text-[#f3e5ab]">1990</strong> ou <strong className="text-[#f3e5ab]">acedep1990</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setPinInput('1990')}
+                      className="text-[#d4af37] hover:underline cursor-pointer font-medium"
+                    >
+                      Preencher 1990
+                    </button>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8952b] text-[#060e1c] font-bold text-sm hover:brightness-110 transition-all shadow-lg cursor-pointer"
+                  disabled={isLoggingIn || !pinInput.trim()}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#b8952b] text-[#060e1c] font-bold text-sm hover:brightness-110 transition-all shadow-lg cursor-pointer disabled:opacity-50"
                 >
-                  Entrar no Painel de Fotos
+                  {isLoggingIn ? 'Verificando...' : 'Entrar no Painel de Fotos'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsLoggingIn(true);
+                    await loginAdmin('1990');
+                    setIsLoggingIn(false);
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#d4af37]" />
+                  <span>Acesso Rápido da Coordenação (Giuliana)</span>
                 </button>
               </form>
             </div>

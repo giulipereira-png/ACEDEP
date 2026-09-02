@@ -39,58 +39,95 @@ export async function ensureFirestoreDatabaseSeeded(): Promise<void> {
 
     console.log('[Firestore Seeder] Initializing Cloud Firestore database with seed data...');
 
-    // 1. Seed Master Admin and Settings
-    await setDoc(doc(db, 'settings', 'admin'), {
-      adminPin: '1990',
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'System Bootstrap',
-    }, { merge: true });
-
-    // 2. Seed Admin Users (Coaches & Super Admin)
-    for (const admin of INITIAL_ADMIN_USERS) {
-      await setDoc(doc(db, 'admin_users', admin.id), cleanFirestoreData(admin), { merge: true });
-    }
-
-    // 3. Seed Athletes
-    for (const athlete of INITIAL_ATHLETES) {
-      await setDoc(doc(db, 'athletes', athlete.id), cleanFirestoreData(athlete), { merge: true });
-    }
-
-    // 4. Seed News Posts
-    for (const news of INITIAL_NEWS_POSTS) {
-      await setDoc(doc(db, 'news_posts', news.id), cleanFirestoreData(news), { merge: true });
-    }
-
-    // 5. Seed Community Cheers
-    for (const cheer of INITIAL_COMMUNITY_CHEERS) {
-      await setDoc(doc(db, 'community_cheers', cheer.id), cleanFirestoreData(cheer), { merge: true });
-    }
-
-    // 6. Seed Annual Events
-    for (const event of INITIAL_ANNUAL_EVENTS) {
-      await setDoc(doc(db, 'annual_events', event.id), cleanFirestoreData(event), { merge: true });
-    }
-
-    // 7. Seed Attendance Sessions
-    for (const session of INITIAL_ATTENDANCE_SESSIONS) {
-      await setDoc(doc(db, 'attendance_sessions', session.id), cleanFirestoreData(session), { merge: true });
-    }
-
-    // 8. Seed Default Site Photos
-    for (const [key, photoMeta] of Object.entries(DEFAULT_PHOTOS)) {
-      await setDoc(doc(db, 'site_photos', key), {
-        id: key,
-        title: photoMeta.title,
-        category: photoMeta.category,
-        url: photoMeta.defaultUrl,
+    // 1. Seed Master Admin and Settings only if not set
+    const adminSnap = await getDoc(doc(db, 'settings', 'admin'));
+    if (!adminSnap.exists()) {
+      await setDoc(doc(db, 'settings', 'admin'), {
+        adminPin: '1990',
         updatedAt: new Date().toISOString(),
-        updatedBy: 'Sistema ACEDEP',
+        updatedBy: 'System Bootstrap',
       }, { merge: true });
     }
 
-    // 9. Seed Gallery Photos
+    // 2. Seed Admin Users (Coaches & Super Admin) only if not existing
+    for (const admin of INITIAL_ADMIN_USERS) {
+      const snap = await getDoc(doc(db, 'admin_users', admin.id));
+      if (!snap.exists()) {
+        await setDoc(doc(db, 'admin_users', admin.id), cleanFirestoreData(admin), { merge: true });
+      }
+    }
+
+    // 3. Seed Athletes only if not existing
+    for (const athlete of INITIAL_ATHLETES) {
+      const snap = await getDoc(doc(db, 'athletes', athlete.id));
+      if (!snap.exists()) {
+        await setDoc(doc(db, 'athletes', athlete.id), cleanFirestoreData(athlete), { merge: true });
+      }
+    }
+
+    // 4. Seed News Posts only if not existing
+    for (const news of INITIAL_NEWS_POSTS) {
+      const snap = await getDoc(doc(db, 'news_posts', news.id));
+      if (!snap.exists()) {
+        await setDoc(doc(db, 'news_posts', news.id), cleanFirestoreData(news), { merge: true });
+      }
+    }
+
+    // 5. Seed Community Cheers only if not existing
+    for (const cheer of INITIAL_COMMUNITY_CHEERS) {
+      const snap = await getDoc(doc(db, 'community_cheers', cheer.id));
+      if (!snap.exists()) {
+        await setDoc(doc(db, 'community_cheers', cheer.id), cleanFirestoreData(cheer), { merge: true });
+      }
+    }
+
+    // 6. Seed Annual Events only if not existing
+    for (const event of INITIAL_ANNUAL_EVENTS) {
+      const snap = await getDoc(doc(db, 'annual_events', event.id));
+      if (!snap.exists()) {
+        await setDoc(doc(db, 'annual_events', event.id), cleanFirestoreData(event), { merge: true });
+      }
+    }
+
+    // 7. Seed Attendance Sessions only if not existing
+    for (const session of INITIAL_ATTENDANCE_SESSIONS) {
+      const snap = await getDoc(doc(db, 'attendance_sessions', session.id));
+      if (!snap.exists()) {
+        await setDoc(doc(db, 'attendance_sessions', session.id), cleanFirestoreData(session), { merge: true });
+      }
+    }
+
+    // 8. Seed Default Site Photos (NEVER overwrite existing photos, and check localStorage backup first)
+    for (const [key, photoMeta] of Object.entries(DEFAULT_PHOTOS)) {
+      const snap = await getDoc(doc(db, 'site_photos', key));
+      if (!snap.exists()) {
+        let photoUrl = photoMeta.defaultUrl;
+        try {
+          if (typeof window !== 'undefined') {
+            const cached = localStorage.getItem('acedep_photo_' + key);
+            if (cached && cached.trim()) {
+              photoUrl = cached;
+            }
+          }
+        } catch {}
+
+        await setDoc(doc(db, 'site_photos', key), {
+          id: key,
+          title: photoMeta.title,
+          category: photoMeta.category,
+          url: photoUrl,
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'Sistema ACEDEP',
+        }, { merge: true });
+      }
+    }
+
+    // 9. Seed Gallery Photos only if not existing
     for (const photo of INITIAL_GALLERY_PHOTOS) {
-      await setDoc(doc(db, 'gallery', photo.id), cleanFirestoreData(photo), { merge: true });
+      const snap = await getDoc(doc(db, 'gallery', photo.id));
+      if (!snap.exists()) {
+        await setDoc(doc(db, 'gallery', photo.id), cleanFirestoreData(photo), { merge: true });
+      }
     }
 
     // 10. Mark database as initialized
