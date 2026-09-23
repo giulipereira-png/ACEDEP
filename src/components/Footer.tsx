@@ -8,7 +8,8 @@ import {
   ShieldCheck,
   ChevronUp,
   Lock,
-  UserPlus
+  UserPlus,
+  Printer
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { usePhotos } from '../context/PhotosContext';
@@ -18,7 +19,8 @@ interface FooterProps {
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
   onOpenMemberPortal?: () => void;
-  onNavigateToPage?: (page: 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => void;
+  onOpenFlyerModal?: () => void;
+  onNavigateToPage?: (page: any, hash?: string) => void;
   onOpenCalendarModal?: () => void;
   onOpenTeamModal?: () => void;
   onOpenGalleryModal?: () => void;
@@ -30,6 +32,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
   onOpenMemberPortal,
+  onOpenFlyerModal,
   onNavigateToPage,
   onOpenCalendarModal,
   onOpenTeamModal,
@@ -43,7 +46,7 @@ export const Footer: React.FC<FooterProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleLinkClick = (page: 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => {
+  const handleLinkClick = (page: any, hash?: string) => {
     if (onNavigateToPage) {
       onNavigateToPage(page, hash);
       if (page === 'home' && hash) {
@@ -160,6 +163,18 @@ export const Footer: React.FC<FooterProps> = ({
                   className="text-[#f3e5ab] hover:text-[#d4af37] font-semibold transition-colors block py-0.5 cursor-pointer text-left"
                 >
                   Mural & Comunidade
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => onOpenFlyerModal ? onOpenFlyerModal() : handleLinkClick('folheto')}
+                  className="text-[#f3e5ab] hover:text-[#d4af37] font-semibold transition-colors block py-0.5 cursor-pointer text-left flex items-center gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#d4af37]" />
+                  <span>Folheto para Impressão (A4)</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#d4af37]/20 text-[#d4af37] font-bold border border-[#d4af37]/40">
+                    PDF
+                  </span>
                 </button>
               </li>
               <li>

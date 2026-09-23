@@ -11,17 +11,19 @@ import {
   ShieldCheck, 
   Lock, 
   UserCheck,
-  Compass
+  Compass,
+  Printer
 } from 'lucide-react';
 import { usePhotos } from '../context/PhotosContext';
 import { useCommunity } from '../context/CommunityContext';
 
 interface NavbarProps {
   currentPage?: string;
-  onNavigateToPage: (page: 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade') => void;
+  onNavigateToPage: (page: any, hash?: string) => void;
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
   onOpenMemberPortal: () => void;
+  onOpenFlyerModal?: () => void;
   onOpenCalendarModal?: () => void;
   onOpenTeamModal?: () => void;
   onOpenGalleryModal?: () => void;
@@ -35,6 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
   onOpenMemberPortal,
+  onOpenFlyerModal,
 }) => {
   const { openAdminModal, isAdminAuthenticated } = usePhotos();
   const { isGuardianAuthenticated, currentAthlete } = useCommunity();
@@ -72,7 +75,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [currentPage]);
 
-  const handleNavClick = (pageId: 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade', hash?: string) => {
+  const handleNavClick = (pageId: any, hash?: string) => {
     setMobileMenuOpen(false);
     onNavigateToPage(pageId);
     if (pageId === 'home' && hash) {
@@ -86,13 +89,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   // Primary navigation items for clean layout
-  const navLinks: Array<{ name: string; page: 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade'; hash?: string }> = [
+  const navLinks: Array<{ name: string; page: any; hash?: string }> = [
     { name: 'Início', page: 'home', hash: '#home' },
     { name: 'Sobre Nós', page: 'sobre' },
     { name: 'Nossa Equipe', page: 'equipe' },
     { name: 'Calendário 2026', page: 'calendario' },
     { name: 'Galeria', page: 'galeria' },
     { name: 'Comunidade', page: 'comunidade' },
+    { name: 'Folheto A4', page: 'folheto' },
     { name: 'FAQ', page: 'faq' },
   ];
 
@@ -136,6 +140,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Phone className="w-3.5 h-3.5 text-[#d4af37]" />
               (11) 99880-9708
             </a>
+
+            {/* Folheto shortcut on topbar */}
+            <button
+              onClick={() => onOpenFlyerModal ? onOpenFlyerModal() : handleNavClick('folheto')}
+              className="flex items-center gap-1 text-slate-300 hover:text-[#d4af37] transition-colors cursor-pointer text-[11px] font-semibold"
+              title="Folheto para Impressão da ACEDEP (A4)"
+            >
+              <Printer className="w-3.5 h-3.5 text-[#d4af37]" />
+              <span className="hidden sm:inline">Folheto A4</span>
+            </button>
 
             {/* Admin shortcut visible on desktop & mobile top bar */}
             <button
@@ -218,6 +232,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="sm:hidden">
                 {isGuardianAuthenticated ? 'Portal' : 'Responsável'}
               </span>
+            </button>
+
+            {/* Imprimir Folheto Button */}
+            <button
+              id="btn-imprimir-folheto-nav"
+              onClick={() => onOpenFlyerModal ? onOpenFlyerModal() : handleNavClick('folheto')}
+              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+              title="Folheto de Divulgação para Impressão (A4)"
+            >
+              <Printer className="w-3.5 h-3.5 text-[#d4af37]" />
+              <span className="hidden xl:inline">Imprimir</span>
+              <span>Folheto A4</span>
             </button>
 
             {/* Seja um Apoiador Button */}
@@ -320,6 +346,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <HeartHandshake className="w-4 h-4" />
                 Seja um Apoiador / Patrocinador
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onOpenFlyerModal) onOpenFlyerModal();
+                  else handleNavClick('folheto');
+                }}
+                className="w-full py-2.5 bg-[#0f284a] hover:bg-[#163866] text-[#f3e5ab] border border-[#d4af37]/40 font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow cursor-pointer transition-all"
+              >
+                <Printer className="w-4 h-4 text-[#d4af37]" />
+                <span>Imprimir Folheto de Divulgação (A4)</span>
               </button>
 
               <button

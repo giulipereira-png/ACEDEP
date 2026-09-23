@@ -21,6 +21,7 @@ import { GalleryPage } from './pages/GalleryPage';
 import { FaqPage } from './pages/FaqPage';
 import { CommunityPage } from './pages/CommunityPage';
 import { AdminPage } from './pages/AdminPage';
+import { FlyerPage } from './pages/FlyerPage';
 
 // Action & Portal Modals
 import { SupportModal } from './components/SupportModal';
@@ -29,11 +30,12 @@ import { AthleteEnrollmentModal } from './components/AthleteEnrollmentModal';
 import { MemberPortalModal } from './components/MemberPortalModal';
 import { AdminCoachPortalModal } from './components/AdminCoachPortalModal';
 import { CommunityNewsModal } from './components/CommunityNewsModal';
+import { FlyerModal } from './components/FlyerModal';
 
 import { PhotosProvider } from './context/PhotosContext';
 import { CommunityProvider } from './context/CommunityContext';
 
-export type AppPage = 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade' | 'admin';
+export type AppPage = 'home' | 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade' | 'admin' | 'folheto';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>(() => {
@@ -42,6 +44,9 @@ export default function App() {
     const hash = window.location.hash.toLowerCase().replace(/^#/, '');
     if (path === 'admin' || path === 'painel' || path === 'gestao' || hash === 'admin' || hash === 'painel') {
       return 'admin';
+    }
+    if (path === 'folheto' || path === 'flyer' || path === 'imprimir' || hash === 'folheto' || hash === 'flyer') {
+      return 'folheto';
     }
     if (path === 'sobre' || path === 'sobre-nos' || hash === 'sobre' || hash === 'sobre-nos') return 'sobre';
     if (path === 'equipe' || hash === 'equipe') return 'equipe';
@@ -57,6 +62,7 @@ export default function App() {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [memberPortalOpen, setMemberPortalOpen] = useState(false);
+  const [flyerModalOpen, setFlyerModalOpen] = useState(false);
 
   const handleNavigateToPage = (page: AppPage) => {
     setCurrentPage(page);
@@ -74,6 +80,7 @@ export default function App() {
             onOpenSupportModal={() => setSupportModalOpen(true)}
             onOpenContactModal={() => setContactModalOpen(true)}
             onOpenMemberPortal={() => setMemberPortalOpen(true)}
+            onOpenFlyerModal={() => setFlyerModalOpen(true)}
           />
 
           {/* Main Content Area: Conditional rendering based on active Page */}
@@ -99,6 +106,7 @@ export default function App() {
                 <ExploreHubSection
                   onNavigateToPage={handleNavigateToPage}
                   onOpenSupportModal={() => setSupportModalOpen(true)}
+                  onOpenFlyerModal={() => setFlyerModalOpen(true)}
                 />
 
                 {/* 5. Mini Carrossel de Fotos Automático */}
@@ -165,6 +173,13 @@ export default function App() {
               />
             )}
 
+            {currentPage === 'folheto' && (
+              <FlyerPage
+                onBackToHome={() => handleNavigateToPage('home')}
+                onNavigateToPage={handleNavigateToPage}
+              />
+            )}
+
             {currentPage === 'admin' && (
               <AdminPage
                 onBackToHome={() => handleNavigateToPage('home')}
@@ -178,6 +193,7 @@ export default function App() {
             onOpenSupportModal={() => setSupportModalOpen(true)}
             onOpenContactModal={() => setContactModalOpen(true)}
             onOpenMemberPortal={() => setMemberPortalOpen(true)}
+            onOpenFlyerModal={() => setFlyerModalOpen(true)}
           />
 
           {/* Action Modals */}
@@ -199,6 +215,12 @@ export default function App() {
           <MemberPortalModal
             isOpen={memberPortalOpen}
             onClose={() => setMemberPortalOpen(false)}
+          />
+
+          <FlyerModal
+            isOpen={flyerModalOpen}
+            onClose={() => setFlyerModalOpen(false)}
+            onOpenFullPage={() => handleNavigateToPage('folheto')}
           />
 
           <CommunityNewsModal />

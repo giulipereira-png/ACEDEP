@@ -31,3 +31,51 @@
   background: #d4af37;
 }
 
+/* ==========================================================================
+   Print Optimization for ACEDEP A4 Promotional Flyer
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 5mm;
+  }
+
+  html, body {
+    background: transparent !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide website UI, navigation, buttons, and footers when printing */
+  header, 
+  footer, 
+  nav, 
+  .no-print, 
+  #mobile-drawer-menu,
+  button:not(#print-force-show) {
+    display: none !important;
+  }
+
+  /* Ensure flyer sheet takes priority and fits crisp A4 page */
+  .print-sheet {
+    display: flex !important;
+    position: relative !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Force background colors and gradients to print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+

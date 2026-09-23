@@ -9,17 +9,20 @@ import {
   Sparkles,
   Trophy,
   HeartHandshake,
-  Compass
+  Compass,
+  Printer
 } from 'lucide-react';
 
 interface ExploreHubSectionProps {
-  onNavigateToPage: (page: 'sobre' | 'equipe' | 'calendario' | 'galeria' | 'faq' | 'comunidade') => void;
+  onNavigateToPage: (page: any) => void;
   onOpenSupportModal: () => void;
+  onOpenFlyerModal?: () => void;
 }
 
 export const ExploreHubSection: React.FC<ExploreHubSectionProps> = ({
   onNavigateToPage,
-  onOpenSupportModal
+  onOpenSupportModal,
+  onOpenFlyerModal
 }) => {
   const exploreCards = [
     {
@@ -51,6 +54,16 @@ export const ExploreHubSection: React.FC<ExploreHubSectionProps> = ({
       color: 'from-cyan-600/20 to-cyan-900/40 border-cyan-500/30 text-cyan-300 hover:border-cyan-400',
       iconBg: 'bg-cyan-500/20 text-cyan-300',
       action: () => onNavigateToPage('galeria'),
+    },
+    {
+      id: 'folheto',
+      title: 'Folheto para Impressão',
+      badge: 'Divulgação A4 & PDF',
+      description: 'Gere o folheto oficial da ACEDEP para imprimir em papel A4 ou compartilhar em PDF.',
+      icon: Printer,
+      color: 'from-emerald-600/20 to-emerald-900/40 border-emerald-500/30 text-emerald-300 hover:border-emerald-400',
+      iconBg: 'bg-emerald-500/20 text-emerald-300',
+      action: () => onOpenFlyerModal ? onOpenFlyerModal() : onNavigateToPage('folheto'),
     },
     {
       id: 'faq',
