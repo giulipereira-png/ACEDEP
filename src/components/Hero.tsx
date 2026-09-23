@@ -6,7 +6,8 @@ import {
   ShieldCheck, 
   MapPin,
   Calendar,
-  CheckCircle2
+  CheckCircle2,
+  Printer
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -14,12 +15,14 @@ interface HeroProps {
   onOpenSupportModal: () => void;
   onOpenContactModal: () => void;
   onOpenEnrollModal: () => void;
+  onOpenFlyerModal?: () => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({
   onOpenSupportModal,
   onOpenContactModal,
   onOpenEnrollModal,
+  onOpenFlyerModal,
 }) => {
   return (
     <section 
@@ -110,6 +113,18 @@ export const Hero: React.FC<HeroProps> = ({
                 <Waves className="w-5 h-5 text-[#d4af37] group-hover:scale-110 transition-transform" />
                 <span>Avaliação de Novos Atletas</span>
               </button>
+
+              {onOpenFlyerModal && (
+                <button
+                  onClick={onOpenFlyerModal}
+                  id="btn-hero-folheto"
+                  className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 rounded-md bg-[#d4af37]/15 hover:bg-[#d4af37]/25 text-[#f3e5ab] hover:text-white font-bold text-sm sm:text-base border border-[#d4af37]/60 shadow-lg transition-all duration-200 cursor-pointer"
+                  title="Imprimir ou Baixar Folheto de Divulgação em PDF"
+                >
+                  <Printer className="w-4 h-4 text-[#d4af37]" />
+                  <span>Folheto de Divulgação (A4 / PDF)</span>
+                </button>
+              )}
             </div>
 
           </div>

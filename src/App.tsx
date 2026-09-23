@@ -31,6 +31,7 @@ import { MemberPortalModal } from './components/MemberPortalModal';
 import { AdminCoachPortalModal } from './components/AdminCoachPortalModal';
 import { CommunityNewsModal } from './components/CommunityNewsModal';
 import { FlyerModal } from './components/FlyerModal';
+import { FloatingPrintButton } from './components/FloatingPrintButton';
 
 import { PhotosProvider } from './context/PhotosContext';
 import { CommunityProvider } from './context/CommunityContext';
@@ -92,6 +93,7 @@ export default function App() {
                   onOpenSupportModal={() => setSupportModalOpen(true)}
                   onOpenContactModal={() => setContactModalOpen(true)}
                   onOpenEnrollModal={() => setEnrollModalOpen(true)}
+                  onOpenFlyerModal={() => setFlyerModalOpen(true)}
                 />
 
                 {/* 2. Team Photo Banner (Foto Oficial da Equipe na Home) */}
@@ -226,6 +228,9 @@ export default function App() {
           <CommunityNewsModal />
 
           <AdminCoachPortalModal />
+
+          {/* Floating Print Action Button */}
+          <FloatingPrintButton onOpenFlyerModal={() => setFlyerModalOpen(true)} />
         </div>
       </CommunityProvider>
     </PhotosProvider>
